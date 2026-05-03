@@ -6,6 +6,17 @@ import { getSupabaseClient } from '../../lib/supabaseClient';
 interface Pool {
   id: string;
   name: string;
+  volume_gallons?: number | null;
+  pool_type?: string | null;
+  is_baby_pool?: boolean | null;
+  target_chlorine_min?: number | null;
+  target_chlorine_max?: number | null;
+  target_ph_min?: number | null;
+  target_ph_max?: number | null;
+  default_chlorine_type?: string | null;
+  default_chlorine_strength?: number | null;
+  max_single_dose_oz?: number | null;
+  retest_minutes?: number | null;
 }
 
 interface FormData {
@@ -14,10 +25,6 @@ interface FormData {
   ph: string;
   notes: string;
   photo: File | null;
-  poolVolume: string;
-  targetChlorine: string;
-  chlorineStrength: string;
-  isBabyPool: boolean;
 }
 
 type Step = 'pool' | 'chlorine' | 'ph' | 'notes' | 'review' | 'submit';
@@ -25,61 +32,52 @@ type Step = 'pool' | 'chlorine' | 'ph' | 'notes' | 'review' | 'submit';
 const calculateChlorineDose = (
   poolVolume: number,
   currentChlorine: number,
-  targetChlorine: number,
+  targetChlorineMin: number,
+  targetChlorineMax: number,
   chlorineStrength: number,
-  isBabyPool: boolean
-): { dose: number; warnings: string[] } => {
+  isBabyPool: boolean,
+  maxSingleDoseOz: number
+): { doseOunces: number; needsChlorine: boolean; warnings: string[]; status: 'no-dose' | 'do-not-add' | 'add' } => {
   const warnings: string[] = [];
 
-  // Safety checks
-  if (currentChlorine > 5.0) {
-    warnings.push('Chlorine levels are dangerously high. Do not add more chlorine.');
-    return { dose: 0, warnings };
+  if (poolVolume <= 0) {
+    warnings.push('Pool volume is missing. Unable to calculate dose.');
+    return { doseOunces: 0, needsChlorine: false, warnings, status: 'no-dose' };
   }
 
-  if (currentChlorine < 0.5) {
-    warnings.push('Chlorine levels are critically low. Shock treatment recommended.');
+  if (currentChlorine >= targetChlorineMax) {
+    warnings.push('Chlorine is above target. Do not add chlorine.');
+    return { doseOunces: 0, needsChlorine: false, warnings, status: 'do-not-add' };
   }
 
-  if (targetChlorine > 5.0) {
-    warnings.push('Target chlorine level is too high for safe swimming.');
+  if (currentChlorine >= targetChlorineMin && currentChlorine < targetChlorineMax) {
+    return { doseOunces: 0, needsChlorine: false, warnings: ['Chlorine is within target range. No dosing needed.'], status: 'no-dose' };
   }
 
   if (chlorineStrength < 5 || chlorineStrength > 15) {
-    warnings.push('Chlorine strength should be between 5-15% for accurate dosing.');
+    warnings.push('Chlorine strength is not within the recommended admin range.');
   }
 
-  // Calculate deficit
-  const deficit = Math.max(0, targetChlorine - currentChlorine);
-
+  const deficit = Math.max(0, targetChlorineMin - currentChlorine);
   if (deficit === 0) {
-    return { dose: 0, warnings: ['Chlorine levels are already at or above target.'] };
+    return { doseOunces: 0, needsChlorine: false, warnings, status: 'no-dose' };
   }
 
-  // Calculate dose in ounces
-  // Formula: (deficit * poolVolume * 7.5) / (chlorineStrength * 100) * 128
   const doseOunces = (deficit * poolVolume * 7.5) / (chlorineStrength / 100) / 128;
 
-  // Convert to pounds for larger doses
-  let dose = doseOunces;
-  let unit = 'ounces';
-
-  if (doseOunces >= 16) {
-    dose = doseOunces / 16;
-    unit = 'pounds';
+  if (doseOunces <= 0) {
+    return { doseOunces: 0, needsChlorine: false, warnings, status: 'no-dose' };
   }
 
-  // Baby pool safety limit
-  if (isBabyPool && dose > 2) {
-    warnings.push('Calculated dose exceeds safe limit for baby pools (2 lbs max). Consult supervisor.');
+  if (doseOunces > maxSingleDoseOz) {
+    warnings.push(`Calculated dose exceeds the pool's max single dose (${maxSingleDoseOz.toFixed(0)} oz). Use a smaller initial dose and retest.`);
   }
 
-  // General safety limit
-  if (dose > 8) {
-    warnings.push('Calculated dose is very high. Consider splitting into multiple applications.');
+  if (isBabyPool && doseOunces > maxSingleDoseOz) {
+    warnings.push('Baby pool dosing is stricter. Follow the baby pool max dose and consult a supervisor if needed.');
   }
 
-  return { dose, warnings };
+  return { doseOunces, needsChlorine: true, warnings, status: 'add' };
 };
 
 const getChlorineStatus = (chlorine: number): { status: string; color: string; icon: string } => {
@@ -103,11 +101,7 @@ export default function LogPage() {
     freeChlorine: '',
     ph: '',
     notes: '',
-    photo: null,
-    poolVolume: '',
-    targetChlorine: '3.0',
-    chlorineStrength: '10',
-    isBabyPool: false
+    photo: null
   });
   const [pools, setPools] = useState<Pool[]>([]);
   const [loadingPools, setLoadingPools] = useState(true);
@@ -123,7 +117,12 @@ export default function LogPage() {
 
       try {
         const supabase = getSupabaseClient();
-        const { data, error } = await supabase.from('pools').select('id,name').order('name');
+        const { data, error } = await supabase
+          .from('pools')
+          .select(
+            'id,name,volume_gallons,pool_type,is_baby_pool,target_chlorine_min,target_chlorine_max,target_ph_min,target_ph_max,default_chlorine_type,default_chlorine_strength,max_single_dose_oz,retest_minutes'
+          )
+          .order('name');
 
         if (error) {
           const message = typeof error.message === 'string' ? error.message : String(error);
@@ -202,11 +201,7 @@ export default function LogPage() {
           freeChlorine: '',
           ph: '',
           notes: '',
-          photo: null,
-          poolVolume: '',
-          targetChlorine: '3.0',
-          chlorineStrength: '10',
-          isBabyPool: false
+          photo: null
         });
         setPhotoKey((prev) => prev + 1);
         setCurrentStep('pool');
@@ -221,19 +216,27 @@ export default function LogPage() {
     }
   };
 
-  const selectedPool = pools.find(p => p.id === formData.poolId);
+  const selectedPool = pools.find((p) => p.id === formData.poolId);
   const chlorineValue = parseFloat(formData.freeChlorine) || 0;
   const phValue = parseFloat(formData.ph) || 0;
-  const poolVolumeValue = parseFloat(formData.poolVolume) || 0;
-  const targetChlorineValue = parseFloat(formData.targetChlorine) || 3.0;
-  const chlorineStrengthValue = parseFloat(formData.chlorineStrength) || 10;
+
+  const poolVolumeValue = selectedPool?.volume_gallons ?? 0;
+  const targetChlorineMinValue = selectedPool?.target_chlorine_min ?? 3.0;
+  const targetChlorineMaxValue = selectedPool?.target_chlorine_max ?? 5.0;
+  const chlorineStrengthValue = selectedPool?.default_chlorine_strength ?? 10;
+  const isBabyPool = selectedPool?.is_baby_pool ?? false;
+  const maxSingleDoseOz = selectedPool?.max_single_dose_oz ?? (isBabyPool ? 32 : 128);
+  const targetPhMinValue = selectedPool?.target_ph_min ?? 7.2;
+  const targetPhMaxValue = selectedPool?.target_ph_max ?? 7.8;
 
   const dosingResult = calculateChlorineDose(
     poolVolumeValue,
     chlorineValue,
-    targetChlorineValue,
+    targetChlorineMinValue,
+    targetChlorineMaxValue,
     chlorineStrengthValue,
-    formData.isBabyPool
+    isBabyPool,
+    maxSingleDoseOz
   );
 
   const renderStepIndicator = () => {
@@ -550,72 +553,58 @@ export default function LogPage() {
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 space-y-4">
         <h3 className="text-lg font-semibold text-blue-900">Chlorine Dosing Calculator</h3>
 
-        <div className="grid grid-cols-2 gap-4">
-          <label className="block">
-            <span className="text-sm font-medium text-blue-800">Pool Volume (gallons)</span>
-            <input
-              type="number"
-              value={formData.poolVolume}
-              onChange={(e) => handleInputChange('poolVolume', e.target.value)}
-              className="mt-1 w-full p-2 border border-blue-300 rounded focus:border-blue-500 focus:ring-0"
-              placeholder="20000"
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium text-blue-800">Target Chlorine (ppm)</span>
-            <input
-              type="number"
-              step="0.1"
-              value={formData.targetChlorine}
-              onChange={(e) => handleInputChange('targetChlorine', e.target.value)}
-              className="mt-1 w-full p-2 border border-blue-300 rounded focus:border-blue-500 focus:ring-0"
-              placeholder="3.0"
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium text-blue-800">Chlorine Strength (%)</span>
-            <input
-              type="number"
-              step="0.1"
-              value={formData.chlorineStrength}
-              onChange={(e) => handleInputChange('chlorineStrength', e.target.value)}
-              className="mt-1 w-full p-2 border border-blue-300 rounded focus:border-blue-500 focus:ring-0"
-              placeholder="10"
-            />
-          </label>
-          <label className="flex items-center space-x-2 mt-6">
-            <input
-              type="checkbox"
-              checked={formData.isBabyPool}
-              onChange={(e) => handleInputChange('isBabyPool', e.target.checked)}
-              className="w-5 h-5 text-blue-600 border-blue-300 rounded focus:ring-blue-500"
-            />
-            <span className="text-sm font-medium text-blue-800">Baby Pool</span>
-          </label>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="rounded-lg bg-white p-4 border border-blue-200">
+            <span className="text-sm font-medium text-blue-800">Pool Volume</span>
+            <p className="mt-2 text-lg font-semibold text-gray-900">
+              {poolVolumeValue ? `${poolVolumeValue.toLocaleString()} gal` : 'Not configured'}
+            </p>
+          </div>
+          <div className="rounded-lg bg-white p-4 border border-blue-200">
+            <span className="text-sm font-medium text-blue-800">Chlorine Target</span>
+            <p className="mt-2 text-lg font-semibold text-gray-900">
+              {targetChlorineMinValue.toFixed(1)} - {targetChlorineMaxValue.toFixed(1)} ppm
+            </p>
+          </div>
+          <div className="rounded-lg bg-white p-4 border border-blue-200">
+            <span className="text-sm font-medium text-blue-800">Chlorine Strength</span>
+            <p className="mt-2 text-lg font-semibold text-gray-900">
+              {chlorineStrengthValue}%
+            </p>
+          </div>
+          <div className="rounded-lg bg-white p-4 border border-blue-200">
+            <span className="text-sm font-medium text-blue-800">Pool Type</span>
+            <p className="mt-2 text-lg font-semibold text-gray-900">
+              {selectedPool?.pool_type || (isBabyPool ? 'Baby Pool' : 'Standard')}
+            </p>
+          </div>
         </div>
 
-        {formData.poolVolume && (
-          <div className="bg-white rounded-lg p-4 border border-blue-300">
-            <div className="flex justify-between items-center mb-2">
-              <span className="font-semibold text-blue-900">Recommended Dose:</span>
-              <span className="text-2xl font-bold text-blue-600">
-                {dosingResult.dose === 0 ? 'No chlorine needed' :
-                 `${dosingResult.dose.toFixed(1)} ${dosingResult.dose >= 1 ? 'pounds' : 'ounces'}`}
-              </span>
-            </div>
-
-            {dosingResult.warnings.length > 0 && (
-              <div className="space-y-1">
-                {dosingResult.warnings.map((warning, index) => (
-                  <div key={index} className="flex items-start space-x-2">
-                    <span className="text-orange-500 text-sm mt-0.5">⚠️</span>
-                    <p className="text-orange-700 text-sm">{warning}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+        <div className="bg-white rounded-lg p-4 border border-blue-300">
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-semibold text-blue-900">Recommended Dose</span>
+            <span className="text-2xl font-bold text-blue-600">
+              {dosingResult.status === 'do-not-add'
+                ? 'Do not add chlorine'
+                : dosingResult.doseOunces === 0
+                ? 'No chlorine needed'
+                : dosingResult.doseOunces >= 16
+                ? `${(dosingResult.doseOunces / 16).toFixed(1)} lbs`
+                : `${dosingResult.doseOunces.toFixed(1)} oz`}
+            </span>
           </div>
-        )}
+
+          {dosingResult.warnings.length > 0 && (
+            <div className="space-y-1">
+              {dosingResult.warnings.map((warning, index) => (
+                <div key={index} className="flex items-start space-x-2">
+                  <span className="text-orange-500 text-sm mt-0.5">⚠️</span>
+                  <p className="text-orange-700 text-sm">{warning}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex space-x-4">
