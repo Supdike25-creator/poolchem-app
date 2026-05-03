@@ -1,6 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
-import { supabase } from '../../lib/supabaseClient';
+import { getSupabaseClient } from '../../lib/supabaseClient';
+
+export const dynamic = 'force-dynamic';
 
 interface Pool {
   id: string;
@@ -28,7 +30,7 @@ const getPoolStatus = (latestLog?: ChemicalLog): PoolStatus => {
   const testTime = new Date(latestLog.created_at);
   const now = new Date();
   const minutesSinceTest = (now.getTime() - testTime.getTime()) / (1000 * 60);
-  
+
   if (minutesSinceTest > 60) {
     return 'overdue';
   }
@@ -96,53 +98,105 @@ const formatDateTime = (value: string) => {
 };
 
 export default async function Dashboard() {
-  // Fetch all pools
-  const { data: pools, error: poolsError } = await supabase
-    .from('pools')
-    .select('id, name')
-    .order('name');
+  let poolsWithStatus: Array<{
+    id: string;
+    name: string;
+    latestLog?: ChemicalLog;
+    status: PoolStatus;
+  }> = [];
+  let totalPools = 0;
+  let goodPools = 0;
+  let warningPools = 0;
+  let overduePools = 0;
+  let errorMessage = '';
 
-  // Fetch recent logs for all pools
-  const { data: recentLogs, error: logsError } = await supabase
-    .from('chemical_logs')
-    .select('id, pool_id, free_chlorine, ph, notes, photo_url, created_at')
-    .order('created_at', { ascending: false });
+  try {
+    const supabase = getSupabaseClient();
 
-  if (poolsError) {
-    console.error('Supabase pools error:', poolsError);
-  }
+    // Fetch all pools
+    const { data: pools, error: poolsError } = await supabase
+      .from('pools')
+      .select('id, name')
+      .order('name');
 
-  if (logsError) {
-    console.error('Supabase chemical_logs error:', logsError);
-  }
-
-  const poolList: Pool[] = pools ?? [];
-  const allLogs: ChemicalLog[] = recentLogs ?? [];
-
-  // Group logs by pool and get the latest for each
-  const latestLogByPool = new Map<string, ChemicalLog>();
-  for (const log of allLogs) {
-    if (!latestLogByPool.has(log.pool_id)) {
-      latestLogByPool.set(log.pool_id, log);
+    if (poolsError) {
+      throw new Error(`Failed to fetch pools: ${poolsError.message}`);
     }
+
+    // Fetch recent logs for all pools
+    const { data: recentLogs, error: logsError } = await supabase
+      .from('chemical_logs')
+      .select('id, pool_id, free_chlorine, ph, notes, photo_url, created_at')
+      .order('created_at', { ascending: false });
+
+    if (logsError) {
+      throw new Error(`Failed to fetch logs: ${logsError.message}`);
+    }
+
+    const poolList: Pool[] = pools ?? [];
+    const allLogs: ChemicalLog[] = recentLogs ?? [];
+
+    // Group logs by pool and get the latest for each
+    const latestLogByPool = new Map<string, ChemicalLog>();
+    for (const log of allLogs) {
+      if (!latestLogByPool.has(log.pool_id)) {
+        latestLogByPool.set(log.pool_id, log);
+      }
+    }
+
+    // Create pool data with status
+    poolsWithStatus = poolList.map(pool => {
+      const latestLog = latestLogByPool.get(pool.id);
+      const status = getPoolStatus(latestLog);
+      return {
+        ...pool,
+        latestLog,
+        status
+      };
+    });
+
+    // Calculate summary stats
+    totalPools = poolsWithStatus.length;
+    goodPools = poolsWithStatus.filter(p => p.status === 'good').length;
+    warningPools = poolsWithStatus.filter(p => ['high_chlorine', 'low_chlorine', 'ph_warning'].includes(p.status)).length;
+    overduePools = poolsWithStatus.filter(p => p.status === 'overdue').length;
+
+    // Sort pools: Overdue and unsafe first, then by status priority
+    const statusPriority = {
+      overdue: 0,
+      high_chlorine: 1,
+      low_chlorine: 1,
+      ph_warning: 1,
+      good: 2
+    };
+
+    poolsWithStatus.sort((a, b) => {
+      const priorityA = statusPriority[a.status];
+      const priorityB = statusPriority[b.status];
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      return a.name.localeCompare(b.name);
+    });
+  } catch (error) {
+    errorMessage = error instanceof Error ? error.message : String(error);
   }
 
-  // Create pool data with status
-  const poolsWithStatus = poolList.map(pool => {
-    const latestLog = latestLogByPool.get(pool.id);
-    const status = getPoolStatus(latestLog);
-    return {
-      ...pool,
-      latestLog,
-      status
-    };
-  });
-
-  // Calculate summary stats
-  const totalPools = poolsWithStatus.length;
-  const goodPools = poolsWithStatus.filter(p => p.status === 'good').length;
-  const warningPools = poolsWithStatus.filter(p => ['high_chlorine', 'low_chlorine', 'ph_warning'].includes(p.status)).length;
-  const overduePools = poolsWithStatus.filter(p => p.status === 'overdue').length;
+  if (errorMessage) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-slate-900">Database Connection Error</h1>
+            <p className="mt-2 text-slate-600">
+              Unable to connect to Supabase. Please check your configuration.
+            </p>
+            <p className="mt-2 text-red-600">Error: {errorMessage}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">

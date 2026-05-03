@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { getSupabaseClient } from '../../lib/supabaseClient';
 
 interface Pool {
   id: string;
@@ -15,15 +15,6 @@ interface FormData {
   notes: string;
   photo: File | null;
 }
-
-const fallbackPools: Pool[] = [
-  { id: '1', name: 'Main Pool' },
-  { id: '2', name: 'Kids Pool' },
-  { id: '3', name: 'Olympic Pool' },
-  { id: '4', name: 'Therapy Pool' },
-  { id: '5', name: 'Diving Pool' },
-  { id: '6', name: 'Lap Pool' }
-];
 
 const getChlorineRecommendation = (chlorine: number): string => {
   if (chlorine < 1.0) return 'Add chlorine shock treatment immediately';
@@ -67,19 +58,20 @@ export default function LogPage() {
       setLoadingPools(true);
 
       try {
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase.from('pools').select('id,name').order('name');
 
         if (error) {
           const message = typeof error.message === 'string' ? error.message : String(error);
           setPoolLoadError(`Unable to load pools from Supabase: ${message}`);
-          setPools(fallbackPools);
+          setPools([]);
         } else {
-          setPools(data && data.length > 0 ? data : fallbackPools);
+          setPools(data || []);
         }
       } catch (loadError) {
         const message = loadError instanceof Error ? loadError.message : String(loadError);
         setPoolLoadError(`Unable to load pools from Supabase: ${message}`);
-        setPools(fallbackPools);
+        setPools([]);
       }
 
       setLoadingPools(false);
@@ -108,6 +100,7 @@ export default function LogPage() {
     const chlorineValue = parseFloat(formData.freeChlorine);
     const phValue = parseFloat(formData.ph);
 
+    const supabase = getSupabaseClient();
     const { error } = await supabase.from('chemical_logs').insert([
       {
         pool_id: formData.poolId,
