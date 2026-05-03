@@ -1,20 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { supabase } from '../../lib/supabaseClient';
 
 interface Pool {
   id: string;
   name: string;
 }
-
-const fakePools: Pool[] = [
-  { id: '1', name: 'Main Pool' },
-  { id: '2', name: 'Kids Pool' },
-  { id: '3', name: 'Olympic Pool' },
-  { id: '4', name: 'Therapy Pool' },
-  { id: '5', name: 'Diving Pool' },
-  { id: '6', name: 'Lap Pool' }
-];
 
 interface FormData {
   poolId: string;
@@ -23,6 +15,15 @@ interface FormData {
   notes: string;
   photo: File | null;
 }
+
+const fallbackPools: Pool[] = [
+  { id: '1', name: 'Main Pool' },
+  { id: '2', name: 'Kids Pool' },
+  { id: '3', name: 'Olympic Pool' },
+  { id: '4', name: 'Therapy Pool' },
+  { id: '5', name: 'Diving Pool' },
+  { id: '6', name: 'Lap Pool' }
+];
 
 const getChlorineRecommendation = (chlorine: number): string => {
   if (chlorine < 1.0) return 'Add chlorine shock treatment immediately';
@@ -53,12 +54,42 @@ export default function LogPage() {
     notes: '',
     photo: null
   });
-
+  const [pools, setPools] = useState<Pool[]>([]);
+  const [loadingPools, setLoadingPools] = useState(true);
+  const [poolLoadError, setPoolLoadError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [photoKey, setPhotoKey] = useState(0);
+
+  useEffect(() => {
+    const loadPools = async () => {
+      setLoadingPools(true);
+
+      try {
+        const { data, error } = await supabase.from('pools').select('id,name').order('name');
+
+        if (error) {
+          const message = typeof error.message === 'string' ? error.message : String(error);
+          setPoolLoadError(`Unable to load pools from Supabase: ${message}`);
+          setPools(fallbackPools);
+        } else {
+          setPools(data && data.length > 0 ? data : fallbackPools);
+        }
+      } catch (loadError) {
+        const message = loadError instanceof Error ? loadError.message : String(loadError);
+        setPoolLoadError(`Unable to load pools from Supabase: ${message}`);
+        setPools(fallbackPools);
+      }
+
+      setLoadingPools(false);
+    };
+
+    loadPools();
+  }, []);
 
   const handleInputChange = (field: keyof FormData, value: string | File | null) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [field]: value
     }));
@@ -71,16 +102,27 @@ export default function LogPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError('');
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const chlorineValue = parseFloat(formData.freeChlorine);
+    const phValue = parseFloat(formData.ph);
 
-    setSubmitMessage('Chemical log submitted successfully!');
-    setIsSubmitting(false);
+    const { error } = await supabase.from('chemical_logs').insert([
+      {
+        pool_id: formData.poolId,
+        free_chlorine: chlorineValue,
+        ph: phValue,
+        notes: formData.notes,
+        photo_url: null
+      }
+    ]);
 
-    // Reset form after successful submission
-    setTimeout(() => {
+    if (error) {
+      const message = typeof error.message === 'string' ? error.message : String(error);
+      setSubmitError(`Unable to submit chemical log: ${message}`);
+    } else {
+      setSubmitMessage('Chemical log submitted successfully!');
       setFormData({
         poolId: '',
         freeChlorine: '',
@@ -88,8 +130,11 @@ export default function LogPage() {
         notes: '',
         photo: null
       });
-      setSubmitMessage('');
-    }, 3000);
+      setPhotoKey((prev) => prev + 1);
+      setTimeout(() => setSubmitMessage(''), 3000);
+    }
+
+    setIsSubmitting(false);
   };
 
   const chlorine = parseFloat(formData.freeChlorine);
@@ -99,15 +144,12 @@ export default function LogPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-md mx-auto px-4 py-6">
-        {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Chemical Log</h1>
           <p className="text-gray-600 text-sm">Record pool chemistry readings</p>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Pool Selection */}
           <div>
             <label htmlFor="pool" className="block text-sm font-medium text-gray-700 mb-2">
               Select Pool
@@ -118,17 +160,18 @@ export default function LogPage() {
               onChange={(e) => handleInputChange('poolId', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
+              disabled={loadingPools}
             >
-              <option value="">Choose a pool...</option>
-              {fakePools.map((pool) => (
+              <option value="">{loadingPools ? 'Loading pools...' : 'Choose a pool...'}</option>
+              {pools.map((pool) => (
                 <option key={pool.id} value={pool.id}>
                   {pool.name}
                 </option>
               ))}
             </select>
+            {poolLoadError && <p className="mt-2 text-sm text-red-600">{poolLoadError}</p>}
           </div>
 
-          {/* Free Chlorine Input */}
           <div>
             <label htmlFor="chlorine" className="block text-sm font-medium text-gray-700 mb-2">
               Free Chlorine (ppm)
@@ -147,7 +190,6 @@ export default function LogPage() {
             />
           </div>
 
-          {/* pH Input */}
           <div>
             <label htmlFor="ph" className="block text-sm font-medium text-gray-700 mb-2">
               pH Level
@@ -166,12 +208,12 @@ export default function LogPage() {
             />
           </div>
 
-          {/* Photo Upload */}
           <div>
             <label htmlFor="photo" className="block text-sm font-medium text-gray-700 mb-2">
               Pool Photo (Optional)
             </label>
             <input
+              key={photoKey}
               type="file"
               id="photo"
               accept="image/*"
@@ -179,13 +221,10 @@ export default function LogPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
             {formData.photo && (
-              <p className="mt-2 text-sm text-gray-600">
-                Selected: {formData.photo.name}
-              </p>
+              <p className="mt-2 text-sm text-gray-600">Selected: {formData.photo.name}</p>
             )}
           </div>
 
-          {/* Notes */}
           <div>
             <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
               Notes (Optional)
@@ -200,7 +239,6 @@ export default function LogPage() {
             />
           </div>
 
-          {/* Recommendations */}
           {hasValidReadings && (
             <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
               <h3 className="text-sm font-medium text-blue-900 mb-2">Dosing Recommendations</h3>
@@ -215,7 +253,6 @@ export default function LogPage() {
             </div>
           )}
 
-          {/* Warnings */}
           {(isChlorineOutOfRange(chlorine) || isPhOutOfRange(ph)) && (
             <div className="bg-red-50 border border-red-200 rounded-md p-4">
               <div className="flex">
@@ -241,7 +278,6 @@ export default function LogPage() {
             </div>
           )}
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={isSubmitting}
@@ -260,7 +296,11 @@ export default function LogPage() {
             )}
           </button>
 
-          {/* Success Message */}
+          {submitError && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4">
+              <p className="text-sm text-red-700">{submitError}</p>
+            </div>
+          )}
           {submitMessage && (
             <div className="bg-green-50 border border-green-200 rounded-md p-4">
               <div className="flex">
