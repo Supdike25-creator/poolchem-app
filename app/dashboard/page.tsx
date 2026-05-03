@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 
 interface Pool {
   id: string;
@@ -107,8 +108,21 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">ChemDeck Manager Dashboard</h1>
-          <p className="mt-2 text-gray-600">Monitor pool chemistry across all facilities</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">ChemDeck Manager Dashboard</h1>
+              <p className="mt-2 text-gray-600">Monitor pool chemistry across all facilities</p>
+            </div>
+            <Link
+              href="/log"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+            >
+              <svg className="mr-2 -ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Submit Log
+            </Link>
+          </div>
         </div>
 
         {/* Summary Cards */}
