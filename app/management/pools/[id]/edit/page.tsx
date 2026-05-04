@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSupabaseClient } from '../../../../lib/supabaseClient';
+import { getSupabaseClient } from '../../../../../lib/supabaseClient';
 
 interface PoolData {
   id: string;
@@ -70,11 +70,12 @@ export default function EditPoolPage({ params }: { params: { id: string } }) {
     };
 
     loadPool();
-  }, [id]);
+  }, [id, router]);
 
   const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!id) return;
+
     setSaving(true);
     setError('');
 

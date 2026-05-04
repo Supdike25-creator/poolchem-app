@@ -65,7 +65,7 @@ export default async function ManagementPoolsPage() {
                       <td className="px-6 py-4 text-sm text-slate-600">{pool.pool_type || 'General'}</td>
                       <td className="px-6 py-4 text-sm text-slate-600">{pool.volume_gallons ? `${pool.volume_gallons} gal` : 'Unknown'}</td>
                       <td className="px-6 py-4 text-right text-sm font-medium">
-                        <Link href={`/management/pools/${pool.id}`} className="text-blue-600 hover:text-blue-800">
+                        <Link href={`/management/pools/${pool.id}/edit`} className="text-blue-600 hover:text-blue-800">
                           Edit
                         </Link>
                       </td>
