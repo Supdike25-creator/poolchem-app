@@ -2,31 +2,29 @@ import Link from 'next/link';
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="max-w-md mx-auto text-center px-4">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">ChemDeck App</h1>
-        <p className="text-gray-600 mb-8">Professional pool chemistry management</p>
-        <div className="space-y-4">
+    <main className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-8">
+      <div className="w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-8 shadow-lg">
+        <div className="text-center">
+          <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">ChemDeck</p>
+          <h1 className="mt-4 text-4xl font-semibold text-slate-900">Choose your workspace</h1>
+          <p className="mt-3 text-slate-600">Pick the role that matches your responsibilities.</p>
+        </div>
+
+        <div className="mt-10 grid gap-4 sm:grid-cols-2">
           <Link
-            href="/dashboard"
-            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            href="/management/dashboard"
+            className="rounded-3xl border border-blue-200 bg-blue-50 px-6 py-8 text-center transition hover:border-blue-300"
           >
-            Go to Manager Dashboard
-            <svg className="ml-2 -mr-1 w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
+            <p className="text-xl font-semibold text-blue-700">Manager / Supervisor</p>
+            <p className="mt-2 text-slate-600">Access pool configuration, team logs, and management views.</p>
           </Link>
-          <div>
-            <Link
-              href="/log"
-              className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-            >
-              Submit Chemical Log
-              <svg className="ml-2 -mr-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-            </Link>
-          </div>
+          <Link
+            href="/guard"
+            className="rounded-3xl border border-slate-200 bg-white px-6 py-8 text-center transition hover:border-slate-300"
+          >
+            <p className="text-xl font-semibold text-slate-900">Guard / Technician</p>
+            <p className="mt-2 text-slate-600">Submit guard chemical logs and follow pool-specific dosing guidance.</p>
+          </Link>
         </div>
       </div>
     </main>

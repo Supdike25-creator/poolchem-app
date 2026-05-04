@@ -106,9 +106,11 @@ export default async function Dashboard() {
   }> = [];
   let totalPools = 0;
   let goodPools = 0;
-  let warningPools = 0;
+  let outOfRangePools = 0;
   let overduePools = 0;
+  let testsToday = 0;
   let errorMessage = '';
+  let hasNoPools = false;
 
   try {
     const supabase = getSupabaseClient();
@@ -123,6 +125,38 @@ export default async function Dashboard() {
       throw new Error(`Failed to fetch pools: ${poolsError.message}`);
     }
 
+    const poolList: Pool[] = pools ?? [];
+
+    if (poolList.length === 0) {
+      hasNoPools = true;
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-slate-900">Pool Operations Dashboard</h1>
+              <p className="mt-2 text-slate-600">Real-time pool chemistry monitoring and management</p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+              <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m0 0l8 4m-8-4v10l8 4m0-10l8 4m-8-4l8-4" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold text-slate-900 mb-2">No Pools Configured</h2>
+              <p className="text-slate-600 mb-6">Get started by creating your first pool in the admin panel.</p>
+              <Link
+                href="/admin"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+              >
+                Go to Admin Settings
+              </Link>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // Fetch recent logs for all pools
     const { data: recentLogs, error: logsError } = await supabase
       .from('chemical_logs')
@@ -133,8 +167,12 @@ export default async function Dashboard() {
       throw new Error(`Failed to fetch logs: ${logsError.message}`);
     }
 
-    const poolList: Pool[] = pools ?? [];
     const allLogs: ChemicalLog[] = recentLogs ?? [];
+
+    // Count tests from today
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    testsToday = allLogs.filter(log => new Date(log.created_at) >= todayStart).length;
 
     // Group logs by pool and get the latest for each
     const latestLogByPool = new Map<string, ChemicalLog>();
@@ -158,7 +196,7 @@ export default async function Dashboard() {
     // Calculate summary stats
     totalPools = poolsWithStatus.length;
     goodPools = poolsWithStatus.filter(p => p.status === 'good').length;
-    warningPools = poolsWithStatus.filter(p => ['high_chlorine', 'low_chlorine', 'ph_warning'].includes(p.status)).length;
+    outOfRangePools = poolsWithStatus.filter(p => ['high_chlorine', 'low_chlorine', 'ph_warning'].includes(p.status)).length;
     overduePools = poolsWithStatus.filter(p => p.status === 'overdue').length;
 
     // Sort pools: Overdue and unsafe first, then by status priority
@@ -186,12 +224,21 @@ export default async function Dashboard() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-slate-900">Database Connection Error</h1>
-            <p className="mt-2 text-slate-600">
-              Unable to connect to Supabase. Please check your configuration.
-            </p>
-            <p className="mt-2 text-red-600">Error: {errorMessage}</p>
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-lg font-medium text-red-800">Connection Error</h3>
+                <p className="mt-2 text-sm text-red-700">
+                  Unable to load pool data. Please check your connection or try again later.
+                </p>
+                <p className="mt-2 text-xs text-red-600 font-mono">{errorMessage}</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -199,17 +246,18 @@ export default async function Dashboard() {
   }
 
   return (
+
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-slate-900">Pool Operations Dashboard</h1>
               <p className="mt-2 text-slate-600">Real-time pool chemistry monitoring and management</p>
             </div>
             <Link
               href="/log"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm hover:shadow-md"
+              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm hover:shadow-md"
             >
               <svg className="mr-2 -ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -219,132 +267,154 @@ export default async function Dashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow duration-200">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow duration-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Pools</p>
+                <p className="text-3xl font-bold text-slate-900 mt-2">{totalPools}</p>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-slate-600">Total Pools</p>
-                <p className="text-2xl font-bold text-slate-900">{totalPools}</p>
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow duration-200">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center shadow-sm">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow duration-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Good Status</p>
+                <p className="text-3xl font-bold text-green-600 mt-2">{goodPools}</p>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-slate-600">Good Pools</p>
-                <p className="text-2xl font-bold text-slate-900">{goodPools}</p>
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow duration-200">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center shadow-sm">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                </div>
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow duration-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Out of Range</p>
+                <p className="text-3xl font-bold text-red-600 mt-2">{outOfRangePools}</p>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-slate-600">Warning Pools</p>
-                <p className="text-2xl font-bold text-slate-900">{warningPools}</p>
+              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow duration-200">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center shadow-sm">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow duration-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Overdue</p>
+                <p className="text-3xl font-bold text-orange-600 mt-2">{overduePools}</p>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-slate-600">Overdue Pools</p>
-                <p className="text-2xl font-bold text-slate-900">{overduePools}</p>
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow duration-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Tests Today</p>
+                <p className="text-3xl font-bold text-purple-600 mt-2">{testsToday}</p>
+              </div>
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                </svg>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="px-6 py-5 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50">
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+          <div className="px-6 py-4 sm:px-6 sm:py-5 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50">
             <h2 className="text-lg font-semibold text-slate-900">Pool Status Overview</h2>
             <p className="mt-1 text-sm text-slate-600">Monitor chemical levels and testing schedules</p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Pool Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Last Test Time
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Free Chlorine (ppm)
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    pH
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Notes
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
-                {poolsWithStatus.map((pool) => {
-                  const { latestLog, status } = pool;
-                  return (
-                    <tr key={pool.id} className="hover:bg-slate-50 transition-colors duration-150">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
-                        {pool.name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                        {latestLog ? formatDateTime(latestLog.created_at) : 'Never tested'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 font-mono">
-                        {latestLog ? latestLog.free_chlorine.toFixed(1) : '—'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 font-mono">
-                        {latestLog ? latestLog.ph.toFixed(1) : '—'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full border ${getStatusColor(status)}`}>
-                          {getStatusText(status)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-500 max-w-xs truncate">
-                        {latestLog?.notes || '—'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+
+          {poolsWithStatus.length === 0 ? (
+            <div className="px-6 py-12 sm:px-8 text-center">
+              <svg className="mx-auto h-12 w-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+              <h3 className="mt-4 text-sm font-medium text-slate-900">No tests recorded yet</h3>
+              <p className="mt-2 text-sm text-slate-500">Start by submitting a chemical log from the pools.</p>
+              <Link
+                href="/log"
+                className="mt-4 inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+              >
+                Submit First Log
+              </Link>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Pool
+                    </th>
+                    <th className="hidden sm:table-cell px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Last Test
+                    </th>
+                    <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Chlorine
+                    </th>
+                    <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      pH
+                    </th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-slate-200">
+                  {poolsWithStatus.map((pool) => {
+                    const { latestLog, status } = pool;
+                    return (
+                      <tr key={pool.id} className="hover:bg-slate-50 transition-colors duration-150">
+                        <td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-900">
+                          <div className="flex flex-col">
+                            <span>{pool.name}</span>
+                            <span className="sm:hidden text-xs text-slate-500 mt-1">
+                              {latestLog ? formatDateTime(latestLog.created_at) : 'Never tested'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="hidden sm:table-cell px-6 py-4 text-sm text-slate-500 whitespace-nowrap">
+                          {latestLog ? formatDateTime(latestLog.created_at) : 'Never'}
+                        </td>
+                        <td className="hidden md:table-cell px-6 py-4 text-sm text-slate-900 font-mono">
+                          {latestLog ? latestLog.free_chlorine.toFixed(1) : '—'} ppm
+                        </td>
+                        <td className="hidden md:table-cell px-6 py-4 text-sm text-slate-900 font-mono">
+                          {latestLog ? latestLog.ph.toFixed(1) : '—'}
+                        </td>
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full border ${getStatusColor(status)}`}>
+                            {getStatusText(status)}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>
