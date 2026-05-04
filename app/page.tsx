@@ -7,19 +7,19 @@ export default function Home() {
         <div className="text-center">
           <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">ChemDeck</p>
           <h1 className="mt-4 text-4xl font-semibold text-slate-900">Choose your workspace</h1>
-          <p className="mt-3 text-slate-600">Pick the role that matches your responsibilities.</p>
+          <p className="mt-3 text-slate-600">Pick your role first, then sign in to continue.</p>
         </div>
 
         <div className="mt-10 grid gap-4 sm:grid-cols-2">
           <Link
-            href="/management/dashboard"
+            href="/login?role=manager"
             className="rounded-3xl border border-blue-200 bg-blue-50 px-6 py-8 text-center transition hover:border-blue-300"
           >
             <p className="text-xl font-semibold text-blue-700">Manager / Supervisor</p>
             <p className="mt-2 text-slate-600">Access pool configuration, team logs, and management views.</p>
           </Link>
           <Link
-            href="/guard"
+            href="/login?role=guard"
             className="rounded-3xl border border-slate-200 bg-white px-6 py-8 text-center transition hover:border-slate-300"
           >
             <p className="text-xl font-semibold text-slate-900">Guard / Technician</p>
