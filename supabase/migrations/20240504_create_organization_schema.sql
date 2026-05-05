@@ -86,14 +86,6 @@ create policy "Users can read their own profile" on profiles
 create policy "Users can update their own profile" on profiles
   for update using (auth.uid() = id);
 
-create policy "Managers can read profiles in their organization" on profiles
-  for select using (
-    organization_id in (
-      select organization_id from profiles
-      where id = auth.uid() and role in ('manager', 'admin')
-    )
-  );
-
 -- Pools policies
 create policy "Users can read pools from their organization" on pools
   for select using (
