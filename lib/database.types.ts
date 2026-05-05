@@ -28,27 +28,27 @@ export interface Database {
       profiles: {
         Row: {
           id: string;
-          email: string;
-          full_name: string;
-          role: 'manager' | 'guard';
+          email: string | null;
+          full_name: string | null;
+          role: 'manager' | 'supervisor' | 'lifeguard' | 'admin';
           organization_id: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id: string;
-          email: string;
-          full_name: string;
-          role: 'manager' | 'guard';
+          email?: string | null;
+          full_name?: string | null;
+          role?: 'manager' | 'supervisor' | 'lifeguard' | 'admin';
           organization_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
-          email?: string;
-          full_name?: string;
-          role?: 'manager' | 'guard';
+          email?: string | null;
+          full_name?: string | null;
+          role?: 'manager' | 'supervisor' | 'lifeguard' | 'admin';
           organization_id?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -57,25 +57,58 @@ export interface Database {
       pools: {
         Row: {
           id: string;
-          name: string;
           organization_id: string;
-          volume_gallons: number;
+          name: string;
+          volume_gallons: number | null;
+          pool_type: string | null;
+          is_baby_pool: boolean | null;
+          target_chlorine_min: number | null;
+          target_chlorine_max: number | null;
+          target_ph_min: number | null;
+          target_ph_max: number | null;
+          default_chlorine_type: string | null;
+          default_chlorine_strength: number | null;
+          max_single_dose_oz: number | null;
+          retest_minutes: number | null;
+          notes: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
-          name: string;
           organization_id: string;
-          volume_gallons: number;
+          name: string;
+          volume_gallons?: number | null;
+          pool_type?: string | null;
+          is_baby_pool?: boolean | null;
+          target_chlorine_min?: number | null;
+          target_chlorine_max?: number | null;
+          target_ph_min?: number | null;
+          target_ph_max?: number | null;
+          default_chlorine_type?: string | null;
+          default_chlorine_strength?: number | null;
+          max_single_dose_oz?: number | null;
+          retest_minutes?: number | null;
+          notes?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
-          name?: string;
           organization_id?: string;
-          volume_gallons?: number;
+          name?: string;
+          volume_gallons?: number | null;
+          pool_type?: string | null;
+          is_baby_pool?: boolean | null;
+          target_chlorine_min?: number | null;
+          target_chlorine_max?: number | null;
+          target_ph_min?: number | null;
+          target_ph_max?: number | null;
+          default_chlorine_type?: string | null;
+          default_chlorine_strength?: number | null;
+          max_single_dose_oz?: number | null;
+          retest_minutes?: number | null;
+          notes?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -100,7 +133,7 @@ export interface Database {
           amount: number;
           unit: string;
           notes?: string | null;
-          logged_at: string;
+          logged_at?: string;
           created_at?: string;
         };
         Update: {

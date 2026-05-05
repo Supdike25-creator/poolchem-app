@@ -7,6 +7,19 @@ import Link from 'next/link';
 
 type AppRole = 'manager' | 'guard';
 
+// Map database roles to app roles
+const mapDatabaseRoleToAppRole = (dbRole: string | null): AppRole => {
+  switch (dbRole) {
+    case 'manager':
+    case 'supervisor':
+    case 'admin':
+      return 'manager';
+    case 'lifeguard':
+    default:
+      return 'guard';
+  }
+};
+
 const roleLabels: Record<AppRole, string> = {
   manager: 'Manager / Supervisor',
   guard: 'Guard / Technician',
@@ -55,7 +68,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
 
       const user = session.user;
       const { data: profileData } = await supabase.from('profiles').select('role, organization_id').eq('id', user.id).single();
-      const savedRole = (profileData?.role as AppRole) || role;
+      const savedRole = mapDatabaseRoleToAppRole(profileData?.role) || role;
 
       if (!profileData?.role) {
         const profilePayload = {

@@ -40,20 +40,26 @@ export default function JoinCompany() {
         .single();
 
       if (orgError || !orgData) {
-        setMessage('Invalid invite code. Please check and try again.');
+        console.error('Error finding organization:', orgError);
+        setMessage(`Invalid invite code: ${orgError?.message || 'Organization not found'}`);
         setStatus('error');
         return;
       }
 
-      // Update the user's profile with the organization_id
+      // Update the user's profile with the organization_id and set role to lifeguard (default)
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ organization_id: orgData.id })
-        .eq('id', session.user.id);
+        .upsert({
+          id: session.user.id,
+          email: session.user.email,
+          full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email,
+          organization_id: orgData.id,
+          role: 'lifeguard'
+        }, { onConflict: 'id' });
 
       if (profileError) {
         console.error('Error updating profile:', profileError);
-        setMessage('Failed to join company. Please try again.');
+        setMessage(`Failed to join company: ${profileError.message}`);
         setStatus('error');
         return;
       }
@@ -65,8 +71,8 @@ export default function JoinCompany() {
         .eq('id', session.user.id)
         .single();
 
-      const role = profileData?.role || 'guard';
-      router.replace(role === 'manager' ? '/management/dashboard' : '/guard');
+      const appRole = profileData?.role === 'manager' ? 'manager' : 'guard';
+      router.replace(appRole === 'manager' ? '/management/dashboard' : '/guard');
     } catch (error) {
       console.error('Unexpected error:', error);
       setMessage('An unexpected error occurred. Please try again.');

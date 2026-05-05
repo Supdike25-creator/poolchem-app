@@ -7,6 +7,19 @@ import { getSupabaseClient } from '../lib/supabaseClient';
 
 type AppRole = 'manager' | 'guard';
 
+// Map database roles to app roles
+const mapDatabaseRoleToAppRole = (dbRole: string | null): AppRole => {
+  switch (dbRole) {
+    case 'manager':
+    case 'supervisor':
+    case 'admin':
+      return 'manager';
+    case 'lifeguard':
+    default:
+      return 'guard';
+  }
+};
+
 type Profile = {
   full_name?: string | null;
   email?: string | null;
@@ -87,7 +100,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
           return;
         }
 
-        const savedRole = (profileData?.role as AppRole) || role;
+        const savedRole = mapDatabaseRoleToAppRole(profileData?.role) || role;
         if (savedRole !== role) {
           router.replace(authorizedRoute(savedRole));
           return;

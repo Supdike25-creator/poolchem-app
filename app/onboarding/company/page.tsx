@@ -57,20 +57,25 @@ export default function CompanyOnboarding() {
 
       if (orgError) {
         console.error('Error creating organization:', orgError);
-        setMessage('Failed to create company. Please try again.');
+        setMessage(`Failed to create company: ${orgError.message}`);
         setStatus('error');
         return;
       }
 
-      // Update the user's profile with the organization_id
-      const { error: profileError } = await supabase
+      // First, ensure the user's profile exists, then update it with organization_id and set role to manager
+      const { error: upsertError } = await supabase
         .from('profiles')
-        .update({ organization_id: orgData.id })
-        .eq('id', session.user.id);
+        .upsert({
+          id: session.user.id,
+          email: session.user.email,
+          full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email,
+          organization_id: orgData.id,
+          role: 'manager'
+        }, { onConflict: 'id' });
 
-      if (profileError) {
-        console.error('Error updating profile:', profileError);
-        setMessage('Company created but failed to update your profile. Please contact support.');
+      if (upsertError) {
+        console.error('Error updating profile:', upsertError);
+        setMessage(`Company created but failed to update your profile: ${upsertError.message}`);
         setStatus('error');
         return;
       }
@@ -82,8 +87,8 @@ export default function CompanyOnboarding() {
         .eq('id', session.user.id)
         .single();
 
-      const role = profileData?.role || 'guard';
-      router.replace(role === 'manager' ? '/management/dashboard' : '/guard');
+      const appRole = profileData?.role === 'manager' ? 'manager' : 'guard';
+      router.replace(appRole === 'manager' ? '/management/dashboard' : '/guard');
     } catch (error) {
       console.error('Unexpected error:', error);
       setMessage('An unexpected error occurred. Please try again.');
