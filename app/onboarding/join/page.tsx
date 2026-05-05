@@ -7,7 +7,7 @@ import { getSupabaseClient } from '../../../lib/supabaseClient';
 
 export default function JoinCompany() {
   const router = useRouter();
-  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'success'>('idle');
   const [message, setMessage] = useState('');
   const [companyCode, setCompanyCode] = useState('');
 
@@ -32,11 +32,27 @@ export default function JoinCompany() {
         return;
       }
 
+      // Check if user already has an organization
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', session.user.id)
+        .single();
+
+      if (existingProfile?.organization_id) {
+        setMessage('You are already part of a company. Please contact your manager if you need to change companies.');
+        setStatus('error');
+        return;
+      }
+
+      // Normalize company code: trim spaces and convert to uppercase
+      const normalizedCode = companyCode.trim().toUpperCase();
+
       // Find the organization by company code
       const { data: orgData, error: orgError } = await supabase
         .from('organizations')
         .select('*')
-        .eq('company_code', companyCode.trim().toUpperCase())
+        .eq('company_code', normalizedCode)
         .single();
 
       if (orgError || !orgData) {
@@ -46,13 +62,13 @@ export default function JoinCompany() {
         return;
       }
 
-      // Update the user's profile with the organization_id and set role to lifeguard (default)
+      // Update the user's profile with the organization_id and set role to lifeguard
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
           id: session.user.id,
           email: session.user.email,
-          full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email,
+          full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0],
           organization_id: orgData.id,
           role: 'lifeguard'
         }, { onConflict: 'id' });
@@ -64,21 +80,21 @@ export default function JoinCompany() {
         return;
       }
 
-      // Redirect to the appropriate dashboard based on role
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single();
+      // Success - redirect to guard dashboard
+      setMessage('Successfully joined company! Redirecting to dashboard...');
+      setStatus('success');
 
-      const appRole = profileData?.role === 'manager' ? 'manager' : 'guard';
-      router.replace(appRole === 'manager' ? '/management/dashboard' : '/guard');
+      // Redirect after a short delay to show success message
+      setTimeout(() => {
+        router.replace('/guard');
+      }, 1500);
+
     } catch (error) {
       console.error('Unexpected error:', error);
       setMessage('An unexpected error occurred. Please try again.');
       setStatus('error');
     } finally {
-      setStatus('idle');
+      // Don't set status to idle here since we might be redirecting
     }
   };
 

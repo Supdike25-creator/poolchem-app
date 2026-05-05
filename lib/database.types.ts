@@ -148,6 +148,47 @@ export interface Database {
           created_at?: string;
         };
       };
+      announcements: {
+        Row: {
+          id: string;
+          organization_id: string;
+          title: string;
+          message: string;
+          priority: string | null;
+          audience: string | null;
+          pool_id: string | null;
+          created_by: string;
+          send_notification: boolean | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          title: string;
+          message: string;
+          priority?: string | null;
+          audience?: string | null;
+          pool_id?: string | null;
+          created_by: string;
+          send_notification?: boolean | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          title?: string;
+          message?: string;
+          priority?: string | null;
+          audience?: string | null;
+          pool_id?: string | null;
+          created_by?: string;
+          send_notification?: boolean | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
   };
 }

@@ -56,6 +56,19 @@
 - `logged_at` (timestamptz, not null, default now)
 - `created_at` (timestamptz, default now)
 
+### Announcements Table
+- `id` (uuid, primary key, default gen_random_uuid)
+- `organization_id` (uuid, not null, references organizations)
+- `title` (text, not null)
+- `message` (text, not null)
+- `priority` (text, default 'normal', check in ('low', 'normal', 'high', 'urgent'))
+- `audience` (text, default 'all_lifeguards', check in ('all_lifeguards', 'managers_only', 'supervisors_only'))
+- `pool_id` (uuid, nullable, references pools)
+- `created_by` (uuid, not null, references auth.users)
+- `send_notification` (boolean, default true)
+- `created_at` (timestamptz, default now)
+- `updated_at` (timestamptz, default now)
+
 ## RLS Policies
 
 ### Organizations
@@ -75,6 +88,10 @@
 ### Chemical Logs
 - Users can read logs from their organization pools
 - Users can insert logs for their organization pools (and must be the user_id)
+
+### Announcements
+- Users can read announcements from their organization
+- Managers can create/update/delete announcements for their organization
 
 ## Onboarding Flow
 

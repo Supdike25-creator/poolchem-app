@@ -73,15 +73,26 @@ create policy "Users can read organizations they belong to" on organizations
     )
   );
 
+create policy "Users can read organizations by company_code during join" on organizations
+  for select using (true);
+
 -- Profiles policies
 create policy "Users can insert their own profile" on profiles
   for insert with check (auth.uid() = id);
 
+create policy "Users can read their own profile" on profiles
+  for select using (auth.uid() = id);
+
 create policy "Users can update their own profile" on profiles
   for update using (auth.uid() = id);
 
-create policy "Users can read their own profile" on profiles
-  for select using (auth.uid() = id);
+create policy "Managers can read profiles in their organization" on profiles
+  for select using (
+    organization_id in (
+      select organization_id from profiles
+      where id = auth.uid() and role in ('manager', 'admin')
+    )
+  );
 
 -- Pools policies
 create policy "Users can read pools from their organization" on pools
@@ -98,6 +109,46 @@ create policy "Users can insert pools for their organization" on pools
       select organization_id from profiles
       where id = auth.uid()
     )
+  );
+
+create policy "Users can update pools from their organization" on pools
+  for update using (
+    organization_id in (
+      select organization_id from profiles
+      where id = auth.uid()
+    )
+  );
+
+create policy "Users can delete pools from their organization" on pools
+  for delete using (
+    organization_id in (
+      select organization_id from profiles
+      where id = auth.uid()
+    )
+  );
+
+-- Chemical logs policies
+create policy "Users can read chemical logs from their organization pools" on chemical_logs
+  for select using (
+    pool_id in (
+      select id from pools
+      where organization_id in (
+        select organization_id from profiles
+        where id = auth.uid()
+      )
+    )
+  );
+
+create policy "Users can insert chemical logs for their organization pools" on chemical_logs
+  for insert with check (
+    pool_id in (
+      select id from pools
+      where organization_id in (
+        select organization_id from profiles
+        where id = auth.uid()
+      )
+    ) and auth.uid() = user_id
+  );
   );
 
 create policy "Users can update pools from their organization" on pools

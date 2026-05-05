@@ -530,12 +530,31 @@ export default function ManagementSettingsPage() {
                 <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 <span className="text-slate-700 dark:text-slate-300">Role: {profile?.role === 'manager' ? 'Manager / Supervisor' : 'Guard / Technician'}</span>
               </div>
-              {organization && (
+              {organization ? (
                 <div className="flex items-center gap-2 text-sm">
                   <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   <span className="text-slate-700 dark:text-slate-300">
-                    Company: {organization.name} ({organization.company_code})
+                    Company: {organization.name} {organization.company_code && `(${organization.company_code})`}
                   </span>
+                  {organization.company_code && (
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(organization.company_code!);
+                        // Could add a toast notification here
+                      }}
+                      className="ml-2 p-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                      title="Copy company code"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-orange-600 dark:text-orange-400">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>No company workspace yet</span>
                 </div>
               )}
             </div>

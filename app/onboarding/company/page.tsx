@@ -7,7 +7,7 @@ import { getSupabaseClient } from '../../../lib/supabaseClient';
 
 export default function CompanyOnboarding() {
   const router = useRouter();
-  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'success'>('idle');
   const [message, setMessage] = useState('');
   const [companyName, setCompanyName] = useState('');
 
@@ -44,57 +44,86 @@ export default function CompanyOnboarding() {
 
       const companyCode = generateCompanyCode();
 
-      // Create the organization
-      const { data: orgData, error: orgError } = await supabase
-        .from('organizations')
-        .insert([{
-          name: companyName.trim(),
-          company_code: companyCode,
-          created_by: session.user.id,
-        }])
-        .select()
+      // Check if user already has an organization
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', session.user.id)
         .single();
 
-      if (orgError) {
-        console.error('Error creating organization:', orgError);
-        setMessage(`Failed to create company: ${orgError.message}`);
+      if (existingProfile?.organization_id) {
+        setMessage('You are already part of a company. Please contact your manager if you need to change companies.');
         setStatus('error');
         return;
       }
 
-      // First, ensure the user's profile exists, then update it with organization_id and set role to manager
+      // Check if organization with this name already exists for this user
+      const { data: existingOrg } = await supabase
+        .from('organizations')
+        .select('id, name')
+        .eq('created_by', session.user.id)
+        .eq('name', companyName.trim())
+        .single();
+
+      let orgData;
+      if (existingOrg) {
+        // Use existing organization
+        orgData = existingOrg;
+        setMessage('Found existing company with this name. Setting up your profile...');
+      } else {
+        // Create new organization
+        const { data: newOrgData, error: orgError } = await supabase
+          .from('organizations')
+          .insert([{
+            name: companyName.trim(),
+            company_code: companyCode,
+            created_by: session.user.id,
+          }])
+          .select()
+          .single();
+
+        if (orgError) {
+          console.error('Error creating organization:', orgError);
+          setMessage(`Failed to create company: ${orgError.message}`);
+          setStatus('error');
+          return;
+        }
+        orgData = newOrgData;
+      }
+
+      // Upsert profile with organization_id and set role to manager
       const { error: upsertError } = await supabase
         .from('profiles')
         .upsert({
           id: session.user.id,
           email: session.user.email,
-          full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email,
+          full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0],
           organization_id: orgData.id,
           role: 'manager'
         }, { onConflict: 'id' });
 
       if (upsertError) {
         console.error('Error updating profile:', upsertError);
-        setMessage(`Company created but failed to update your profile: ${upsertError.message}`);
+        setMessage(`Company created but failed to set up your profile: ${upsertError.message}. Please try refreshing the page.`);
         setStatus('error');
         return;
       }
 
-      // Redirect to the appropriate dashboard based on role
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single();
+      // Success - redirect to management dashboard
+      setMessage('Company setup complete! Redirecting to dashboard...');
+      setStatus('success');
 
-      const appRole = profileData?.role === 'manager' ? 'manager' : 'guard';
-      router.replace(appRole === 'manager' ? '/management/dashboard' : '/guard');
+      // Redirect after a short delay to show success message
+      setTimeout(() => {
+        router.replace('/management/dashboard');
+      }, 1500);
+
     } catch (error) {
       console.error('Unexpected error:', error);
       setMessage('An unexpected error occurred. Please try again.');
       setStatus('error');
     } finally {
-      setStatus('idle');
+      // Don't set status to idle here since we might be redirecting
     }
   };
 
