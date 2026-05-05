@@ -77,6 +77,7 @@ export default function ManagementSettingsPage() {
   const { theme, setTheme } = useTheme();
   const [settings, setSettings] = useState<SettingsData>(defaultSettings);
   const [profile, setProfile] = useState<{ full_name?: string; email?: string; role?: string } | null>(null);
+  const [organization, setOrganization] = useState<{ name?: string; company_code?: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -97,10 +98,20 @@ export default function ManagementSettingsPage() {
       if (session?.user) {
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('full_name,email,role')
+          .select('full_name,email,role,organization_id')
           .eq('id', session.user.id)
           .single();
         setProfile(profileData);
+
+        // Load organization data if user has an organization
+        if (profileData?.organization_id) {
+          const { data: orgData } = await supabase
+            .from('organizations')
+            .select('name,company_code')
+            .eq('id', profileData.organization_id)
+            .single();
+          setOrganization(orgData);
+        }
       }
       setLoading(false);
     };
@@ -515,10 +526,18 @@ export default function ManagementSettingsPage() {
                   <p className="text-sm text-slate-600 dark:text-slate-400">{profile?.email}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-2 text-sm mb-2">
                 <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 <span className="text-slate-700 dark:text-slate-300">Role: {profile?.role === 'manager' ? 'Manager / Supervisor' : 'Guard / Technician'}</span>
               </div>
+              {organization && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-slate-700 dark:text-slate-300">
+                    Company: {organization.name} ({organization.company_code})
+                  </span>
+                </div>
+              )}
             </div>
 
             <button

@@ -6,21 +6,21 @@ export interface Database {
         Row: {
           id: string;
           name: string;
-          invite_code: string;
+          company_code: string;
           created_at: string;
           created_by: string;
         };
         Insert: {
           id?: string;
           name: string;
-          invite_code: string;
+          company_code: string;
           created_at?: string;
           created_by: string;
         };
         Update: {
           id?: string;
           name?: string;
-          invite_code?: string;
+          company_code?: string;
           created_at?: string;
           created_by?: string;
         };

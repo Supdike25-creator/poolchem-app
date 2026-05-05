@@ -9,12 +9,12 @@ export default function JoinCompany() {
   const router = useRouter();
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [message, setMessage] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
+  const [companyCode, setCompanyCode] = useState('');
 
   const handleJoinCompany = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteCode.trim()) {
-      setMessage('Invite code is required');
+    if (!companyCode.trim()) {
+      setMessage('Company code is required');
       setStatus('error');
       return;
     }
@@ -32,16 +32,16 @@ export default function JoinCompany() {
         return;
       }
 
-      // Find the organization by invite code
+      // Find the organization by company code
       const { data: orgData, error: orgError } = await supabase
         .from('organizations')
         .select('*')
-        .eq('invite_code', inviteCode.trim().toUpperCase())
+        .eq('company_code', companyCode.trim().toUpperCase())
         .single();
 
       if (orgError || !orgData) {
         console.error('Error finding organization:', orgError);
-        setMessage(`Invalid invite code: ${orgError?.message || 'Organization not found'}`);
+        setMessage(`Invalid company code: ${orgError?.message || 'Organization not found'}`);
         setStatus('error');
         return;
       }
@@ -95,19 +95,19 @@ export default function JoinCompany() {
             <p className="text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">Join Company</p>
           </div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Join your team</h1>
-          <p className="mt-3 text-slate-600 dark:text-slate-300">Enter your invite code to join an existing company workspace.</p>
+          <p className="mt-3 text-slate-600 dark:text-slate-300">Enter your company code to join an existing company workspace.</p>
         </div>
 
         <form onSubmit={handleJoinCompany} className="mt-10 space-y-6">
           <div>
-            <label htmlFor="inviteCode" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Invite Code
+            <label htmlFor="companyCode" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              Company Code
             </label>
             <input
               type="text"
-              id="inviteCode"
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+              id="companyCode"
+              value={companyCode}
+              onChange={(e) => setCompanyCode(e.target.value.toUpperCase())}
               className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-white transition-colors text-center text-lg font-mono tracking-wider"
               placeholder="ABC123"
               maxLength={6}

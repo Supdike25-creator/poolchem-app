@@ -2,7 +2,7 @@
 create table if not exists organizations (
   id uuid primary key default gen_random_uuid(),
   name text not null,
-  invite_code text unique not null,
+  company_code text unique not null,
   created_by uuid references auth.users(id) on delete cascade,
   created_at timestamptz default now()
 );
@@ -140,7 +140,7 @@ create policy "Users can insert chemical logs for their organization pools" on c
   );
 
 -- Create indexes for better performance
-create index if not exists idx_organizations_invite_code on organizations(invite_code);
+create index if not exists idx_organizations_company_code on organizations(company_code);
 create index if not exists idx_profiles_organization_id on profiles(organization_id);
 create index if not exists idx_pools_organization_id on pools(organization_id);
 create index if not exists idx_chemical_logs_pool_id on chemical_logs(pool_id);

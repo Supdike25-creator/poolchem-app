@@ -11,8 +11,8 @@ export default function CompanyOnboarding() {
   const [message, setMessage] = useState('');
   const [companyName, setCompanyName] = useState('');
 
-  const generateInviteCode = () => {
-    // Generate a 6-character alphanumeric invite code
+  const generateCompanyCode = () => {
+    // Generate a 6-character alphanumeric company code
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let result = '';
     for (let i = 0; i < 6; i++) {
@@ -42,14 +42,14 @@ export default function CompanyOnboarding() {
         return;
       }
 
-      const inviteCode = generateInviteCode();
+      const companyCode = generateCompanyCode();
 
       // Create the organization
       const { data: orgData, error: orgError } = await supabase
         .from('organizations')
         .insert([{
           name: companyName.trim(),
-          invite_code: inviteCode,
+          company_code: companyCode,
           created_by: session.user.id,
         }])
         .select()
@@ -153,7 +153,7 @@ export default function CompanyOnboarding() {
               href="/onboarding/join"
               className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
             >
-              Already have an invite code? Join existing company →
+              Already have a company code? Join existing company →
             </Link>
           </div>
 

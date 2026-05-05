@@ -23,7 +23,7 @@
 ### Organizations Table
 - `id` (uuid, primary key)
 - `name` (text, not null)
-- `invite_code` (text, unique, not null)
+- `company_code` (text, unique, not null)
 - `created_by` (uuid, references auth.users)
 - `created_at` (timestamptz, default now)
 
@@ -79,8 +79,8 @@
 ## Onboarding Flow
 
 1. **New User Signs In** → Redirected to `/onboarding/company`
-2. **Create Company** → Generates invite code, creates organization, sets user role to 'manager'
-3. **Join Company** → Uses invite code, joins organization, sets user role to 'lifeguard'
+2. **Create Company** → Generates company code, creates organization, sets user role to 'manager'
+3. **Join Company** → Uses company code, joins organization, sets user role to 'lifeguard'
 4. **After Onboarding** → Redirected to appropriate dashboard based on role
 
 ## Role Mapping
@@ -97,4 +97,4 @@ If you encounter errors during onboarding:
 2. Verify RLS policies are enabled
 3. Ensure user is authenticated before accessing onboarding
 4. Check that database migration was applied correctly
-5. Verify invite codes are unique and properly formatted
+5. Verify company codes are unique and properly formatted
