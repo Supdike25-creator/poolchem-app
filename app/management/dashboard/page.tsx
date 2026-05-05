@@ -96,26 +96,9 @@ const formatDateTime = (value: string) => {
 export default async function ManagementDashboard() {
   const supabase = getSupabaseClient();
 
-  // Get current user and their organization
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) {
-    throw new Error('Unauthorized');
-  }
-
-  const { data: profileData } = await supabase
-    .from('profiles')
-    .select('organization_id')
-    .eq('id', session.user.id)
-    .single();
-
-  if (!profileData?.organization_id) {
-    throw new Error('No organization found');
-  }
-
   const { data: pools, error: poolsError } = await supabase
     .from('pools')
     .select('id,name')
-    .eq('organization_id', profileData.organization_id)
     .order('name');
 
   if (poolsError) {
@@ -125,7 +108,6 @@ export default async function ManagementDashboard() {
   const { data: recentLogs, error: logsError } = await supabase
     .from('chemical_logs')
     .select('id,pool_id,free_chlorine,ph,notes,created_at')
-    .in('pool_id', pools?.map(p => p.id) || [])
     .order('created_at', { ascending: false })
     .limit(200);
 

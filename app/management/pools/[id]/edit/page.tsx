@@ -45,33 +45,7 @@ export default function EditPoolPage({ params }: { params: { id: string } }) {
     const loadPool = async () => {
       setLoading(true);
       const supabase = getSupabaseClient();
-
-      // Get current user's organization
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        setError('Unauthorized');
-        setLoading(false);
-        return;
-      }
-
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('organization_id')
-        .eq('id', session.user.id)
-        .single();
-
-      if (!profileData?.organization_id) {
-        setError('No organization found');
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('pools')
-        .select('*')
-        .eq('id', id)
-        .eq('organization_id', profileData.organization_id)
-        .single();
+      const { data, error } = await supabase.from('pools').select('*').eq('id', id).single();
 
       if (error) {
         setError(error.message);
@@ -106,27 +80,6 @@ export default function EditPoolPage({ params }: { params: { id: string } }) {
     setError('');
 
     const supabase = getSupabaseClient();
-
-    // Get current user's organization
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) {
-      setError('Unauthorized');
-      setSaving(false);
-      return;
-    }
-
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('organization_id')
-      .eq('id', session.user.id)
-      .single();
-
-    if (!profileData?.organization_id) {
-      setError('No organization found');
-      setSaving(false);
-      return;
-    }
-
     const { error: updateError } = await supabase
       .from('pools')
       .update({
@@ -140,8 +93,7 @@ export default function EditPoolPage({ params }: { params: { id: string } }) {
         default_chlorine_strength: Number(chlorineStrength) || null,
         notes,
       })
-      .eq('id', id)
-      .eq('organization_id', profileData.organization_id);
+      .eq('id', id);
 
     setSaving(false);
     if (updateError) {

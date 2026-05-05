@@ -7,19 +7,6 @@ import Link from 'next/link';
 
 type AppRole = 'manager' | 'guard';
 
-// Map database roles to app roles
-const mapDatabaseRoleToAppRole = (dbRole: string | null): AppRole => {
-  switch (dbRole) {
-    case 'manager':
-    case 'supervisor':
-    case 'admin':
-      return 'manager';
-    case 'lifeguard':
-    default:
-      return 'guard';
-  }
-};
-
 const roleLabels: Record<AppRole, string> = {
   manager: 'Manager / Supervisor',
   guard: 'Guard / Technician',
@@ -67,8 +54,8 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
       }
 
       const user = session.user;
-      const { data: profileData } = await supabase.from('profiles').select('role, organization_id').eq('id', user.id).single();
-      const savedRole = mapDatabaseRoleToAppRole(profileData?.role) || role;
+      const { data: profileData } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+      const savedRole = (profileData?.role as AppRole) || role;
 
       if (!profileData?.role) {
         const profilePayload = {
@@ -79,12 +66,6 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
         };
 
         await supabase.from('profiles').upsert([profilePayload], { onConflict: 'id' });
-      }
-
-      // Check if user has an organization
-      if (!profileData?.organization_id) {
-        router.replace('/onboarding/company');
-        return;
       }
 
       router.replace(redirectRoute(savedRole));
@@ -100,14 +81,10 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
   const handleSignIn = async () => {
     setStatus('loading');
     const supabase = getSupabaseClient();
-
-    // Use NEXT_PUBLIC_SITE_URL with fallback to window.location.origin
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
-
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${siteUrl}/login?role=${role}`,
+        redirectTo: `${window.location.origin}/login?role=${role}`,
       },
     });
 
@@ -118,8 +95,8 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-200 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-lg bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 lg:p-10">
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-200 flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl p-8 lg:p-10">
         <div className="text-center">
           <div className="flex items-center justify-center gap-3 mb-6">
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
@@ -127,10 +104,10 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
               </svg>
             </div>
-            <p className="text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">ChemDeck sign in</p>
+            <p className="text-sm font-bold uppercase tracking-wide text-blue-600">ChemDeck sign in</p>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Continue as {label}</h1>
-          <p className="mt-3 text-slate-600 dark:text-slate-300">Sign in with Google to access your role-based workflow and sync your profile.</p>
+          <h1 className="text-3xl font-bold text-slate-900">Continue as {label}</h1>
+          <p className="mt-3 text-slate-600">Sign in with Google to access your role-based workflow and sync your profile.</p>
         </div>
 
         <div className="mt-10 space-y-6">
@@ -138,7 +115,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
             type="button"
             onClick={handleSignIn}
             disabled={status === 'loading'}
-            className="w-full flex items-center justify-center rounded-2xl bg-slate-900 dark:bg-slate-700 px-6 py-4 text-sm font-semibold text-white transition hover:bg-slate-800 dark:hover:bg-slate-600 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="w-full flex items-center justify-center rounded-2xl bg-slate-900 px-6 py-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
           >
             {status === 'loading' ? (
               <>
@@ -161,15 +138,15 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
             )}
           </button>
 
-          <div className="bg-blue-50 dark:bg-blue-950 rounded-2xl border border-blue-200 dark:border-blue-800 p-5">
+          <div className="bg-blue-50 rounded-2xl border border-blue-200 p-5">
             <div className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
-                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Need to switch roles?</p>
-                <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">
-                  <Link href="/" className="font-semibold hover:text-blue-800 dark:hover:text-blue-200 transition-colors">
+                <p className="text-sm font-medium text-blue-900">Need to switch roles?</p>
+                <p className="mt-1 text-sm text-blue-700">
+                  <Link href="/" className="font-semibold hover:text-blue-800 transition-colors">
                     Go back to role selection
                   </Link>
                   .
@@ -179,14 +156,14 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
           </div>
 
           {message ? (
-            <div className="bg-red-50 dark:bg-red-950 rounded-2xl border border-red-200 dark:border-red-800 p-5">
+            <div className="bg-red-50 rounded-2xl border border-red-200 p-5">
               <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
                 <div>
-                  <p className="font-semibold text-red-800 dark:text-red-200">Error</p>
-                  <p className="mt-1 text-sm text-red-700 dark:text-red-300">{message}</p>
+                  <p className="font-semibold text-red-800">Error</p>
+                  <p className="mt-1 text-sm text-red-700">{message}</p>
                 </div>
               </div>
             </div>

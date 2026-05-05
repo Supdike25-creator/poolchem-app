@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { getSupabaseClient } from '../../../lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
@@ -15,21 +16,38 @@ interface ChemicalLog {
 export default async function ManagementLogsPage() {
   const supabase = getSupabaseClient();
 
-  // Get current user and their organization
+  // CRITICAL: Get session first
   const { data: { session } } = await supabase.auth.getSession();
+
+  // If no session, redirect to login
   if (!session?.user) {
-    throw new Error('Unauthorized');
+    redirect('/login');
   }
 
+  // Get profile - this should exist for authenticated users
   const { data: profileData } = await supabase
     .from('profiles')
-    .select('organization_id')
+    .select('organization_id, role')
     .eq('id', session.user.id)
     .single();
 
-  if (!profileData?.organization_id) {
-    throw new Error('No organization found');
+  // If profile doesn't exist, redirect to create company
+  if (!profileData) {
+    redirect('/onboarding/company');
   }
+
+  // If profile exists but no organization_id, redirect to create company
+  if (!profileData.organization_id) {
+    redirect('/onboarding/company');
+  }
+
+  // If profile exists and has organization_id, but role is not manager/supervisor/admin, redirect to guard
+  if (!['manager', 'supervisor', 'admin'].includes(profileData.role)) {
+    redirect('/guard');
+  }
+
+  // If we get here, user is authenticated, has profile, has organization, and has correct role
+  // Render the logs page
 
   // Get pools for the organization to join with logs
   const { data: pools } = await supabase

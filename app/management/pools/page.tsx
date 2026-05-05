@@ -12,27 +12,9 @@ interface Pool {
 
 export default async function ManagementPoolsPage() {
   const supabase = getSupabaseClient();
-
-  // Get current user and their organization
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) {
-    throw new Error('Unauthorized');
-  }
-
-  const { data: profileData } = await supabase
-    .from('profiles')
-    .select('organization_id')
-    .eq('id', session.user.id)
-    .single();
-
-  if (!profileData?.organization_id) {
-    throw new Error('No organization found');
-  }
-
   const { data: pools, error } = await supabase
     .from('pools')
     .select('id,name,pool_type,volume_gallons')
-    .eq('organization_id', profileData.organization_id)
     .order('name');
 
   if (error) {

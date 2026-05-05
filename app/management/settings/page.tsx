@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getSupabaseClient } from '../../../lib/supabaseClient';
-import { useTheme } from '../../../components/ThemeProvider';
 import {
   Settings,
   Palette,
@@ -32,6 +31,7 @@ type ChlorineType = 'liquid' | 'cal-hypo' | 'trichlor' | 'dichlor';
 type DosingUnit = 'ounces' | 'cups' | 'gallons' | 'pounds';
 
 interface SettingsData {
+  theme: Theme;
   chlorineType: ChlorineType;
   chlorineStrength: number;
   dosingUnit: DosingUnit;
@@ -53,6 +53,7 @@ interface SettingsData {
 }
 
 const defaultSettings: SettingsData = {
+  theme: 'system',
   chlorineType: 'liquid',
   chlorineStrength: 12.5,
   dosingUnit: 'ounces',
@@ -74,10 +75,8 @@ const defaultSettings: SettingsData = {
 };
 
 export default function ManagementSettingsPage() {
-  const { theme, setTheme } = useTheme();
   const [settings, setSettings] = useState<SettingsData>(defaultSettings);
   const [profile, setProfile] = useState<{ full_name?: string; email?: string; role?: string } | null>(null);
-  const [organization, setOrganization] = useState<{ name?: string; company_code?: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -98,20 +97,10 @@ export default function ManagementSettingsPage() {
       if (session?.user) {
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('full_name,email,role,organization_id')
+          .select('full_name,email,role')
           .eq('id', session.user.id)
           .single();
         setProfile(profileData);
-
-        // Load organization data if user has an organization
-        if (profileData?.organization_id) {
-          const { data: orgData } = await supabase
-            .from('organizations')
-            .select('name,company_code')
-            .eq('id', profileData.organization_id)
-            .single();
-          setOrganization(orgData);
-        }
       }
       setLoading(false);
     };
@@ -147,17 +136,17 @@ export default function ManagementSettingsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <Settings className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            <p className="text-sm font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">Management</p>
+            <Settings className="w-6 h-6 text-blue-600" />
+            <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Management</p>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Settings</h1>
-          <p className="mt-2 text-slate-600 dark:text-slate-300 max-w-2xl">
+          <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
+          <p className="mt-2 text-slate-600 max-w-2xl">
             Configure your workspace preferences, notifications, and chemical calculator settings.
           </p>
         </div>
         <Link
           href="/management/dashboard"
-          className="inline-flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+          className="inline-flex items-center justify-center rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
         >
           Return to Dashboard
         </Link>
@@ -165,10 +154,10 @@ export default function ManagementSettingsPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Appearance Settings */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
-            <Palette className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Appearance</h2>
+            <Palette className="w-5 h-5 text-blue-600" />
+            <h2 className="text-lg font-semibold text-slate-900">Appearance</h2>
           </div>
 
           <div className="space-y-4">
@@ -182,11 +171,11 @@ export default function ManagementSettingsPage() {
                 ].map(({ value, label, icon: Icon }) => (
                   <button
                     key={value}
-                    onClick={() => setTheme(value)}
+                    onClick={() => saveSettings({ theme: value })}
                     className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                      theme === value
-                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-950 dark:text-blue-300'
-                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600'
+                      settings.theme === value
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                     }`}
                   >
                     <Icon className="w-5 h-5" />
@@ -199,19 +188,19 @@ export default function ManagementSettingsPage() {
         </div>
 
         {/* Chemical Calculator Settings */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
-            <Calculator className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Chemical Calculator</h2>
+            <Calculator className="w-5 h-5 text-blue-600" />
+            <h2 className="text-lg font-semibold text-slate-900">Chemical Calculator</h2>
           </div>
 
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Default Chlorine Type</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Default Chlorine Type</label>
               <select
                 value={settings.chlorineType}
                 onChange={(e) => saveSettings({ chlorineType: e.target.value as ChlorineType })}
-                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               >
                 <option value="liquid">Liquid Chlorine</option>
                 <option value="cal-hypo">Cal-Hypo</option>
@@ -221,7 +210,7 @@ export default function ManagementSettingsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Default Chlorine Strength (%)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Default Chlorine Strength (%)</label>
               <input
                 type="number"
                 step="0.1"
@@ -229,16 +218,16 @@ export default function ManagementSettingsPage() {
                 max="100"
                 value={settings.chlorineStrength}
                 onChange={(e) => saveSettings({ chlorineStrength: parseFloat(e.target.value) || 12.5 })}
-                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Preferred Dosing Unit</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Preferred Dosing Unit</label>
               <select
                 value={settings.dosingUnit}
                 onChange={(e) => saveSettings({ dosingUnit: e.target.value as DosingUnit })}
-                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               >
                 <option value="ounces">Ounces</option>
                 <option value="cups">Cups</option>
@@ -302,19 +291,19 @@ export default function ManagementSettingsPage() {
         </div>
 
         {/* Notifications */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
-            <Bell className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Notifications</h2>
+            <Bell className="w-5 h-5 text-blue-600" />
+            <h2 className="text-lg font-semibold text-slate-900">Notifications</h2>
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Master Notifications</span>
+              <span className="text-sm font-medium text-slate-700">Master Notifications</span>
               <button
                 onClick={() => saveSettings({ masterNotifications: !settings.masterNotifications })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  settings.masterNotifications ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-600'
+                  settings.masterNotifications ? 'bg-blue-600' : 'bg-slate-200'
                 }`}
               >
                 <span
@@ -326,11 +315,11 @@ export default function ManagementSettingsPage() {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Missed Chemical Test Alerts</span>
+              <span className="text-sm font-medium text-slate-700">Missed Chemical Test Alerts</span>
               <button
                 onClick={() => saveSettings({ missedTestAlerts: !settings.missedTestAlerts })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  settings.missedTestAlerts ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-600'
+                  settings.missedTestAlerts ? 'bg-blue-600' : 'bg-slate-200'
                 }`}
                 disabled={!settings.masterNotifications}
               >
@@ -343,11 +332,11 @@ export default function ManagementSettingsPage() {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Out-of-Range Chemical Alerts</span>
+              <span className="text-sm font-medium text-slate-700">Out-of-Range Chemical Alerts</span>
               <button
                 onClick={() => saveSettings({ outOfRangeAlerts: !settings.outOfRangeAlerts })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  settings.outOfRangeAlerts ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-600'
+                  settings.outOfRangeAlerts ? 'bg-blue-600' : 'bg-slate-200'
                 }`}
                 disabled={!settings.masterNotifications}
               >
@@ -360,11 +349,11 @@ export default function ManagementSettingsPage() {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">New Announcement Alerts</span>
+              <span className="text-sm font-medium text-slate-700">New Announcement Alerts</span>
               <button
                 onClick={() => saveSettings({ newAnnouncementAlerts: !settings.newAnnouncementAlerts })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  settings.newAnnouncementAlerts ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-600'
+                  settings.newAnnouncementAlerts ? 'bg-blue-600' : 'bg-slate-200'
                 }`}
                 disabled={!settings.masterNotifications}
               >
@@ -377,11 +366,11 @@ export default function ManagementSettingsPage() {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Daily Summary</span>
+              <span className="text-sm font-medium text-slate-700">Daily Summary</span>
               <button
                 onClick={() => saveSettings({ dailySummary: !settings.dailySummary })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  settings.dailySummary ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-600'
+                  settings.dailySummary ? 'bg-blue-600' : 'bg-slate-200'
                 }`}
                 disabled={!settings.masterNotifications}
               >
@@ -395,21 +384,21 @@ export default function ManagementSettingsPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Quiet Hours Start</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Quiet Hours Start</label>
                 <input
                   type="time"
                   value={settings.quietHoursStart}
                   onChange={(e) => saveSettings({ quietHoursStart: e.target.value })}
-                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Quiet Hours End</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Quiet Hours End</label>
                 <input
                   type="time"
                   value={settings.quietHoursEnd}
                   onChange={(e) => saveSettings({ quietHoursEnd: e.target.value })}
-                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -417,19 +406,19 @@ export default function ManagementSettingsPage() {
         </div>
 
         {/* Photo Verification */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
-            <Camera className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Photo Verification</h2>
+            <Camera className="w-5 h-5 text-blue-600" />
+            <h2 className="text-lg font-semibold text-slate-900">Photo Verification</h2>
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Require Photo for Every Test</span>
+              <span className="text-sm font-medium text-slate-700">Require Photo for Every Test</span>
               <button
                 onClick={() => saveSettings({ requirePhotoEveryTest: !settings.requirePhotoEveryTest })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  settings.requirePhotoEveryTest ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-600'
+                  settings.requirePhotoEveryTest ? 'bg-blue-600' : 'bg-slate-200'
                 }`}
               >
                 <span
@@ -441,11 +430,11 @@ export default function ManagementSettingsPage() {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Require Photo When Out of Range</span>
+              <span className="text-sm font-medium text-slate-700">Require Photo When Out of Range</span>
               <button
                 onClick={() => saveSettings({ requirePhotoOutOfRange: !settings.requirePhotoOutOfRange })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  settings.requirePhotoOutOfRange ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-600'
+                  settings.requirePhotoOutOfRange ? 'bg-blue-600' : 'bg-slate-200'
                 }`}
               >
                 <span
@@ -457,11 +446,11 @@ export default function ManagementSettingsPage() {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Require Photo for Baby Pools</span>
+              <span className="text-sm font-medium text-slate-700">Require Photo for Baby Pools</span>
               <button
                 onClick={() => saveSettings({ requirePhotoBabyPools: !settings.requirePhotoBabyPools })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  settings.requirePhotoBabyPools ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-600'
+                  settings.requirePhotoBabyPools ? 'bg-blue-600' : 'bg-slate-200'
                 }`}
               >
                 <span
@@ -473,11 +462,11 @@ export default function ManagementSettingsPage() {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Allow Gallery Uploads</span>
+              <span className="text-sm font-medium text-slate-700">Allow Gallery Uploads</span>
               <button
                 onClick={() => saveSettings({ allowGalleryUploads: !settings.allowGalleryUploads })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  settings.allowGalleryUploads ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-600'
+                  settings.allowGalleryUploads ? 'bg-blue-600' : 'bg-slate-200'
                 }`}
               >
                 <span
@@ -489,11 +478,11 @@ export default function ManagementSettingsPage() {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Camera-Only Mode</span>
+              <span className="text-sm font-medium text-slate-700">Camera-Only Mode</span>
               <button
                 onClick={() => saveSettings({ cameraOnlyMode: !settings.cameraOnlyMode })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  settings.cameraOnlyMode ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-600'
+                  settings.cameraOnlyMode ? 'bg-blue-600' : 'bg-slate-200'
                 }`}
               >
                 <span
@@ -507,14 +496,14 @@ export default function ManagementSettingsPage() {
         </div>
 
         {/* Account / Workspace */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
-            <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Account & Workspace</h2>
+            <User className="w-5 h-5 text-blue-600" />
+            <h2 className="text-lg font-semibold text-slate-900">Account & Workspace</h2>
           </div>
 
           <div className="space-y-4">
-            <div className="bg-slate-50 dark:bg-slate-700 rounded-lg p-4">
+            <div className="bg-slate-50 rounded-lg p-4">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
                   <span className="text-white font-semibold">
@@ -522,46 +511,19 @@ export default function ManagementSettingsPage() {
                   </span>
                 </div>
                 <div>
-                  <p className="font-semibold text-slate-900 dark:text-white">{profile?.full_name || 'User'}</p>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">{profile?.email}</p>
+                  <p className="font-semibold text-slate-900">{profile?.full_name || 'User'}</p>
+                  <p className="text-sm text-slate-600">{profile?.email}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 text-sm mb-2">
-                <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span className="text-slate-700 dark:text-slate-300">Role: {profile?.role === 'manager' ? 'Manager / Supervisor' : 'Guard / Technician'}</span>
+              <div className="flex items-center gap-2 text-sm">
+                <Users className="w-4 h-4 text-blue-600" />
+                <span className="text-slate-700">Role: {profile?.role === 'manager' ? 'Manager / Supervisor' : 'Guard / Technician'}</span>
               </div>
-              {organization ? (
-                <div className="flex items-center gap-2 text-sm">
-                  <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <span className="text-slate-700 dark:text-slate-300">
-                    Company: {organization.name} {organization.company_code && `(${organization.company_code})`}
-                  </span>
-                  {organization.company_code && (
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(organization.company_code!);
-                        // Could add a toast notification here
-                      }}
-                      className="ml-2 p-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                      title="Copy company code"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-sm text-orange-600 dark:text-orange-400">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span>No company workspace yet</span>
-                </div>
-              )}
             </div>
 
             <button
               onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 rounded-lg bg-slate-900 dark:bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -572,71 +534,71 @@ export default function ManagementSettingsPage() {
         </div>
 
         {/* Help / Contact */}
-        <div id="help" className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm lg:col-span-2">
+        <div id="help" className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm lg:col-span-2">
           <div className="flex items-center gap-3 mb-6">
-            <HelpCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Help & Contact</h2>
+            <HelpCircle className="w-5 h-5 text-blue-600" />
+            <h2 className="text-lg font-semibold text-slate-900">Help & Contact</h2>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
             <div>
-              <h3 className="font-semibold text-slate-900 dark:text-white mb-4">Common Help Topics</h3>
+              <h3 className="font-semibold text-slate-900 mb-4">Common Help Topics</h3>
               <div className="space-y-3">
-                <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
                   <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
                   <div>
-                    <p className="font-medium text-slate-900 dark:text-white">How to submit a chemical log</p>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Navigate to the Guard section, select a pool, and fill out the chemical readings form.</p>
+                    <p className="font-medium text-slate-900">How to submit a chemical log</p>
+                    <p className="text-sm text-slate-600 mt-1">Navigate to the Guard section, select a pool, and fill out the chemical readings form.</p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
-                  <Users className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                  <Users className="w-5 h-5 text-blue-600 mt-0.5" />
                   <div>
-                    <p className="font-medium text-slate-900 dark:text-white">How managers add pools</p>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Go to Management → Pools and click "Add New Pool" to configure pool settings.</p>
+                    <p className="font-medium text-slate-900">How managers add pools</p>
+                    <p className="text-sm text-slate-600 mt-1">Go to Management → Pools and click "Add New Pool" to configure pool settings.</p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
                   <Megaphone className="w-5 h-5 text-purple-600 mt-0.5" />
                   <div>
-                    <p className="font-medium text-slate-900 dark:text-white">How announcements work</p>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Managers can post announcements that appear in the Announcements section for all users.</p>
+                    <p className="font-medium text-slate-900">How announcements work</p>
+                    <p className="text-sm text-slate-600 mt-1">Managers can post announcements that appear in the Announcements section for all users.</p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
                   <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5" />
                   <div>
-                    <p className="font-medium text-slate-900 dark:text-white">What to do if dosing looks wrong</p>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Contact your manager or supervisor. High doses may require approval before proceeding.</p>
+                    <p className="font-medium text-slate-900">What to do if dosing looks wrong</p>
+                    <p className="text-sm text-slate-600 mt-1">Contact your manager or supervisor. High doses may require approval before proceeding.</p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
                   <XCircle className="w-5 h-5 text-red-600 mt-0.5" />
                   <div>
-                    <p className="font-medium text-slate-900 dark:text-white">Report a bug</p>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Use the contact information below to report any issues with the application.</p>
+                    <p className="font-medium text-slate-900">Report a bug</p>
+                    <p className="text-sm text-slate-600 mt-1">Use the contact information below to report any issues with the application.</p>
                   </div>
                 </div>
               </div>
             </div>
 
             <div>
-              <h3 className="font-semibold text-slate-900 dark:text-white mb-4">Contact Support</h3>
-              <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+              <h3 className="font-semibold text-slate-900 mb-4">Contact Support</h3>
+              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                 <div className="flex items-start gap-3">
-                  <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                  <Mail className="w-5 h-5 text-blue-600 mt-0.5" />
                   <div>
-                    <p className="font-medium text-blue-900 dark:text-blue-100">Need help with ChemDeck?</p>
-                    <p className="text-sm text-blue-700 dark:text-blue-300 mt-1 mb-3">
+                    <p className="font-medium text-blue-900">Need help with ChemDeck?</p>
+                    <p className="text-sm text-blue-700 mt-1 mb-3">
                       Contact Spencer Updike for technical support, feature requests, or questions about the application.
                     </p>
                     <a
                       href="mailto:sru55763@email.vccs.edu"
-                      className="inline-flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 transition-colors"
+                      className="inline-flex items-center gap-2 text-sm font-medium text-blue-700 hover:text-blue-800 transition-colors"
                     >
                       <Mail className="w-4 h-4" />
                       sru55763@email.vccs.edu
