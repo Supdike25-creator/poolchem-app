@@ -24,6 +24,27 @@ export default function NewPoolPage() {
     setSubmitting(true);
 
     const supabase = getSupabaseClient();
+
+    // Get current user's organization
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      setError('Unauthorized');
+      setSubmitting(false);
+      return;
+    }
+
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('organization_id')
+      .eq('id', session.user.id)
+      .single();
+
+    if (!profileData?.organization_id) {
+      setError('No organization found');
+      setSubmitting(false);
+      return;
+    }
+
     const { error: insertError } = await supabase.from('pools').insert([
       {
         name,
@@ -35,6 +56,7 @@ export default function NewPoolPage() {
         target_ph_max: Number(phMax) || 0,
         default_chlorine_strength: Number(chlorineStrength) || null,
         notes,
+        organization_id: profileData.organization_id,
       },
     ]);
 

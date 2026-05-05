@@ -14,9 +14,35 @@ interface ChemicalLog {
 
 export default async function ManagementLogsPage() {
   const supabase = getSupabaseClient();
+
+  // Get current user and their organization
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) {
+    throw new Error('Unauthorized');
+  }
+
+  const { data: profileData } = await supabase
+    .from('profiles')
+    .select('organization_id')
+    .eq('id', session.user.id)
+    .single();
+
+  if (!profileData?.organization_id) {
+    throw new Error('No organization found');
+  }
+
+  // Get pools for the organization to join with logs
+  const { data: pools } = await supabase
+    .from('pools')
+    .select('id,name')
+    .eq('organization_id', profileData.organization_id);
+
+  const poolMap = new Map(pools?.map(pool => [pool.id, pool.name]) || []);
+
   const { data: logs, error } = await supabase
     .from('chemical_logs')
-    .select('id,pool_id,free_chlorine,ph,notes,created_at')
+    .select('id,pool_id,user_id,chemical_type,amount,unit,notes,logged_at,created_at')
+    .in('pool_id', Array.from(poolMap.keys()))
     .order('created_at', { ascending: false })
     .limit(50);
 
@@ -43,11 +69,11 @@ export default async function ManagementLogsPage() {
             <table className="min-w-full divide-y divide-slate-200">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Pool ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Chlorine</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">pH</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Pool</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Chemical</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Amount</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Notes</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Submitted</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Logged</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
@@ -60,11 +86,11 @@ export default async function ManagementLogsPage() {
                 ) : (
                   logs.map((log) => (
                     <tr key={log.id} className="hover:bg-slate-50 transition-colors duration-150">
-                      <td className="px-6 py-4 text-sm text-slate-900">{log.pool_id}</td>
-                      <td className="px-6 py-4 text-sm text-slate-900">{log.free_chlorine.toFixed(1)} ppm</td>
-                      <td className="px-6 py-4 text-sm text-slate-900">{log.ph.toFixed(1)}</td>
+                      <td className="px-6 py-4 text-sm text-slate-900">{poolMap.get(log.pool_id) || log.pool_id}</td>
+                      <td className="px-6 py-4 text-sm text-slate-900">{log.chemical_type}</td>
+                      <td className="px-6 py-4 text-sm text-slate-900">{log.amount} {log.unit}</td>
                       <td className="px-6 py-4 text-sm text-slate-600">{log.notes || '—'}</td>
-                      <td className="px-6 py-4 text-sm text-slate-500">{new Date(log.created_at).toLocaleString()}</td>
+                      <td className="px-6 py-4 text-sm text-slate-500">{new Date(log.logged_at || log.created_at).toLocaleString()}</td>
                     </tr>
                   ))
                 )}

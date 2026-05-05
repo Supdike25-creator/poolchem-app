@@ -117,11 +117,35 @@ export default function LogPage() {
 
       try {
         const supabase = getSupabaseClient();
+
+        // Get current user's organization
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          setPoolLoadError('Unauthorized');
+          setPools([]);
+          setLoadingPools(false);
+          return;
+        }
+
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('organization_id')
+          .eq('id', session.user.id)
+          .single();
+
+        if (!profileData?.organization_id) {
+          setPoolLoadError('No organization found');
+          setPools([]);
+          setLoadingPools(false);
+          return;
+        }
+
         const { data, error } = await supabase
           .from('pools')
           .select(
             'id,name,volume_gallons,pool_type,is_baby_pool,target_chlorine_min,target_chlorine_max,target_ph_min,target_ph_max,default_chlorine_type,default_chlorine_strength,max_single_dose_oz,retest_minutes'
           )
+          .eq('organization_id', profileData.organization_id)
           .order('name');
 
         if (error) {
@@ -181,13 +205,24 @@ export default function LogPage() {
       const phValue = parseFloat(formData.ph);
 
       const supabase = getSupabaseClient();
+
+      // Get current user
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setSubmitError('Unauthorized');
+        setIsSubmitting(false);
+        return;
+      }
+
       const { error } = await supabase.from('chemical_logs').insert([
         {
           pool_id: formData.poolId,
-          free_chlorine: chlorineValue,
-          ph: phValue,
+          user_id: session.user.id,
+          chemical_type: 'chlorine',
+          amount: 0, // This would be calculated based on dosing
+          unit: 'oz',
           notes: formData.notes,
-          photo_url: null
+          logged_at: new Date().toISOString()
         }
       ]);
 

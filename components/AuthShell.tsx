@@ -75,11 +75,17 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
 
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('id,email,full_name,role')
+          .select('id,email,full_name,role,organization_id')
           .eq('id', user.id)
           .single();
 
         if (!isMounted) return;
+
+        // Check if user has an organization
+        if (!profileData?.organization_id) {
+          router.replace('/onboarding/company');
+          return;
+        }
 
         const savedRole = (profileData?.role as AppRole) || role;
         if (savedRole !== role) {
@@ -140,9 +146,9 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-200">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-200 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl overflow-hidden">
           <div className="px-6 py-6 lg:px-8 lg:py-8">
             <div className="mb-8 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div>
@@ -153,16 +159,16 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
                     </svg>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">{roleLabels[role]}</p>
-                    <h1 className="text-3xl font-bold text-slate-900">{role === 'manager' ? 'Management Workspace' : 'Guard Workbench'}</h1>
+                    <p className="text-sm font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">{roleLabels[role]}</p>
+                    <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{role === 'manager' ? 'Management Workspace' : 'Guard Workbench'}</h1>
                   </div>
                 </div>
-                <p className="mt-3 text-slate-600 max-w-2xl">
+                <p className="mt-3 text-slate-600 dark:text-slate-300 max-w-2xl">
                   Secure access for your assigned role with quick navigation and account controls.
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm">
+                <div className="rounded-2xl border border-blue-200 dark:border-slate-600 bg-blue-50 dark:bg-slate-700 px-5 py-4 text-sm">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                       <span className="text-white font-semibold text-sm">
@@ -170,15 +176,15 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
                       </span>
                     </div>
                     <div>
-                      <p className="font-semibold text-slate-900">{profile?.full_name || 'User'}</p>
-                      <p className="text-blue-600">{profile?.email}</p>
+                      <p className="font-semibold text-slate-900 dark:text-white">{profile?.full_name || 'User'}</p>
+                      <p className="text-blue-600 dark:text-blue-400">{profile?.email}</p>
                     </div>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-4 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
+                  className="inline-flex items-center justify-center rounded-2xl bg-slate-900 dark:bg-slate-700 px-5 py-4 text-sm font-medium text-white hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -189,15 +195,15 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
             </div>
 
             <div className="grid gap-8 xl:grid-cols-[1fr_320px]">
-              <main className="bg-slate-50 rounded-2xl p-6 lg:p-8">{children}</main>
+              <main className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-6 lg:p-8">{children}</main>
 
               <aside className="space-y-6">
-                <div className="bg-white rounded-2xl border border-blue-200 p-6 shadow-sm">
+                <div className="bg-white dark:bg-slate-800 rounded-2xl border border-blue-200 dark:border-slate-700 p-6 shadow-sm">
                   <div className="flex items-center gap-2 mb-4">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                     </svg>
-                    <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Quick links</p>
+                    <p className="text-sm font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">Quick links</p>
                   </div>
                   <div className="space-y-2">
                     {navItems[role].map((item) => (
@@ -206,12 +212,12 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
                         href={item.href}
                         className={`group flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium transition-all ${
                           pathname === item.href
-                            ? 'bg-blue-600 text-white shadow-md'
-                            : 'bg-slate-50 text-slate-700 hover:bg-blue-50 hover:text-blue-700 border border-transparent hover:border-blue-200'
+                            ? 'bg-blue-600 text-white shadow-md dark:bg-blue-700'
+                            : 'bg-slate-50 text-slate-700 hover:bg-blue-50 hover:text-blue-700 border border-transparent hover:border-blue-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-blue-300 dark:border-slate-600 dark:hover:border-slate-500'
                         }`}
                       >
                         <span>{item.label}</span>
-                        <svg className={`w-4 h-4 transition-transform ${pathname === item.href ? 'text-white' : 'text-blue-400 group-hover:translate-x-1'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className={`w-4 h-4 transition-transform ${pathname === item.href ? 'text-white' : 'text-blue-400 group-hover:translate-x-1 dark:text-blue-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </Link>
@@ -219,28 +225,28 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-blue-200 p-6 shadow-sm">
+                <div className="bg-white dark:bg-slate-800 rounded-2xl border border-blue-200 dark:border-slate-700 p-6 shadow-sm">
                   <div className="flex items-center gap-2 mb-4">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                     </svg>
-                    <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Your role</p>
+                    <p className="text-sm font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">Your role</p>
                   </div>
-                  <p className="text-lg font-bold text-slate-900 mb-3">{roleLabels[role]}</p>
-                  <p className="text-sm text-slate-600 leading-relaxed">
+                  <p className="text-lg font-bold text-slate-900 dark:text-white mb-3">{roleLabels[role]}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                     Your current session is limited to the selected workspace. Use the log out button to start again.
                   </p>
                 </div>
 
                 {error ? (
-                  <div className="bg-red-50 rounded-2xl border border-red-200 p-5 shadow-sm">
+                  <div className="bg-red-50 dark:bg-red-950 rounded-2xl border border-red-200 dark:border-red-800 p-5 shadow-sm">
                     <div className="flex items-start gap-3">
-                      <svg className="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                       </svg>
                       <div>
-                        <p className="font-semibold text-red-800">Authentication issue</p>
-                        <p className="mt-1 text-sm text-red-700">{error}</p>
+                        <p className="font-semibold text-red-800 dark:text-red-200">Authentication issue</p>
+                        <p className="mt-1 text-sm text-red-700 dark:text-red-300">{error}</p>
                       </div>
                     </div>
                   </div>
