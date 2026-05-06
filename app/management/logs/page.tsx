@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import BackButton from '../../../components/BackButton';
 import LogDateSlider from '../../../components/LogDateSlider';
+import { getServerAppSession } from '../../../lib/serverAppSession';
 import { getSupabaseClient } from '../../../lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
@@ -68,30 +69,41 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
 
   const supabase = getSupabaseClient();
   const { data: { session } } = await supabase.auth.getSession();
+  const appSession = await getServerAppSession();
 
-  if (!session?.user) {
+  if (!session?.user && appSession?.role !== 'manager') {
     redirect('/login');
   }
 
-  const { data: profileData } = await supabase
-    .from('profiles')
-    .select('organization_id, role')
-    .eq('id', session.user.id)
-    .single();
+  let organizationId: string | null = null;
+  if (session?.user) {
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('organization_id, role')
+      .eq('id', session.user.id)
+      .single();
 
-  if (!profileData?.organization_id) {
-    redirect('/onboarding/company');
+    if (!profileData?.organization_id) {
+      redirect('/onboarding/company');
+    }
+
+    if (!['manager', 'supervisor', 'admin'].includes(profileData.role)) {
+      redirect('/guard');
+    }
+
+    organizationId = profileData.organization_id;
   }
 
-  if (!['manager', 'supervisor', 'admin'].includes(profileData.role)) {
-    redirect('/guard');
-  }
-
-  const { data: pools } = await supabase
+  let poolsQuery = supabase
     .from('pools')
     .select('id,name')
-    .eq('organization_id', profileData.organization_id)
     .order('name');
+
+  if (organizationId) {
+    poolsQuery = poolsQuery.eq('organization_id', organizationId);
+  }
+
+  const { data: pools } = await poolsQuery;
 
   const poolMap = new Map(pools?.map((pool) => [pool.id, pool.name]) || []);
 

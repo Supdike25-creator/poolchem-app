@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { clearAppSession, getStoredSession, normalizeAppRole } from '../lib/appAccounts';
 import { getSupabaseClient } from '../lib/supabaseClient';
 import BackButton from './BackButton';
 
@@ -37,6 +38,10 @@ const roleLabels: Record<AppRole, string> = {
 
 const authorizedRoute = (role: AppRole) => (role === 'manager' ? '/management/dashboard' : '/guard');
 
+const normalizeProfileRole = (role?: string | null): AppRole => {
+  return normalizeAppRole(role);
+};
+
 export default function AuthShell({ role, children }: { role: AppRole; children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -66,6 +71,23 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
 
         const user = session?.user;
         if (!user) {
+          const appSession = getStoredSession();
+
+          if (appSession && appSession.role === role) {
+            setProfile({
+              full_name: appSession.name || appSession.username,
+              email: appSession.email || appSession.username,
+              role: appSession.role,
+            });
+            setStatus('authenticated');
+            return;
+          }
+
+          if (appSession && appSession.role !== role) {
+            router.replace(authorizedRoute(appSession.role));
+            return;
+          }
+
           setStatus('unauthenticated');
           router.replace(`/login?role=${role}`);
           return;
@@ -79,7 +101,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
 
         if (!isMounted) return;
 
-        const savedRole = (profileData?.role as AppRole) || role;
+        const savedRole = profileData?.role ? normalizeProfileRole(profileData.role) : role;
         if (savedRole !== role) {
           router.replace(authorizedRoute(savedRole));
           return;
@@ -120,12 +142,14 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   const handleLogout = async () => {
     const supabase = getSupabaseClient();
     await supabase.auth.signOut();
+    clearAppSession();
     router.push('/');
   };
 
   const handleBackToLogin = async () => {
     const supabase = getSupabaseClient();
     await supabase.auth.signOut();
+    clearAppSession();
     router.push(`/login?role=${role}`);
   };
 

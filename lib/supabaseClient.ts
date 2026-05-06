@@ -1,3 +1,4 @@
+import { createBrowserClient } from '@supabase/ssr';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 let supabase: SupabaseClient | null = null;
@@ -13,7 +14,14 @@ export function getSupabaseClient(): SupabaseClient {
       );
     }
 
-    supabase = createClient(supabaseUrl, supabaseAnonKey);
+    supabase =
+      typeof window === 'undefined'
+        ? createClient(supabaseUrl, supabaseAnonKey, {
+            auth: {
+              persistSession: false,
+            },
+          })
+        : createBrowserClient(supabaseUrl, supabaseAnonKey);
   }
   return supabase;
 }
