@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getSupabaseClient } from '../../../lib/supabaseClient';
+import BackButton from '../../../components/BackButton';
 import {
   Settings,
   Palette,
@@ -18,8 +19,6 @@ import {
   Sun,
   Monitor,
   Droplets,
-  Scale,
-  Clock,
   AlertTriangle,
   Megaphone,
   CheckCircle,
@@ -27,13 +26,16 @@ import {
 } from 'lucide-react';
 
 type Theme = 'light' | 'dark' | 'system';
+type StylePreset = 'default' | 'compact' | 'contrast' | 'soft';
 type ChlorineType = 'liquid' | 'cal-hypo' | 'trichlor' | 'dichlor';
 type DosingUnit = 'ounces' | 'cups' | 'gallons' | 'pounds';
 
 interface SettingsData {
   theme: Theme;
+  stylePreset: StylePreset;
   chlorineType: ChlorineType;
   chlorineStrength: number;
+  poolVolumeGallons: number;
   dosingUnit: DosingUnit;
   babyPoolSafety: boolean;
   requireApproval: boolean;
@@ -54,8 +56,10 @@ interface SettingsData {
 
 const defaultSettings: SettingsData = {
   theme: 'system',
+  stylePreset: 'default',
   chlorineType: 'liquid',
   chlorineStrength: 12.5,
+  poolVolumeGallons: 25000,
   dosingUnit: 'ounces',
   babyPoolSafety: true,
   requireApproval: true,
@@ -74,22 +78,32 @@ const defaultSettings: SettingsData = {
   cameraOnlyMode: false,
 };
 
+const clampPoolVolume = (value: number) => Math.min(100000, Math.max(500, Math.round(value)));
+
+const loadStoredSettings = () => {
+  if (typeof window === 'undefined') {
+    return defaultSettings;
+  }
+
+  try {
+    const savedSettings = localStorage.getItem('chemdeck-settings');
+    return savedSettings ? { ...defaultSettings, ...JSON.parse(savedSettings) } : defaultSettings;
+  } catch (error) {
+    console.error('Error loading settings:', error);
+    return defaultSettings;
+  }
+};
+
+const notifySettingsChanged = () => {
+  window.dispatchEvent(new Event('chemdeck-settings-change'));
+};
+
 export default function ManagementSettingsPage() {
-  const [settings, setSettings] = useState<SettingsData>(defaultSettings);
+  const [settings, setSettings] = useState<SettingsData>(loadStoredSettings);
   const [profile, setProfile] = useState<{ full_name?: string; email?: string; role?: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load settings from localStorage
-    const savedSettings = localStorage.getItem('chemdeck-settings');
-    if (savedSettings) {
-      try {
-        setSettings({ ...defaultSettings, ...JSON.parse(savedSettings) });
-      } catch (error) {
-        console.error('Error loading settings:', error);
-      }
-    }
-
     // Load profile
     const loadProfile = async () => {
       const supabase = getSupabaseClient();
@@ -112,6 +126,7 @@ export default function ManagementSettingsPage() {
     const updated = { ...settings, ...newSettings };
     setSettings(updated);
     localStorage.setItem('chemdeck-settings', JSON.stringify(updated));
+    notifySettingsChanged();
   };
 
   const handleLogout = async () => {
@@ -139,28 +154,32 @@ export default function ManagementSettingsPage() {
             <Settings className="w-6 h-6 text-blue-600" />
             <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Management</p>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
           <p className="mt-2 text-slate-600 max-w-2xl">
             Configure your workspace preferences, notifications, and chemical calculator settings.
           </p>
         </div>
-        <Link
-          href="/management/dashboard"
-          className="inline-flex items-center justify-center rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-        >
-          Return to Dashboard
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <BackButton fallbackHref="/management/dashboard" label="Back" />
+          <Link
+            href="/management/dashboard"
+            data-sound="click"
+            className="inline-flex items-center justify-center rounded-lg bg-white border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            Dashboard
+          </Link>
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         {/* Appearance Settings */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
             <Palette className="w-5 h-5 text-blue-600" />
             <h2 className="text-lg font-semibold text-slate-900">Appearance</h2>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-3">Theme</label>
               <div className="grid grid-cols-3 gap-2">
@@ -171,6 +190,7 @@ export default function ManagementSettingsPage() {
                 ].map(({ value, label, icon: Icon }) => (
                   <button
                     key={value}
+                    type="button"
                     onClick={() => saveSettings({ theme: value })}
                     className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                       settings.theme === value
@@ -184,17 +204,53 @@ export default function ManagementSettingsPage() {
                 ))}
               </div>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-3">Style Format</label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {[
+                  { value: 'default' as StylePreset, label: 'Standard Blue', description: 'Clean sans with ChemDeck blue accents.' },
+                  { value: 'compact' as StylePreset, label: 'Compact Teal', description: 'Tighter font with teal action colors.' },
+                  { value: 'contrast' as StylePreset, label: 'High Contrast', description: 'Bold system font with amber highlights.' },
+                  { value: 'soft' as StylePreset, label: 'Soft Editorial', description: 'Serif headings with softer indigo tones.' },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => saveSettings({ stylePreset: option.value })}
+                    className={`rounded-lg border p-3 text-left transition-colors ${
+                      settings.stylePreset === option.value
+                        ? 'border-blue-500 bg-blue-50 text-blue-800'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-sm font-semibold">{option.label}</span>
+                    <span className="mt-1 block text-xs text-slate-500">{option.description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Chemical Calculator Settings */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
             <Calculator className="w-5 h-5 text-blue-600" />
             <h2 className="text-lg font-semibold text-slate-900">Chemical Calculator</h2>
+            </div>
+            <Link href="/management/calculator" data-sound="click" className="rounded-md bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">
+              Calc
+            </Link>
           </div>
 
-          <div className="space-y-6">
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <p className="text-sm font-semibold text-blue-900">Calculator moved to its own page</p>
+            <p className="mt-1 text-xs text-blue-700">Set defaults here, then use the small Calc button for live dosing math.</p>
+          </div>
+
+          <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Default Chlorine Type</label>
               <select
@@ -223,6 +279,40 @@ export default function ManagementSettingsPage() {
             </div>
 
             <div>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <label htmlFor="pool-volume" className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                  <Droplets className="w-4 h-4 text-blue-600" />
+                  Default Pool Volume
+                </label>
+                <span className="rounded-lg bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
+                  {settings.poolVolumeGallons.toLocaleString()} gal
+                </span>
+              </div>
+              <input
+                id="pool-volume"
+                type="range"
+                min="500"
+                max="100000"
+                step="500"
+                value={settings.poolVolumeGallons}
+                onChange={(e) => saveSettings({ poolVolumeGallons: clampPoolVolume(Number(e.target.value)) })}
+                className="w-full accent-blue-600"
+              />
+              <div className="mt-3 flex items-center gap-3">
+                <input
+                  type="number"
+                  min="500"
+                  max="100000"
+                  step="500"
+                  value={settings.poolVolumeGallons}
+                  onChange={(e) => saveSettings({ poolVolumeGallons: clampPoolVolume(Number(e.target.value) || defaultSettings.poolVolumeGallons) })}
+                  className="w-36 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+                <p className="text-sm text-slate-500">Used as the calculator fallback when a pool has no saved volume.</p>
+              </div>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Preferred Dosing Unit</label>
               <select
                 value={settings.dosingUnit}
@@ -243,6 +333,7 @@ export default function ManagementSettingsPage() {
                   <span className="text-sm font-medium text-slate-700">Baby Pool Safety Cap</span>
                 </div>
                 <button
+                  type="button"
                   onClick={() => saveSettings({ babyPoolSafety: !settings.babyPoolSafety })}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     settings.babyPoolSafety ? 'bg-blue-600' : 'bg-slate-200'
@@ -262,6 +353,7 @@ export default function ManagementSettingsPage() {
                   <span className="text-sm font-medium text-slate-700">Require Manager Approval for High-Dose</span>
                 </div>
                 <button
+                  type="button"
                   onClick={() => saveSettings({ requireApproval: !settings.requireApproval })}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     settings.requireApproval ? 'bg-blue-600' : 'bg-slate-200'
@@ -301,6 +393,7 @@ export default function ManagementSettingsPage() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-slate-700">Master Notifications</span>
               <button
+                type="button"
                 onClick={() => saveSettings({ masterNotifications: !settings.masterNotifications })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   settings.masterNotifications ? 'bg-blue-600' : 'bg-slate-200'
@@ -317,6 +410,7 @@ export default function ManagementSettingsPage() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-slate-700">Missed Chemical Test Alerts</span>
               <button
+                type="button"
                 onClick={() => saveSettings({ missedTestAlerts: !settings.missedTestAlerts })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   settings.missedTestAlerts ? 'bg-blue-600' : 'bg-slate-200'
@@ -334,6 +428,7 @@ export default function ManagementSettingsPage() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-slate-700">Out-of-Range Chemical Alerts</span>
               <button
+                type="button"
                 onClick={() => saveSettings({ outOfRangeAlerts: !settings.outOfRangeAlerts })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   settings.outOfRangeAlerts ? 'bg-blue-600' : 'bg-slate-200'
@@ -351,6 +446,7 @@ export default function ManagementSettingsPage() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-slate-700">New Announcement Alerts</span>
               <button
+                type="button"
                 onClick={() => saveSettings({ newAnnouncementAlerts: !settings.newAnnouncementAlerts })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   settings.newAnnouncementAlerts ? 'bg-blue-600' : 'bg-slate-200'
@@ -368,6 +464,7 @@ export default function ManagementSettingsPage() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-slate-700">Daily Summary</span>
               <button
+                type="button"
                 onClick={() => saveSettings({ dailySummary: !settings.dailySummary })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   settings.dailySummary ? 'bg-blue-600' : 'bg-slate-200'
@@ -416,6 +513,7 @@ export default function ManagementSettingsPage() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-slate-700">Require Photo for Every Test</span>
               <button
+                type="button"
                 onClick={() => saveSettings({ requirePhotoEveryTest: !settings.requirePhotoEveryTest })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   settings.requirePhotoEveryTest ? 'bg-blue-600' : 'bg-slate-200'
@@ -432,6 +530,7 @@ export default function ManagementSettingsPage() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-slate-700">Require Photo When Out of Range</span>
               <button
+                type="button"
                 onClick={() => saveSettings({ requirePhotoOutOfRange: !settings.requirePhotoOutOfRange })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   settings.requirePhotoOutOfRange ? 'bg-blue-600' : 'bg-slate-200'
@@ -448,6 +547,7 @@ export default function ManagementSettingsPage() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-slate-700">Require Photo for Baby Pools</span>
               <button
+                type="button"
                 onClick={() => saveSettings({ requirePhotoBabyPools: !settings.requirePhotoBabyPools })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   settings.requirePhotoBabyPools ? 'bg-blue-600' : 'bg-slate-200'
@@ -464,6 +564,7 @@ export default function ManagementSettingsPage() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-slate-700">Allow Gallery Uploads</span>
               <button
+                type="button"
                 onClick={() => saveSettings({ allowGalleryUploads: !settings.allowGalleryUploads })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   settings.allowGalleryUploads ? 'bg-blue-600' : 'bg-slate-200'
@@ -480,6 +581,7 @@ export default function ManagementSettingsPage() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-slate-700">Camera-Only Mode</span>
               <button
+                type="button"
                 onClick={() => saveSettings({ cameraOnlyMode: !settings.cameraOnlyMode })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   settings.cameraOnlyMode ? 'bg-blue-600' : 'bg-slate-200'
@@ -522,7 +624,9 @@ export default function ManagementSettingsPage() {
             </div>
 
             <button
+              type="button"
               onClick={handleLogout}
+              data-sound="click"
               className="w-full flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -556,7 +660,7 @@ export default function ManagementSettingsPage() {
                   <Users className="w-5 h-5 text-blue-600 mt-0.5" />
                   <div>
                     <p className="font-medium text-slate-900">How managers add pools</p>
-                    <p className="text-sm text-slate-600 mt-1">Go to Management → Pools and click "Add New Pool" to configure pool settings.</p>
+                    <p className="text-sm text-slate-600 mt-1">Go to Management → Pools and click &quot;Add New Pool&quot; to configure pool settings.</p>
                   </div>
                 </div>
 
@@ -594,14 +698,14 @@ export default function ManagementSettingsPage() {
                   <div>
                     <p className="font-medium text-blue-900">Need help with ChemDeck?</p>
                     <p className="text-sm text-blue-700 mt-1 mb-3">
-                      Contact Spencer Updike for technical support, feature requests, or questions about the application.
+                      Contact Spencer Updike and Tyler Pollock for technical support, feature requests, or questions about the application.
                     </p>
                     <a
-                      href="mailto:sru55763@email.vccs.edu"
+                      href="mailto:ChemdeckCo@gmail.com"
                       className="inline-flex items-center gap-2 text-sm font-medium text-blue-700 hover:text-blue-800 transition-colors"
                     >
                       <Mail className="w-4 h-4" />
-                      sru55763@email.vccs.edu
+                      ChemdeckCo@gmail.com
                     </a>
                   </div>
                 </div>

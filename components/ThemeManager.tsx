@@ -1,0 +1,66 @@
+'use client';
+
+import { useEffect } from 'react';
+
+type Theme = 'light' | 'dark' | 'system';
+type StylePreset = 'default' | 'compact' | 'contrast' | 'soft';
+
+const getStoredSettings = () => {
+  try {
+    const savedSettings = localStorage.getItem('chemdeck-settings');
+    return savedSettings ? JSON.parse(savedSettings) : {};
+  } catch {
+    return {};
+  }
+};
+
+const getStoredTheme = (): Theme => {
+  const theme = getStoredSettings()?.theme;
+  return theme === 'light' || theme === 'dark' || theme === 'system' ? theme : 'system';
+};
+
+const getStoredStyle = (): StylePreset => {
+  const stylePreset = getStoredSettings()?.stylePreset;
+  return stylePreset === 'compact' || stylePreset === 'contrast' || stylePreset === 'soft' ? stylePreset : 'default';
+};
+
+const resolveTheme = (theme: Theme) => {
+  if (theme !== 'system') {
+    return theme;
+  }
+
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+};
+
+const applyTheme = (theme: Theme) => {
+  document.documentElement.dataset.theme = resolveTheme(theme);
+  document.documentElement.dataset.themePreference = theme;
+};
+
+const applyStyle = (stylePreset: StylePreset) => {
+  document.documentElement.dataset.style = stylePreset;
+};
+
+export default function ThemeManager() {
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const syncTheme = () => {
+      applyTheme(getStoredTheme());
+      applyStyle(getStoredStyle());
+    };
+
+    syncTheme();
+    window.addEventListener('storage', syncTheme);
+    window.addEventListener('chemdeck-settings-change', syncTheme);
+    mediaQuery.addEventListener('change', syncTheme);
+
+    return () => {
+      window.removeEventListener('storage', syncTheme);
+      window.removeEventListener('chemdeck-settings-change', syncTheme);
+      mediaQuery.removeEventListener('change', syncTheme);
+    };
+  }, []);
+
+  return null;
+}

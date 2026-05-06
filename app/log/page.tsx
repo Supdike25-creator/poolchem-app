@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getSupabaseClient } from '../../lib/supabaseClient';
+import BackButton from '../../components/BackButton';
 
 interface Pool {
   id: string;
@@ -28,6 +29,20 @@ interface FormData {
 }
 
 type Step = 'pool' | 'chlorine' | 'ph' | 'notes' | 'review' | 'submit';
+
+const getDefaultPoolVolume = () => {
+  if (typeof window === 'undefined') {
+    return 0;
+  }
+
+  try {
+    const savedSettings = localStorage.getItem('chemdeck-settings');
+    const volume = savedSettings ? Number(JSON.parse(savedSettings)?.poolVolumeGallons) : 0;
+    return Number.isFinite(volume) && volume > 0 ? volume : 0;
+  } catch {
+    return 0;
+  }
+};
 
 const calculateChlorineDose = (
   poolVolume: number,
@@ -110,6 +125,7 @@ export default function LogPage() {
   const [submitMessage, setSubmitMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [photoKey, setPhotoKey] = useState(0);
+  const [defaultPoolVolume, setDefaultPoolVolume] = useState(getDefaultPoolVolume);
 
   useEffect(() => {
     const loadPools = async () => {
@@ -167,6 +183,18 @@ export default function LogPage() {
     loadPools();
   }, []);
 
+  useEffect(() => {
+    const syncDefaultPoolVolume = () => setDefaultPoolVolume(getDefaultPoolVolume());
+
+    window.addEventListener('storage', syncDefaultPoolVolume);
+    window.addEventListener('chemdeck-settings-change', syncDefaultPoolVolume);
+
+    return () => {
+      window.removeEventListener('storage', syncDefaultPoolVolume);
+      window.removeEventListener('chemdeck-settings-change', syncDefaultPoolVolume);
+    };
+  }, []);
+
   const handleInputChange = (field: keyof FormData, value: string | File | null | boolean) => {
     setFormData((prev) => ({
       ...prev,
@@ -201,9 +229,6 @@ export default function LogPage() {
     setIsSubmitting(true);
 
     try {
-      const chlorineValue = parseFloat(formData.freeChlorine);
-      const phValue = parseFloat(formData.ph);
-
       const supabase = getSupabaseClient();
 
       // Get current user
@@ -255,14 +280,12 @@ export default function LogPage() {
   const chlorineValue = parseFloat(formData.freeChlorine) || 0;
   const phValue = parseFloat(formData.ph) || 0;
 
-  const poolVolumeValue = selectedPool?.volume_gallons ?? 0;
+  const poolVolumeValue = selectedPool?.volume_gallons ?? defaultPoolVolume;
   const targetChlorineMinValue = selectedPool?.target_chlorine_min ?? 3.0;
   const targetChlorineMaxValue = selectedPool?.target_chlorine_max ?? 5.0;
   const chlorineStrengthValue = selectedPool?.default_chlorine_strength ?? 10;
   const isBabyPool = selectedPool?.is_baby_pool ?? false;
   const maxSingleDoseOz = selectedPool?.max_single_dose_oz ?? (isBabyPool ? 32 : 128);
-  const targetPhMinValue = selectedPool?.target_ph_min ?? 7.2;
-  const targetPhMaxValue = selectedPool?.target_ph_max ?? 7.8;
 
   const dosingResult = calculateChlorineDose(
     poolVolumeValue,
@@ -314,7 +337,7 @@ export default function LogPage() {
     <div className="space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Select Pool</h2>
-        <p className="text-gray-600">Choose the pool you're testing</p>
+        <p className="text-gray-600">Choose the pool you&apos;re testing</p>
       </div>
 
       <div className="space-y-4">
@@ -333,6 +356,7 @@ export default function LogPage() {
               <button
                 key={pool.id}
                 onClick={() => handleInputChange('poolId', pool.id)}
+                data-sound="click"
                 className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
                   formData.poolId === pool.id
                     ? 'border-blue-500 bg-blue-50'
@@ -349,6 +373,7 @@ export default function LogPage() {
       <button
         onClick={nextStep}
         disabled={!formData.poolId}
+        data-sound="click"
         className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
       >
         Next: Test Chlorine
@@ -360,7 +385,7 @@ export default function LogPage() {
     <div className="space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Free Chlorine Test</h2>
-        <p className="text-gray-600">Test the pool's free chlorine level</p>
+        <p className="text-gray-600">Test the pool&apos;s free chlorine level</p>
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -413,6 +438,7 @@ export default function LogPage() {
       <div className="flex space-x-4">
         <button
           onClick={prevStep}
+          data-sound="back"
           className="flex-1 bg-gray-200 text-gray-800 py-4 px-6 rounded-lg font-semibold text-lg hover:bg-gray-300 transition-colors"
         >
           Back
@@ -420,6 +446,7 @@ export default function LogPage() {
         <button
           onClick={nextStep}
           disabled={!formData.freeChlorine}
+          data-sound="click"
           className="flex-1 bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
         >
           Next: Test pH
@@ -432,7 +459,7 @@ export default function LogPage() {
     <div className="space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">pH Test</h2>
-        <p className="text-gray-600">Test the pool's pH level</p>
+        <p className="text-gray-600">Test the pool&apos;s pH level</p>
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -485,6 +512,7 @@ export default function LogPage() {
       <div className="flex space-x-4">
         <button
           onClick={prevStep}
+          data-sound="back"
           className="flex-1 bg-gray-200 text-gray-800 py-4 px-6 rounded-lg font-semibold text-lg hover:bg-gray-300 transition-colors"
         >
           Back
@@ -492,6 +520,7 @@ export default function LogPage() {
         <button
           onClick={nextStep}
           disabled={!formData.ph}
+          data-sound="click"
           className="flex-1 bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
         >
           Next: Add Notes
@@ -537,12 +566,14 @@ export default function LogPage() {
       <div className="flex space-x-4">
         <button
           onClick={prevStep}
+          data-sound="back"
           className="flex-1 bg-gray-200 text-gray-800 py-4 px-6 rounded-lg font-semibold text-lg hover:bg-gray-300 transition-colors"
         >
           Back
         </button>
         <button
           onClick={nextStep}
+          data-sound="click"
           className="flex-1 bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:bg-blue-700 transition-colors"
         >
           Next: Review
@@ -645,12 +676,14 @@ export default function LogPage() {
       <div className="flex space-x-4">
         <button
           onClick={prevStep}
+          data-sound="back"
           className="flex-1 bg-gray-200 text-gray-800 py-4 px-6 rounded-lg font-semibold text-lg hover:bg-gray-300 transition-colors"
         >
           Back
         </button>
         <button
           onClick={() => setCurrentStep('submit')}
+          data-sound="click"
           className="flex-1 bg-green-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:bg-green-700 transition-colors"
         >
           Submit Log
@@ -677,6 +710,7 @@ export default function LogPage() {
         <button
           type="submit"
           disabled={isSubmitting}
+          data-sound="success"
           className="w-full bg-green-600 text-white py-6 px-6 rounded-lg font-bold text-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-700 transition-colors flex items-center justify-center space-x-3"
         >
           {isSubmitting ? (
@@ -695,6 +729,7 @@ export default function LogPage() {
         <button
           type="button"
           onClick={prevStep}
+          data-sound="back"
           className="w-full bg-gray-200 text-gray-800 py-4 px-6 rounded-lg font-semibold text-lg hover:bg-gray-300 transition-colors"
         >
           Back to Review
@@ -721,9 +756,12 @@ export default function LogPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
       <div className="max-w-md mx-auto px-4 py-6">
+        <div className="mb-4">
+          <BackButton fallbackHref="/dashboard" label="Back" />
+        </div>
         {renderStepIndicator()}
 
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-lg p-5 mb-6">
           {currentStep === 'pool' && renderPoolStep()}
           {currentStep === 'chlorine' && renderChlorineStep()}
           {currentStep === 'ph' && renderPhStep()}

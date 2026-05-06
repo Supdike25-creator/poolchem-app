@@ -24,3 +24,218 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+html {
+  scroll-behavior: smooth;
+}
+
+button,
+a {
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+  transition-duration: 160ms;
+  transition-timing-function: ease-out;
+}
+
+button:active,
+a:active {
+  transform: translateY(1px);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #020617;
+  --foreground: #e2e8f0;
+}
+
+:root[data-theme="dark"] body {
+  background: #020617;
+  color: #e2e8f0;
+}
+
+:root[data-theme="dark"] .bg-white,
+:root[data-theme="dark"] .bg-white\/95 {
+  background-color: #0f172a;
+}
+
+:root[data-theme="dark"] .bg-slate-50,
+:root[data-theme="dark"] .bg-blue-50,
+:root[data-theme="dark"] .from-slate-50,
+:root[data-theme="dark"] .from-blue-50,
+:root[data-theme="dark"] .via-blue-100,
+:root[data-theme="dark"] .to-blue-50,
+:root[data-theme="dark"] .to-indigo-200 {
+  --tw-gradient-from: #020617;
+  --tw-gradient-via: #0f172a;
+  --tw-gradient-to: #111827;
+  background-color: #111827;
+}
+
+:root[data-theme="dark"] .bg-blue-100 {
+  background-color: #172554;
+}
+
+:root[data-theme="dark"] .bg-slate-100 {
+  background-color: #1e293b;
+}
+
+:root[data-theme="dark"] .bg-slate-200 {
+  background-color: #334155;
+}
+
+:root[data-theme="dark"] .border-slate-200,
+:root[data-theme="dark"] .border-slate-300,
+:root[data-theme="dark"] .border-blue-200 {
+  border-color: #334155;
+}
+
+:root[data-theme="dark"] .text-slate-900,
+:root[data-theme="dark"] .text-blue-900 {
+  color: #f8fafc;
+}
+
+:root[data-theme="dark"] .text-slate-700,
+:root[data-theme="dark"] .text-slate-600,
+:root[data-theme="dark"] .text-blue-700 {
+  color: #cbd5e1;
+}
+
+:root[data-theme="dark"] .text-slate-500 {
+  color: #94a3b8;
+}
+
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+  background-color: #111827;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+:root[data-theme="dark"] input[type="range"] {
+  accent-color: #60a5fa;
+}
+
+:root[data-style="compact"] body {
+  font-size: 14px;
+  font-family: "Arial Narrow", Arial, Helvetica, sans-serif;
+  background: #ecfeff;
+}
+
+:root[data-style="compact"] .bg-blue-600 {
+  background-color: #0f766e;
+}
+
+:root[data-style="compact"] .text-blue-600,
+:root[data-style="compact"] .text-blue-700 {
+  color: #0f766e;
+}
+
+:root[data-style="compact"] .border-blue-200 {
+  border-color: #5eead4;
+}
+
+:root[data-style="compact"] .bg-blue-50,
+:root[data-style="compact"] .bg-blue-100 {
+  background-color: #ccfbf1;
+}
+
+:root[data-style="compact"] .rounded-3xl,
+:root[data-style="compact"] .rounded-2xl {
+  border-radius: 0.75rem;
+}
+
+:root[data-style="compact"] .p-8,
+:root[data-style="compact"] .lg\:p-8,
+:root[data-style="compact"] .p-6 {
+  padding: 1rem;
+}
+
+:root[data-style="compact"] .gap-8,
+:root[data-style="compact"] .gap-6 {
+  gap: 1rem;
+}
+
+:root[data-style="contrast"] body {
+  background: #f8fafc;
+  font-family: Verdana, Geneva, sans-serif;
+  color: #111827;
+}
+
+:root[data-style="contrast"] .bg-blue-600 {
+  background-color: #b45309;
+}
+
+:root[data-style="contrast"] .text-blue-600,
+:root[data-style="contrast"] .text-blue-700 {
+  color: #92400e;
+}
+
+:root[data-style="contrast"] .bg-slate-50,
+:root[data-style="contrast"] .bg-slate-100 {
+  background-color: #fffbeb;
+}
+
+:root[data-style="contrast"] .bg-blue-50,
+:root[data-style="contrast"] .bg-blue-100 {
+  background-color: #fef3c7;
+}
+
+:root[data-style="contrast"] .border-slate-200,
+:root[data-style="contrast"] .border-blue-200 {
+  border-color: #94a3b8;
+}
+
+:root[data-style="contrast"] .shadow-sm,
+:root[data-style="contrast"] .shadow-xl {
+  box-shadow: 0 0 0 1px rgb(15 23 42 / 0.08), 0 10px 24px rgb(15 23 42 / 0.08);
+}
+
+:root[data-style="soft"] .bg-slate-100,
+:root[data-style="soft"] .bg-slate-50 {
+  background-color: #f4f7fb;
+}
+
+:root[data-style="soft"] body {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+:root[data-style="soft"] button,
+:root[data-style="soft"] input,
+:root[data-style="soft"] select,
+:root[data-style="soft"] textarea {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+:root[data-style="soft"] .bg-blue-600 {
+  background-color: #6366f1;
+}
+
+:root[data-style="soft"] .text-blue-600,
+:root[data-style="soft"] .text-blue-700 {
+  color: #4f46e5;
+}
+
+:root[data-style="soft"] .bg-blue-50,
+:root[data-style="soft"] .bg-blue-100 {
+  background-color: #eef2ff;
+}
+
+:root[data-style="soft"] .border-blue-200 {
+  border-color: #c7d2fe;
+}
+
+:root[data-style="soft"] .rounded-lg,
+:root[data-style="soft"] .rounded-xl {
+  border-radius: 1rem;
+}
+
+:root[data-style="soft"] .shadow-sm,
+:root[data-style="soft"] .shadow-xl {
+  box-shadow: 0 14px 34px rgb(30 64 175 / 0.08);
+}

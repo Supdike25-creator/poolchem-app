@@ -95,27 +95,45 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-200 flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl p-8 lg:p-10">
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-3 mb-6">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+    <main className="min-h-screen bg-slate-100 flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-md">
+        <Link
+          href="/"
+          data-sound="back"
+          className="mb-4 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Go back to login
+        </Link>
+
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+          <div className="border-b border-slate-200 bg-slate-50 px-6 py-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
               </svg>
             </div>
-            <p className="text-sm font-bold uppercase tracking-wide text-blue-600">ChemDeck sign in</p>
+              <div>
+                <p className="text-sm font-bold uppercase tracking-wide text-blue-600">ChemDeck</p>
+                <p className="text-sm text-slate-600">Operations login</p>
+              </div>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900">Continue as {label}</h1>
-          <p className="mt-3 text-slate-600">Sign in with Google to access your role-based workflow and sync your profile.</p>
-        </div>
 
-        <div className="mt-10 space-y-6">
+          <div className="p-6 lg:p-8">
+            <h1 className="text-2xl font-bold text-slate-900">Continue as {label}</h1>
+            <p className="mt-3 text-sm leading-6 text-slate-600">Sign in with Google to access your role-based workflow and sync your profile.</p>
+
+        <div className="mt-8 space-y-5">
           <button
             type="button"
             onClick={handleSignIn}
             disabled={status === 'loading'}
-            className="w-full flex items-center justify-center rounded-2xl bg-slate-900 px-6 py-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+            data-sound="click"
+            className="w-full flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
           >
             {status === 'loading' ? (
               <>
@@ -138,7 +156,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
             )}
           </button>
 
-          <div className="bg-blue-50 rounded-2xl border border-blue-200 p-5">
+          <div className="bg-blue-50 rounded-xl border border-blue-200 p-4">
             <div className="flex items-start gap-3">
               <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -156,7 +174,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
           </div>
 
           {message ? (
-            <div className="bg-red-50 rounded-2xl border border-red-200 p-5">
+            <div className="bg-red-50 rounded-xl border border-red-200 p-4">
               <div className="flex items-start gap-3">
                 <svg className="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
@@ -168,6 +186,8 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
               </div>
             </div>
           ) : null}
+        </div>
+          </div>
         </div>
       </div>
     </main>

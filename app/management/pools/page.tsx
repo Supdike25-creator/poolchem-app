@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getSupabaseClient } from '../../../lib/supabaseClient';
+import BackButton from '../../../components/BackButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,7 @@ export default async function ManagementPoolsPage() {
 
   return (
     <div>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
         <div>
           <div className="flex items-center gap-3">
             <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -33,23 +34,26 @@ export default async function ManagementPoolsPage() {
             </svg>
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Management</p>
-              <h1 className="text-3xl font-bold text-slate-900">Pool Configuration</h1>
+              <h1 className="text-2xl font-bold text-slate-900">Pool Configuration</h1>
             </div>
           </div>
           <p className="mt-3 text-slate-600 max-w-2xl">Create and update managed pools, targets, and dosing rules.</p>
         </div>
-        <Link
-          href="/management/pools/new"
-          className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
-        >
+        <div className="flex flex-wrap gap-2">
+          <BackButton fallbackHref="/management/dashboard" label="Back" />
+          <Link
+            href="/management/pools/new"
+            className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+          >
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
           </svg>
           Add New Pool
-        </Link>
+          </Link>
+        </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-blue-50">

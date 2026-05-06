@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseClient } from '../../../lib/supabaseClient';
+import BackButton from '../../../components/BackButton';
 
 interface Pool {
   id: string;
@@ -16,14 +17,32 @@ interface Pool {
   default_chlorine_strength?: number | null;
 }
 
-const calculateChlorineDose = (pool: Pool | null, currentChlorine: number) => {
-  if (!pool || pool.volume_gallons == null || !pool.default_chlorine_strength) {
+const getDefaultPoolVolume = () => {
+  if (typeof window === 'undefined') {
+    return 0;
+  }
+
+  try {
+    const savedSettings = localStorage.getItem('chemdeck-settings');
+    const volume = savedSettings ? Number(JSON.parse(savedSettings)?.poolVolumeGallons) : 0;
+    return Number.isFinite(volume) && volume > 0 ? volume : 0;
+  } catch {
+    return 0;
+  }
+};
+
+const calculateChlorineDose = (pool: Pool | null, currentChlorine: number, defaultPoolVolume: number) => {
+  if (!pool || !pool.default_chlorine_strength) {
+    return null;
+  }
+
+  const gallons = pool.volume_gallons ?? defaultPoolVolume;
+  if (gallons <= 0) {
     return null;
   }
 
   const target = pool.target_chlorine_min ?? 2;
   const delta = Math.max(0, target - currentChlorine);
-  const gallons = pool.volume_gallons;
   const strength = pool.default_chlorine_strength;
   const ounces = (delta * gallons) / (strength * 0.1);
   return ounces > 0 ? ounces.toFixed(1) : '0.0';
@@ -37,13 +56,13 @@ export default function GuardLogClient({ searchParams }: { searchParams: URLSear
 
   const [pools, setPools] = useState<Pool[]>([]);
   const [selectedPoolId, setSelectedPoolId] = useState<string>('');
-  const [selectedPool, setSelectedPool] = useState<Pool | null>(null);
   const [chlorine, setChlorine] = useState('2.0');
   const [ph, setPh] = useState('7.4');
   const [notes, setNotes] = useState('');
   const [photoName, setPhotoName] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [defaultPoolVolume, setDefaultPoolVolume] = useState(getDefaultPoolVolume);
 
   useEffect(() => {
     const loadPools = async () => {
@@ -67,11 +86,27 @@ export default function GuardLogClient({ searchParams }: { searchParams: URLSear
     loadPools();
   }, [searchParams]);
 
-  useEffect(() => {
-    setSelectedPool(pools.find((pool) => pool.id === selectedPoolId) ?? null);
-  }, [pools, selectedPoolId]);
+  const selectedPool = useMemo(
+    () => pools.find((pool) => pool.id === selectedPoolId) ?? null,
+    [pools, selectedPoolId]
+  );
 
-  const chlorineDose = useMemo(() => calculateChlorineDose(selectedPool, Number(chlorine)), [selectedPool, chlorine]);
+  useEffect(() => {
+    const syncDefaultPoolVolume = () => setDefaultPoolVolume(getDefaultPoolVolume());
+
+    window.addEventListener('storage', syncDefaultPoolVolume);
+    window.addEventListener('chemdeck-settings-change', syncDefaultPoolVolume);
+
+    return () => {
+      window.removeEventListener('storage', syncDefaultPoolVolume);
+      window.removeEventListener('chemdeck-settings-change', syncDefaultPoolVolume);
+    };
+  }, []);
+
+  const chlorineDose = useMemo(
+    () => calculateChlorineDose(selectedPool, Number(chlorine), defaultPoolVolume),
+    [selectedPool, chlorine, defaultPoolVolume]
+  );
 
   const isChlorineInRange = selectedPool
     ? Number(chlorine) >= (selectedPool.target_chlorine_min ?? 1) && Number(chlorine) <= (selectedPool.target_chlorine_max ?? 3)
@@ -121,12 +156,14 @@ export default function GuardLogClient({ searchParams }: { searchParams: URLSear
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm text-slate-500 uppercase tracking-wide">Guard</p>
-            <h1 className="text-3xl font-semibold text-slate-900">Chemical Log</h1>
-            <p className="mt-2 text-slate-600 max-w-2xl">Submit the latest chemistry values for your assigned pool.</p>
+            <h1 className="text-2xl font-semibold text-slate-900">Chemical Log</h1>
+            <p className="mt-2 text-sm text-slate-600 max-w-2xl">Submit the latest chemistry values for your assigned pool.</p>
           </div>
+          <BackButton fallbackHref="/guard" label="Back" />
           <button
             type="button"
             onClick={() => router.push('/guard')}
+            data-sound="back"
             className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             Back to Guard Home
@@ -241,6 +278,7 @@ export default function GuardLogClient({ searchParams }: { searchParams: URLSear
             <button
               type="button"
               onClick={() => router.push('/guard')}
+              data-sound="back"
               className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               Cancel
@@ -248,6 +286,7 @@ export default function GuardLogClient({ searchParams }: { searchParams: URLSear
             <button
               type="submit"
               disabled={saving}
+              data-sound="success"
               className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
               {saving ? 'Submitting...' : 'Submit Log'}

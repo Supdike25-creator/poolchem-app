@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseClient } from '../../../../../lib/supabaseClient';
+import BackButton from '../../../../../components/BackButton';
 
 interface PoolData {
   id: string;
@@ -37,8 +38,7 @@ export default function EditPoolPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     if (!id) {
-      setError('Invalid pool ID. Redirecting to pools list.');
-      setTimeout(() => router.push('/management/pools'), 2000);
+      router.push('/management/pools');
       return;
     }
 
@@ -106,17 +106,20 @@ export default function EditPoolPage({ params }: { params: { id: string } }) {
 
   return (
     <div>
-      <div className="mb-8">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
         <div className="flex items-center gap-3">
           <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Management</p>
-            <h1 className="text-3xl font-bold text-slate-900">Edit Pool</h1>
+            <h1 className="text-2xl font-bold text-slate-900">Edit Pool</h1>
           </div>
         </div>
-        <p className="mt-3 text-slate-600">Update the pool configuration and dosing targets.</p>
+        <p className="mt-2 text-sm text-slate-600">Update the pool configuration and dosing targets.</p>
+        </div>
+        <BackButton fallbackHref="/management/pools" label="Back" />
       </div>
 
       {loading ? (
@@ -146,7 +149,7 @@ export default function EditPoolPage({ params }: { params: { id: string } }) {
           <p className="text-slate-600">Pool not found.</p>
         </div>
       ) : (
-        <form onSubmit={handleSave} className="space-y-6 bg-white rounded-2xl border border-blue-200 p-6 shadow-sm">
+        <form onSubmit={handleSave} className="space-y-4 bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
           <div>
             <label className="block text-sm font-semibold text-slate-700">Pool Name</label>
             <input

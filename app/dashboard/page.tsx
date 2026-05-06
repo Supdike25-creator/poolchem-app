@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { getSupabaseClient } from '../../lib/supabaseClient';
+import BackButton from '../../components/BackButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,6 +98,38 @@ const formatDateTime = (value: string) => {
   });
 };
 
+const dashboardTabs = [
+  { label: 'Overview', href: '/dashboard', active: true },
+  { label: 'Submit Log', href: '/log' },
+  { label: 'Review Logs', href: '/management/logs' },
+  { label: 'Pools', href: '/management/pools' },
+  { label: 'Announcements', href: '/management/announcements' },
+  { label: 'Settings', href: '/management/settings' },
+];
+
+const DashboardHotBar = () => (
+  <nav className="mb-6 rounded-lg border border-slate-200 bg-white/95 shadow-sm" aria-label="Dashboard sections">
+    <div className="flex items-center gap-2 overflow-x-auto px-3 py-3">
+      <BackButton fallbackHref="/" label="Back" />
+      {dashboardTabs.map((tab) => (
+        <Link
+          key={tab.href}
+          href={tab.href}
+          data-sound="click"
+          className={`whitespace-nowrap rounded-md px-4 py-2 text-sm font-semibold transition-colors ${
+            tab.active
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
+          }`}
+          aria-current={tab.active ? 'page' : undefined}
+        >
+          {tab.label}
+        </Link>
+      ))}
+    </div>
+  </nav>
+);
+
 export default async function Dashboard() {
   let poolsWithStatus: Array<{
     id: string;
@@ -129,93 +162,69 @@ export default async function Dashboard() {
 
     if (poolList.length === 0) {
       hasNoPools = true;
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-slate-900">Pool Operations Dashboard</h1>
-              <p className="mt-2 text-slate-600">Real-time pool chemistry monitoring and management</p>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
-              <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m0 0l8 4m-8-4v10l8 4m0-10l8 4m-8-4l8-4" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold text-slate-900 mb-2">No Pools Configured</h2>
-              <p className="text-slate-600 mb-6">Get started by creating your first pool in the admin panel.</p>
-              <Link
-                href="/admin"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
-              >
-                Go to Admin Settings
-              </Link>
-            </div>
-          </div>
-        </div>
-      );
     }
 
-    // Fetch recent logs for all pools
-    const { data: recentLogs, error: logsError } = await supabase
-      .from('chemical_logs')
-      .select('id, pool_id, free_chlorine, ph, notes, photo_url, created_at')
-      .order('created_at', { ascending: false });
+    if (!hasNoPools) {
+      // Fetch recent logs for all pools
+      const { data: recentLogs, error: logsError } = await supabase
+        .from('chemical_logs')
+        .select('id, pool_id, free_chlorine, ph, notes, photo_url, created_at')
+        .order('created_at', { ascending: false });
 
-    if (logsError) {
-      throw new Error(`Failed to fetch logs: ${logsError.message}`);
-    }
-
-    const allLogs: ChemicalLog[] = recentLogs ?? [];
-
-    // Count tests from today
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    testsToday = allLogs.filter(log => new Date(log.created_at) >= todayStart).length;
-
-    // Group logs by pool and get the latest for each
-    const latestLogByPool = new Map<string, ChemicalLog>();
-    for (const log of allLogs) {
-      if (!latestLogByPool.has(log.pool_id)) {
-        latestLogByPool.set(log.pool_id, log);
+      if (logsError) {
+        throw new Error(`Failed to fetch logs: ${logsError.message}`);
       }
-    }
 
-    // Create pool data with status
-    poolsWithStatus = poolList.map(pool => {
-      const latestLog = latestLogByPool.get(pool.id);
-      const status = getPoolStatus(latestLog);
-      return {
-        ...pool,
-        latestLog,
-        status
+      const allLogs: ChemicalLog[] = recentLogs ?? [];
+
+      // Count tests from today
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      testsToday = allLogs.filter(log => new Date(log.created_at) >= todayStart).length;
+
+      // Group logs by pool and get the latest for each
+      const latestLogByPool = new Map<string, ChemicalLog>();
+      for (const log of allLogs) {
+        if (!latestLogByPool.has(log.pool_id)) {
+          latestLogByPool.set(log.pool_id, log);
+        }
+      }
+
+      // Create pool data with status
+      poolsWithStatus = poolList.map(pool => {
+        const latestLog = latestLogByPool.get(pool.id);
+        const status = getPoolStatus(latestLog);
+        return {
+          ...pool,
+          latestLog,
+          status
+        };
+      });
+
+      // Calculate summary stats
+      totalPools = poolsWithStatus.length;
+      goodPools = poolsWithStatus.filter(p => p.status === 'good').length;
+      outOfRangePools = poolsWithStatus.filter(p => ['high_chlorine', 'low_chlorine', 'ph_warning'].includes(p.status)).length;
+      overduePools = poolsWithStatus.filter(p => p.status === 'overdue').length;
+
+      // Sort pools: Overdue and unsafe first, then by status priority
+      const statusPriority = {
+        overdue: 0,
+        high_chlorine: 1,
+        low_chlorine: 1,
+        ph_warning: 1,
+        good: 2
       };
-    });
 
-    // Calculate summary stats
-    totalPools = poolsWithStatus.length;
-    goodPools = poolsWithStatus.filter(p => p.status === 'good').length;
-    outOfRangePools = poolsWithStatus.filter(p => ['high_chlorine', 'low_chlorine', 'ph_warning'].includes(p.status)).length;
-    overduePools = poolsWithStatus.filter(p => p.status === 'overdue').length;
-
-    // Sort pools: Overdue and unsafe first, then by status priority
-    const statusPriority = {
-      overdue: 0,
-      high_chlorine: 1,
-      low_chlorine: 1,
-      ph_warning: 1,
-      good: 2
-    };
-
-    poolsWithStatus.sort((a, b) => {
-      const priorityA = statusPriority[a.status];
-      const priorityB = statusPriority[b.status];
-      if (priorityA !== priorityB) {
-        return priorityA - priorityB;
-      }
-      return a.name.localeCompare(b.name);
-    });
+      poolsWithStatus.sort((a, b) => {
+        const priorityA = statusPriority[a.status];
+        const priorityB = statusPriority[b.status];
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+        return a.name.localeCompare(b.name);
+      });
+    }
   } catch (error) {
     errorMessage = error instanceof Error ? error.message : String(error);
   }
@@ -224,6 +233,7 @@ export default async function Dashboard() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <DashboardHotBar />
           <div className="bg-red-50 border border-red-200 rounded-xl p-6">
             <div className="flex items-start">
               <div className="flex-shrink-0">
@@ -245,10 +255,41 @@ export default async function Dashboard() {
     );
   }
 
+  if (hasNoPools) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <DashboardHotBar />
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-slate-900">Pool Operations Dashboard</h1>
+            <p className="mt-2 text-slate-600">Real-time pool chemistry monitoring and management</p>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+            <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m0 0l8 4m-8-4v10l8 4m0-10l8 4m-8-4l8-4" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold text-slate-900 mb-2">No Pools Configured</h2>
+            <p className="text-slate-600 mb-6">Get started by creating your first pool in the admin panel.</p>
+            <Link
+              href="/admin"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+            >
+              Go to Admin Settings
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
 
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <DashboardHotBar />
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -257,6 +298,7 @@ export default async function Dashboard() {
             </div>
             <Link
               href="/log"
+              data-sound="click"
               className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm hover:shadow-md"
             >
               <svg className="mr-2 -ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -354,6 +396,7 @@ export default async function Dashboard() {
               <p className="mt-2 text-sm text-slate-500">Start by submitting a chemical log from the pools.</p>
               <Link
                 href="/log"
+                data-sound="click"
                 className="mt-4 inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700"
               >
                 Submit First Log

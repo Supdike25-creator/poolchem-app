@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getSupabaseClient } from '../../../lib/supabaseClient';
+import BackButton from '../../../components/BackButton';
 import {
   Megaphone,
   Plus,
@@ -62,11 +63,7 @@ export default function AnnouncementsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [announcementNotifications, setAnnouncementNotifications] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  async function loadData() {
     const supabase = getSupabaseClient();
 
     // Get user role
@@ -134,7 +131,11 @@ export default function AnnouncementsPage() {
     if (saved !== null) {
       setAnnouncementNotifications(JSON.parse(saved));
     }
-  };
+  }
+
+  useEffect(() => {
+    void Promise.resolve().then(loadData);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,14 +205,14 @@ export default function AnnouncementsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-3 mb-2">
             <Megaphone className="w-6 h-6 text-blue-600" />
             <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Management</p>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900">Announcements</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Announcements</h1>
           <p className="mt-2 text-slate-600 max-w-2xl">
             {isManager
               ? 'Send important messages and updates to your team. Announcements appear in real-time for all users.'
@@ -219,7 +220,7 @@ export default function AnnouncementsPage() {
             }
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2">
           {!isManager && (
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-700">Announcement notifications</span>
@@ -239,15 +240,16 @@ export default function AnnouncementsPage() {
           )}
           <Link
             href="/management/dashboard"
-            className="inline-flex items-center justify-center rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+            className="inline-flex items-center justify-center rounded-lg bg-white border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
           >
-            Return to Dashboard
+            Dashboard
           </Link>
+          <BackButton fallbackHref="/management/dashboard" label="Back" />
         </div>
       </div>
 
       {isManager && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
           {!showCreateForm ? (
             <button
               onClick={() => setShowCreateForm(true)}

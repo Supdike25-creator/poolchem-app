@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseClient } from '../../../../lib/supabaseClient';
+import BackButton from '../../../../components/BackButton';
 
 export default function NewPoolPage() {
   const router = useRouter();
@@ -73,13 +74,16 @@ export default function NewPoolPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <p className="text-sm text-slate-500 uppercase tracking-wide">Management</p>
-          <h1 className="text-3xl font-semibold text-slate-900">New Pool</h1>
-          <p className="mt-2 text-slate-600">Configure a managed pool with target chemistry ranges and dosing defaults.</p>
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm text-slate-500 uppercase tracking-wide">Management</p>
+            <h1 className="text-2xl font-semibold text-slate-900">New Pool</h1>
+            <p className="mt-2 text-sm text-slate-600">Configure a managed pool with target chemistry ranges and dosing defaults.</p>
+          </div>
+          <BackButton fallbackHref="/management/pools" label="Back" />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6 rounded-3xl bg-white border border-slate-200 p-6 shadow-sm">
+        <form onSubmit={handleSubmit} className="space-y-4 rounded-xl bg-white border border-slate-200 p-5 shadow-sm">
           <div>
             <label className="block text-sm font-medium text-slate-700">Pool Name</label>
             <input
@@ -188,6 +192,7 @@ export default function NewPoolPage() {
             <button
               type="button"
               onClick={() => router.push('/management/pools')}
+              data-sound="back"
               className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               Cancel
@@ -195,6 +200,7 @@ export default function NewPoolPage() {
             <button
               type="submit"
               disabled={submitting}
+              data-sound="success"
               className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
               {submitting ? 'Saving...' : 'Create Pool'}

@@ -1,12 +1,8 @@
 import Link from 'next/link';
 import { getSupabaseClient } from '../../../lib/supabaseClient';
+import BackButton from '../../../components/BackButton';
 
 export const dynamic = 'force-dynamic';
-
-interface Pool {
-  id: string;
-  name: string;
-}
 
 interface ChemicalLog {
   id: string;
@@ -93,6 +89,37 @@ const formatDateTime = (value: string) => {
   });
 };
 
+const managementTabs = [
+  { label: 'Overview', href: '/management/dashboard', active: true },
+  { label: 'Pools', href: '/management/pools' },
+  { label: 'Logs', href: '/management/logs' },
+  { label: 'Announcements', href: '/management/announcements' },
+  { label: 'Settings', href: '/management/settings' },
+];
+
+const ManagementHotBar = () => (
+  <nav className="mb-6 rounded-xl border border-blue-200 bg-white shadow-sm" aria-label="Management sections">
+    <div className="flex items-center gap-2 overflow-x-auto px-3 py-3">
+      <BackButton fallbackHref="/management" label="Back" />
+      {managementTabs.map((tab) => (
+        <Link
+          key={tab.href}
+          href={tab.href}
+          data-sound="click"
+          className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+            tab.active
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
+          }`}
+          aria-current={tab.active ? 'page' : undefined}
+        >
+          {tab.label}
+        </Link>
+      ))}
+    </div>
+  </nav>
+);
+
 export default async function ManagementDashboard() {
   const supabase = getSupabaseClient();
 
@@ -145,27 +172,28 @@ export default async function ManagementDashboard() {
 
   return (
     <div>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-8">
+      <ManagementHotBar />
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-7 w-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Management</p>
-              <h1 className="text-3xl font-bold text-slate-900">Management Dashboard</h1>
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Management</p>
+              <h1 className="text-2xl font-bold text-slate-900">Management Dashboard</h1>
             </div>
           </div>
-          <p className="mt-3 text-slate-600 max-w-2xl">See the current chemical status for every pool and manage settings centrally.</p>
+          <p className="mt-2 max-w-2xl text-sm text-slate-600">Monitor testing coverage, exceptions, and pool status from one operations view.</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Link href="/management/pools" className="inline-flex items-center justify-center rounded-xl bg-white border border-blue-200 px-5 py-3 text-sm font-medium text-slate-700 hover:bg-blue-50 hover:border-blue-300 transition-colors">
+          <Link href="/management/pools" data-sound="click" className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">
             <svg className="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
             </svg>
             Manage Pools
           </Link>
-          <Link href="/management/logs" className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+          <Link href="/management/logs" data-sound="click" className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700">
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
@@ -174,53 +202,66 @@ export default async function ManagementDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-2xl border border-blue-200 p-6 shadow-sm">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-blue-600 uppercase tracking-wide">Total Pools</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900">{totalPools}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Pools</p>
+              <p className="mt-2 text-2xl font-bold text-slate-900">{totalPools}</p>
             </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
               <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
               </svg>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-2xl border border-green-200 p-6 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-green-600 uppercase tracking-wide">Good</p>
-              <p className="mt-2 text-3xl font-bold text-green-700">{goodPools}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Good</p>
+              <p className="mt-2 text-2xl font-bold text-green-700">{goodPools}</p>
             </div>
-            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
               <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-2xl border border-red-200 p-6 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-red-600 uppercase tracking-wide">Out of Range</p>
-              <p className="mt-2 text-3xl font-bold text-red-700">{outOfRangePools}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Out of Range</p>
+              <p className="mt-2 text-2xl font-bold text-red-700">{outOfRangePools}</p>
             </div>
-            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
               <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
               </svg>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-2xl border border-violet-200 p-6 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-violet-600 uppercase tracking-wide">Tests Today</p>
-              <p className="mt-2 text-3xl font-bold text-violet-700">{testsToday}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Overdue</p>
+              <p className="mt-2 text-2xl font-bold text-orange-700">{overduePools}</p>
             </div>
-            <div className="w-12 h-12 bg-violet-100 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+              <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tests Today</p>
+              <p className="mt-2 text-2xl font-bold text-violet-700">{testsToday}</p>
+            </div>
+            <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center">
               <svg className="w-6 h-6 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
               </svg>
@@ -229,30 +270,20 @@ export default async function ManagementDashboard() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-blue-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 bg-blue-50 border-b border-blue-200">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
           <div className="flex items-center gap-3">
             <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Pool Status Table</h2>
+              <h2 className="text-base font-bold text-slate-900">Pool Status Table</h2>
               <p className="text-sm text-slate-600">Quick view of the latest pool log and chemistry status.</p>
             </div>
           </div>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Pool</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Last Test</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Chlorine</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">pH</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Notes</th>
-              </tr>
-            </thead>
             <thead className="bg-slate-50">
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Pool</th>
