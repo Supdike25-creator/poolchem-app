@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import ButtonSoundEffects from "../components/ButtonSoundEffects";
 import ThemeManager from "../components/ThemeManager";
+import VersionBadge from "../components/VersionBadge";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -33,6 +34,7 @@ export default function RootLayout({
         <ThemeManager />
         <ButtonSoundEffects />
         {children}
+        <VersionBadge />
       </body>
     </html>
   );
