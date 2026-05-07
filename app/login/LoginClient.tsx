@@ -6,14 +6,13 @@ import { FormEvent, useEffect, useState } from 'react';
 import {
   AppRole,
   clearAppSession,
-  confirmAccountEmailCode,
   createManualAccount,
   createOrUpdateGoogleAccount,
   findAccount,
   getAppBaseUrl,
   normalizeAppRole,
   recoverAccount,
-  sendAccountEmailCode,
+  sendAccountMagicLink,
   setAppSession,
   startAccountSignup,
   type AppAccount,
@@ -27,6 +26,7 @@ const roleLabels: Record<AppRole, string> = {
 
 const redirectRoute = (role: AppRole) => (role === 'manager' ? '/management/dashboard' : '/guard');
 const pendingAuthKey = 'chemdeck.pendingEmailAuth';
+type AuthAction = 'create' | 'recover';
 
 type PendingEmailAuth =
   | {
@@ -59,7 +59,11 @@ const clearPendingAuth = () => {
   window.localStorage.removeItem(pendingAuthKey);
 };
 
-export default function LoginClient({ role: roleParam }: { role?: string }) {
+const normalizeAuthAction = (action?: string | null): AuthAction | null => {
+  return action === 'create' || action === 'recover' ? action : null;
+};
+
+export default function LoginClient({ role: roleParam, authAction }: { role?: string; authAction?: string }) {
   const router = useRouter();
   const [mode, setMode] = useState<'login' | 'create' | 'recover'>('login');
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
@@ -68,12 +72,13 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
   const [createdAccount, setCreatedAccount] = useState<AppAccount | null>(null);
   const [recoveredAccount, setRecoveredAccount] = useState<AppAccount | null>(null);
   const [loginForm, setLoginForm] = useState({ username: '', passcode: '' });
-  const [createForm, setCreateForm] = useState({ name: '', birthday: '', email: '', code: '' });
-  const [recoverForm, setRecoverForm] = useState({ email: '', code: '' });
-  const [createStep, setCreateStep] = useState<'details' | 'code'>('details');
-  const [recoverStep, setRecoverStep] = useState<'email' | 'code'>('email');
+  const [createForm, setCreateForm] = useState({ name: '', birthday: '', email: '' });
+  const [recoverForm, setRecoverForm] = useState({ email: '' });
+  const [createStep, setCreateStep] = useState<'details' | 'magic'>('details');
+  const [recoverStep, setRecoverStep] = useState<'email' | 'magic'>('email');
 
   const role = normalizeAppRole(roleParam);
+  const requestedAuthAction = normalizeAuthAction(authAction);
   const label = roleLabels[role];
 
   useEffect(() => {
@@ -102,11 +107,27 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
         }
 
         const pendingAuth = readPendingAuth();
-        if (pendingAuth?.action === 'create') {
-          const account = await createManualAccount(pendingAuth.name, pendingAuth.birthday, pendingAuth.role);
+        const pendingAction = requestedAuthAction ?? pendingAuth?.action ?? null;
+
+        if (pendingAction === 'recover') {
+          const account = await recoverAccount();
+          clearPendingAuth();
+          setMode('recover');
+          setRecoverStep('magic');
+          setRecoveredAccount(account);
+          setStatus('idle');
+          setNotice('Your email was confirmed and your account recovery was saved.');
+          return;
+        }
+
+        if (pendingAction === 'create') {
+          const account =
+            pendingAuth?.action === 'create'
+              ? await createManualAccount(pendingAuth.name, pendingAuth.birthday, pendingAuth.role)
+              : await createManualAccount(undefined, null, null);
           clearPendingAuth();
           setMode('create');
-          setCreateStep('code');
+          setCreateStep('magic');
           setCreatedAccount(account);
           setStatus('idle');
           setNotice('Your ChemDeck account was saved in Supabase and linked to this email.');
@@ -114,26 +135,15 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
         }
 
         try {
-          const account = await createManualAccount(undefined, null, role);
+          const account = await createManualAccount(undefined, null, null);
           setMode('create');
-          setCreateStep('code');
+          setCreateStep('magic');
           setCreatedAccount(account);
           setStatus('idle');
           setNotice('Your ChemDeck account was saved in Supabase and linked to this email.');
           return;
         } catch {
           // No pending email signup exists for this verified session.
-        }
-
-        if (pendingAuth?.action === 'recover') {
-          const account = await recoverAccount();
-          clearPendingAuth();
-          setMode('recover');
-          setRecoverStep('code');
-          setRecoveredAccount(account);
-          setStatus('idle');
-          setNotice('Your email was confirmed and your account recovery was saved.');
-          return;
         }
 
         const user = session.user;
@@ -170,7 +180,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
     return () => {
       ignore = true;
     };
-  }, [router, role]);
+  }, [requestedAuthAction, router, role]);
 
   const handleGoogleSignIn = async () => {
     setStatus('loading');
@@ -249,35 +259,10 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
         email: createForm.email,
         role,
       });
-      await sendAccountEmailCode(createForm.email, true);
-      setCreateStep('code');
+      await sendAccountMagicLink(createForm.email, true, `${getAppBaseUrl()}/login?role=${role}&auth_action=create`);
+      setCreateStep('magic');
       setStatus('idle');
       setNotice('Check your email for the ChemDeck magic link. Opening it will save this account in Supabase.');
-    } catch (error) {
-      setStatus('error');
-      setMessage((error as Error).message);
-    }
-  };
-
-  const handleConfirmCreateAccount = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setStatus('loading');
-    setMessage('');
-    setNotice('');
-
-    if (!createForm.code.trim()) {
-      setStatus('error');
-      setMessage('Enter the confirmation code from your email.');
-      return;
-    }
-
-    try {
-      await confirmAccountEmailCode(createForm.email, createForm.code);
-      const account = await createManualAccount(createForm.name, createForm.birthday, role);
-      clearPendingAuth();
-      setCreatedAccount(account);
-      setStatus('idle');
-      setNotice('Your ChemDeck account was saved in Supabase and linked to this email.');
     } catch (error) {
       setStatus('error');
       setMessage((error as Error).message);
@@ -304,35 +289,10 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
         email: recoverForm.email,
         role,
       });
-      await sendAccountEmailCode(recoverForm.email, false);
-      setRecoverStep('code');
+      await sendAccountMagicLink(recoverForm.email, false, `${getAppBaseUrl()}/login?role=${role}&auth_action=recover`);
+      setRecoverStep('magic');
       setStatus('idle');
       setNotice('Check your email for the recovery magic link. Opening it will generate a new passcode.');
-    } catch (error) {
-      setStatus('error');
-      setMessage((error as Error).message);
-    }
-  };
-
-  const handleConfirmRecoveryCode = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setStatus('loading');
-    setMessage('');
-    setNotice('');
-
-    if (!recoverForm.code.trim()) {
-      setStatus('error');
-      setMessage('Enter the confirmation code from your email.');
-      return;
-    }
-
-    try {
-      await confirmAccountEmailCode(recoverForm.email, recoverForm.code);
-      const account = await recoverAccount();
-      clearPendingAuth();
-      setRecoveredAccount(account);
-      setStatus('idle');
-      setNotice('Your email was confirmed and your account recovery was saved.');
     } catch (error) {
       setStatus('error');
       setMessage((error as Error).message);
@@ -486,35 +446,22 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
                 </button>
               </form>
             ) : mode === 'create' ? (
-              <form className="mt-6 space-y-4" onSubmit={handleConfirmCreateAccount}>
-                <label className="block">
-                  <span className="text-sm font-semibold text-slate-700">Confirmation code</span>
-                  <input
-                    value={createForm.code}
-                    onChange={(event) => setCreateForm((current) => ({ ...current, code: event.target.value }))}
-                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                  />
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setCreateStep('details')}
-                    className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={status === 'loading'}
-                    data-sound="click"
-                    className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-                  >
-                    Confirm
-                  </button>
+              <div className="mt-6 space-y-4">
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                  <p className="font-semibold text-blue-950">Magic link sent</p>
+                  <p className="mt-2 text-sm leading-6 text-blue-900">
+                    Open the ChemDeck email link. The account will be created automatically and this page will show
+                    your username and passcode.
+                  </p>
                 </div>
-              </form>
+                <button
+                  type="button"
+                  onClick={() => setCreateStep('details')}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Back
+                </button>
+              </div>
             ) : recoverStep === 'email' ? (
               <form className="mt-6 space-y-4" onSubmit={handleSendRecoveryCode}>
                 <label className="block">
@@ -533,39 +480,25 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
                   data-sound="click"
                   className="w-full rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
                 >
-                  Send recovery code
+                  Send recovery link
                 </button>
               </form>
             ) : (
-              <form className="mt-6 space-y-4" onSubmit={handleConfirmRecoveryCode}>
-                <label className="block">
-                  <span className="text-sm font-semibold text-slate-700">Confirmation code</span>
-                  <input
-                    value={recoverForm.code}
-                    onChange={(event) => setRecoverForm((current) => ({ ...current, code: event.target.value }))}
-                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                  />
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setRecoverStep('email')}
-                    className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={status === 'loading'}
-                    data-sound="click"
-                    className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-                  >
-                    Confirm
-                  </button>
+              <div className="mt-6 space-y-4">
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                  <p className="font-semibold text-blue-950">Recovery link sent</p>
+                  <p className="mt-2 text-sm leading-6 text-blue-900">
+                    Open the ChemDeck email link. The page will automatically show your username and new passcode.
+                  </p>
                 </div>
-              </form>
+                <button
+                  type="button"
+                  onClick={() => setRecoverStep('email')}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Back
+                </button>
+              </div>
             )}
 
             <div className="my-6 flex items-center gap-3">

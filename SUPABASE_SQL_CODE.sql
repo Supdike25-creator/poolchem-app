@@ -198,7 +198,7 @@ begin
 
   account_name := coalesce(nullif(trim(coalesce(p_name, '')), ''), pending_signup.name);
   account_birthday := coalesce(p_birthday, pending_signup.birthday);
-  normalized_role := public.normalize_app_role(coalesce(p_role, pending_signup.role, 'guard'));
+  normalized_role := public.normalize_app_role(coalesce(pending_signup.role, p_role, 'guard'));
 
   if nullif(trim(coalesce(account_name, '')), '') is null then
     raise exception 'Name is required';

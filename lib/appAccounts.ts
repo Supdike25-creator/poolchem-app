@@ -89,12 +89,12 @@ export const clearAppSession = () => {
   document.cookie = `${appSessionCookie}=; path=/; max-age=0; samesite=lax`;
 };
 
-export const sendAccountEmailCode = async (email: string, shouldCreateUser = true) => {
+export const sendAccountMagicLink = async (email: string, shouldCreateUser = true, redirectTo = `${getAppBaseUrl()}/login`) => {
   const supabase = getSupabaseClient();
   const { error } = await supabase.auth.signInWithOtp({
     email: email.trim().toLowerCase(),
     options: {
-      emailRedirectTo: `${getAppBaseUrl()}/login`,
+      emailRedirectTo: redirectTo,
       shouldCreateUser,
     },
   });
@@ -128,25 +128,12 @@ export const startAccountSignup = async ({
   }
 };
 
-export const confirmAccountEmailCode = async (email: string, code: string) => {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase.auth.verifyOtp({
-    email: email.trim().toLowerCase(),
-    token: code.trim(),
-    type: 'email',
-  });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-};
-
-export const createManualAccount = async (name?: string, birthday?: string | null, role: AppRole = 'guard') => {
+export const createManualAccount = async (name?: string, birthday?: string | null, role?: AppRole | null) => {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.rpc('create_app_account', {
     p_name: name?.trim() || null,
     p_birthday: birthday || null,
-    p_role: role,
+    p_role: role ?? null,
   });
 
   if (error) {
