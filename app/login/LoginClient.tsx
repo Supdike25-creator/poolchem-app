@@ -31,6 +31,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
   const [mode, setMode] = useState<'login' | 'create' | 'recover'>('login');
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  const [notice, setNotice] = useState('');
   const [createdAccount, setCreatedAccount] = useState<AppAccount | null>(null);
   const [recoveredAccount, setRecoveredAccount] = useState<AppAccount | null>(null);
   const [loginForm, setLoginForm] = useState({ username: '', passcode: '' });
@@ -106,6 +107,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
   const handleGoogleSignIn = async () => {
     setStatus('loading');
     setMessage('');
+    setNotice('');
     clearAppSession();
 
     const supabase = getSupabaseClient();
@@ -126,6 +128,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
     event.preventDefault();
     setStatus('loading');
     setMessage('');
+    setNotice('');
     setCreatedAccount(null);
 
     try {
@@ -155,6 +158,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
     event.preventDefault();
     setStatus('loading');
     setMessage('');
+    setNotice('');
 
     if (!createForm.name.trim() || !createForm.birthday || !createForm.email.trim()) {
       setStatus('error');
@@ -167,7 +171,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
       await sendAccountEmailCode(createForm.email, true);
       setCreateStep('code');
       setStatus('idle');
-      setMessage('Check your email for the ChemDeck confirmation code.');
+      setNotice('Check your email for the ChemDeck confirmation code.');
     } catch (error) {
       setStatus('error');
       setMessage((error as Error).message);
@@ -178,6 +182,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
     event.preventDefault();
     setStatus('loading');
     setMessage('');
+    setNotice('');
 
     if (!createForm.code.trim()) {
       setStatus('error');
@@ -190,6 +195,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
       const account = await createManualAccount(createForm.name, createForm.birthday, role);
       setCreatedAccount(account);
       setStatus('idle');
+      setNotice('Your ChemDeck account was saved in Supabase and linked to this email.');
     } catch (error) {
       setStatus('error');
       setMessage((error as Error).message);
@@ -200,6 +206,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
     event.preventDefault();
     setStatus('loading');
     setMessage('');
+    setNotice('');
     setRecoveredAccount(null);
 
     if (!recoverForm.email.trim()) {
@@ -213,7 +220,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
       await sendAccountEmailCode(recoverForm.email, false);
       setRecoverStep('code');
       setStatus('idle');
-      setMessage('Check your email for the recovery confirmation code.');
+      setNotice('Check your email for the recovery confirmation code.');
     } catch (error) {
       setStatus('error');
       setMessage((error as Error).message);
@@ -224,6 +231,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
     event.preventDefault();
     setStatus('loading');
     setMessage('');
+    setNotice('');
 
     if (!recoverForm.code.trim()) {
       setStatus('error');
@@ -236,6 +244,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
       const account = await recoverAccount();
       setRecoveredAccount(account);
       setStatus('idle');
+      setNotice('Your email was confirmed and your account recovery was saved.');
     } catch (error) {
       setStatus('error');
       setMessage((error as Error).message);
@@ -290,6 +299,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
                   onClick={() => {
                     setMode(item);
                     setMessage('');
+                    setNotice('');
                     setCreatedAccount(null);
                     setRecoveredAccount(null);
                   }}
@@ -538,6 +548,13 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
               <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4">
                 <p className="font-semibold text-red-800">Error</p>
                 <p className="mt-1 text-sm text-red-700">{message}</p>
+              </div>
+            ) : null}
+
+            {notice ? (
+              <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                <p className="font-semibold text-blue-900">Next step</p>
+                <p className="mt-1 text-sm text-blue-800">{notice}</p>
               </div>
             ) : null}
           </div>
