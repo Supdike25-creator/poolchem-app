@@ -187,6 +187,7 @@ export default function LoginClient({ role: roleParam, authAction }: { role?: st
     setMessage('');
     setNotice('');
     clearAppSession();
+    clearPendingAuth();
 
     const supabase = getSupabaseClient();
     const { error } = await supabase.auth.signInWithOAuth({
