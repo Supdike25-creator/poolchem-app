@@ -25,6 +25,38 @@ const roleLabels: Record<AppRole, string> = {
 };
 
 const redirectRoute = (role: AppRole) => (role === 'manager' ? '/management/dashboard' : '/guard');
+const pendingAuthKey = 'chemdeck.pendingEmailAuth';
+
+type PendingEmailAuth =
+  | {
+      action: 'create';
+      name: string;
+      birthday: string;
+      email: string;
+      role: AppRole;
+    }
+  | {
+      action: 'recover';
+      email: string;
+      role: AppRole;
+    };
+
+const savePendingAuth = (pendingAuth: PendingEmailAuth) => {
+  window.localStorage.setItem(pendingAuthKey, JSON.stringify(pendingAuth));
+};
+
+const readPendingAuth = () => {
+  try {
+    const raw = window.localStorage.getItem(pendingAuthKey);
+    return raw ? (JSON.parse(raw) as PendingEmailAuth) : null;
+  } catch {
+    return null;
+  }
+};
+
+const clearPendingAuth = () => {
+  window.localStorage.removeItem(pendingAuthKey);
+};
 
 export default function LoginClient({ role: roleParam }: { role?: string }) {
   const router = useRouter();
@@ -65,6 +97,29 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
 
         if (!session?.user) {
           setStatus('idle');
+          return;
+        }
+
+        const pendingAuth = readPendingAuth();
+        if (pendingAuth?.action === 'create') {
+          const account = await createManualAccount(pendingAuth.name, pendingAuth.birthday, pendingAuth.role);
+          clearPendingAuth();
+          setMode('create');
+          setCreateStep('code');
+          setCreatedAccount(account);
+          setStatus('idle');
+          setNotice('Your ChemDeck account was saved in Supabase and linked to this email.');
+          return;
+        }
+
+        if (pendingAuth?.action === 'recover') {
+          const account = await recoverAccount();
+          clearPendingAuth();
+          setMode('recover');
+          setRecoverStep('code');
+          setRecoveredAccount(account);
+          setStatus('idle');
+          setNotice('Your email was confirmed and your account recovery was saved.');
           return;
         }
 
@@ -168,10 +223,17 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
 
     try {
       await getSupabaseClient().auth.signOut();
+      savePendingAuth({
+        action: 'create',
+        name: createForm.name,
+        birthday: createForm.birthday,
+        email: createForm.email,
+        role,
+      });
       await sendAccountEmailCode(createForm.email, true);
       setCreateStep('code');
       setStatus('idle');
-      setNotice('Check your email for the ChemDeck confirmation code.');
+      setNotice('Check your email for the ChemDeck magic link. Opening it will save this account in Supabase.');
     } catch (error) {
       setStatus('error');
       setMessage((error as Error).message);
@@ -193,6 +255,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
     try {
       await confirmAccountEmailCode(createForm.email, createForm.code);
       const account = await createManualAccount(createForm.name, createForm.birthday, role);
+      clearPendingAuth();
       setCreatedAccount(account);
       setStatus('idle');
       setNotice('Your ChemDeck account was saved in Supabase and linked to this email.');
@@ -217,10 +280,15 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
 
     try {
       await getSupabaseClient().auth.signOut();
+      savePendingAuth({
+        action: 'recover',
+        email: recoverForm.email,
+        role,
+      });
       await sendAccountEmailCode(recoverForm.email, false);
       setRecoverStep('code');
       setStatus('idle');
-      setNotice('Check your email for the recovery confirmation code.');
+      setNotice('Check your email for the recovery magic link. Opening it will generate a new passcode.');
     } catch (error) {
       setStatus('error');
       setMessage((error as Error).message);
@@ -242,6 +310,7 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
     try {
       await confirmAccountEmailCode(recoverForm.email, recoverForm.code);
       const account = await recoverAccount();
+      clearPendingAuth();
       setRecoveredAccount(account);
       setStatus('idle');
       setNotice('Your email was confirmed and your account recovery was saved.');
@@ -323,8 +392,8 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
               {mode === 'login'
                 ? 'Use the username and passcode created for this workspace, or continue with Google.'
                 : mode === 'create'
-                  ? 'Enter your name, birthday, and email. ChemDeck will email a confirmation code before creating the account.'
-                  : 'Enter your account email. ChemDeck will send a confirmation code and create a new passcode.'}
+                ? 'Enter your name, birthday, and email. ChemDeck will email a magic link before creating the account.'
+                  : 'Enter your account email. ChemDeck will send a magic link and create a new passcode.'}
             </p>
 
             {mode === 'login' ? (
