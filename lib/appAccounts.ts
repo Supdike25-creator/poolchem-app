@@ -104,6 +104,30 @@ export const sendAccountEmailCode = async (email: string, shouldCreateUser = tru
   }
 };
 
+export const startAccountSignup = async ({
+  name,
+  birthday,
+  email,
+  role,
+}: {
+  name: string;
+  birthday: string;
+  email: string;
+  role: AppRole;
+}) => {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.rpc('start_app_account_signup', {
+    p_name: name.trim(),
+    p_birthday: birthday,
+    p_email: email.trim().toLowerCase(),
+    p_role: role,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
 export const confirmAccountEmailCode = async (email: string, code: string) => {
   const supabase = getSupabaseClient();
   const { error } = await supabase.auth.verifyOtp({
@@ -117,11 +141,11 @@ export const confirmAccountEmailCode = async (email: string, code: string) => {
   }
 };
 
-export const createManualAccount = async (name: string, birthday: string, role: AppRole) => {
+export const createManualAccount = async (name?: string, birthday?: string | null, role: AppRole = 'guard') => {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.rpc('create_app_account', {
-    p_name: name.trim(),
-    p_birthday: birthday,
+    p_name: name?.trim() || null,
+    p_birthday: birthday || null,
     p_role: role,
   });
 

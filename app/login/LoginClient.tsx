@@ -15,6 +15,7 @@ import {
   recoverAccount,
   sendAccountEmailCode,
   setAppSession,
+  startAccountSignup,
   type AppAccount,
 } from '../../lib/appAccounts';
 import { getSupabaseClient } from '../../lib/supabaseClient';
@@ -110,6 +111,18 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
           setStatus('idle');
           setNotice('Your ChemDeck account was saved in Supabase and linked to this email.');
           return;
+        }
+
+        try {
+          const account = await createManualAccount(undefined, null, role);
+          setMode('create');
+          setCreateStep('code');
+          setCreatedAccount(account);
+          setStatus('idle');
+          setNotice('Your ChemDeck account was saved in Supabase and linked to this email.');
+          return;
+        } catch {
+          // No pending email signup exists for this verified session.
         }
 
         if (pendingAuth?.action === 'recover') {
@@ -223,6 +236,12 @@ export default function LoginClient({ role: roleParam }: { role?: string }) {
 
     try {
       await getSupabaseClient().auth.signOut();
+      await startAccountSignup({
+        name: createForm.name,
+        birthday: createForm.birthday,
+        email: createForm.email,
+        role,
+      });
       savePendingAuth({
         action: 'create',
         name: createForm.name,

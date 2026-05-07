@@ -22,15 +22,26 @@ create table if not exists public.app_account_sessions (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.app_account_signup_requests (
+  email text primary key,
+  name text not null,
+  birthday date not null,
+  role text not null check (role in ('manager', 'guard')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists app_account_sessions_account_id_idx on public.app_account_sessions(account_id);
 create index if not exists app_account_sessions_expires_at_idx on public.app_account_sessions(expires_at);
 create unique index if not exists app_accounts_email_unique_idx on public.app_accounts (lower(email)) where email is not null;
 
 alter table public.app_accounts enable row level security;
 alter table public.app_account_sessions enable row level security;
+alter table public.app_account_signup_requests enable row level security;
 
 revoke all on public.app_accounts from anon, authenticated;
 revoke all on public.app_account_sessions from anon, authenticated;
+revoke all on public.app_account_signup_requests from anon, authenticated;
 
 create or replace function public.normalize_app_role(p_role text)
 returns text
@@ -96,6 +107,51 @@ begin
 end;
 $$;
 
+create or replace function public.start_app_account_signup(
+  p_name text,
+  p_birthday date,
+  p_email text,
+  p_role text default 'guard'
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  normalized_email text;
+  normalized_role text;
+begin
+  normalized_email := nullif(lower(trim(coalesce(p_email, ''))), '');
+
+  if nullif(trim(coalesce(p_name, '')), '') is null then
+    raise exception 'Name is required';
+  end if;
+
+  if p_birthday is null then
+    raise exception 'Birthday is required';
+  end if;
+
+  if normalized_email is null then
+    raise exception 'Email is required';
+  end if;
+
+  if exists (select 1 from public.app_accounts where lower(email) = normalized_email) then
+    raise exception 'That email already has a ChemDeck account';
+  end if;
+
+  normalized_role := public.normalize_app_role(p_role);
+
+  insert into public.app_account_signup_requests (email, name, birthday, role)
+  values (normalized_email, trim(p_name), p_birthday, normalized_role)
+  on conflict (email) do update set
+    name = excluded.name,
+    birthday = excluded.birthday,
+    role = excluded.role,
+    updated_at = now();
+end;
+$$;
+
 create or replace function public.create_app_account(
   p_name text,
   p_birthday date,
@@ -121,6 +177,9 @@ declare
   generated_passcode text;
   normalized_role text;
   verified_email text;
+  pending_signup public.app_account_signup_requests%rowtype;
+  account_name text;
+  account_birthday date;
   inserted_account public.app_accounts%rowtype;
 begin
   if auth.uid() is null then
@@ -133,23 +192,30 @@ begin
     raise exception 'A verified email is required';
   end if;
 
-  if nullif(trim(coalesce(p_name, '')), '') is null then
+  select * into pending_signup
+  from public.app_account_signup_requests
+  where email = verified_email;
+
+  account_name := coalesce(nullif(trim(coalesce(p_name, '')), ''), pending_signup.name);
+  account_birthday := coalesce(p_birthday, pending_signup.birthday);
+  normalized_role := public.normalize_app_role(coalesce(p_role, pending_signup.role, 'guard'));
+
+  if nullif(trim(coalesce(account_name, '')), '') is null then
     raise exception 'Name is required';
   end if;
 
-  if p_birthday is null then
+  if account_birthday is null then
     raise exception 'Birthday is required';
   end if;
 
-  normalized_role := public.normalize_app_role(p_role);
-  generated_username := public.make_app_username(p_name, p_birthday);
+  generated_username := public.make_app_username(account_name, account_birthday);
   generated_passcode := floor(100000 + random() * 900000)::int::text;
 
   insert into public.app_accounts (auth_user_id, name, birthday, username, passcode_hash, role, email, provider)
   values (
     auth.uid(),
-    trim(p_name),
-    p_birthday,
+    trim(account_name),
+    account_birthday,
     generated_username,
     extensions.crypt(generated_passcode, extensions.gen_salt('bf')),
     normalized_role,
@@ -157,6 +223,9 @@ begin
     'manual'
   )
   returning * into inserted_account;
+
+  delete from public.app_account_signup_requests
+  where email = verified_email;
 
   return query
   select
@@ -375,3 +444,4 @@ grant execute on function public.verify_app_account(text, text) to anon, authent
 grant execute on function public.create_google_app_account(uuid, text, text, text) to authenticated;
 grant execute on function public.verify_app_session(text) to anon, authenticated;
 grant execute on function public.recover_app_account() to authenticated;
+grant execute on function public.start_app_account_signup(text, date, text, text) to anon, authenticated;
