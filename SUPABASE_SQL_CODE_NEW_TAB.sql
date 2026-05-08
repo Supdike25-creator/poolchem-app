@@ -309,6 +309,7 @@ declare
   normalized_role text;
   normalized_email text;
   existing_account public.app_accounts%rowtype;
+  email_account public.app_accounts%rowtype;
   upserted_account public.app_accounts%rowtype;
 begin
   if auth.uid() is null or auth.uid() <> p_auth_user_id then
@@ -318,25 +319,67 @@ begin
   normalized_role := public.normalize_app_role(p_role);
   normalized_email := nullif(lower(trim(coalesce(p_email, ''))), '');
 
+  select * into existing_account
+  from public.app_accounts
+  where auth_user_id = p_auth_user_id
+  limit 1;
+
+  if existing_account.id is not null then
+    if normalized_email is not null then
+      select * into email_account
+      from public.app_accounts
+      where lower(email) = normalized_email
+        and id <> existing_account.id
+      limit 1;
+
+      if email_account.id is not null then
+        raise exception 'That email already has a ChemDeck account';
+      end if;
+    end if;
+
+    update public.app_accounts
+    set
+      name = coalesce(nullif(trim(p_name), ''), existing_account.name),
+      role = existing_account.role,
+      email = coalesce(normalized_email, existing_account.email),
+      provider = 'google',
+      updated_at = now()
+    where id = existing_account.id
+    returning * into upserted_account;
+
+    return query
+    select
+      upserted_account.id,
+      upserted_account.name,
+      upserted_account.birthday,
+      upserted_account.username,
+      null::text,
+      public.issue_app_session(upserted_account.id),
+      upserted_account.role,
+      upserted_account.email,
+      upserted_account.provider;
+    return;
+  end if;
+
   if normalized_email is not null then
-    select * into existing_account
+    select * into email_account
     from public.app_accounts
     where lower(email) = normalized_email
     limit 1;
 
-    if existing_account.id is not null then
-      if existing_account.auth_user_id is not null and existing_account.auth_user_id <> p_auth_user_id then
+    if email_account.id is not null then
+      if email_account.auth_user_id is not null and email_account.auth_user_id <> p_auth_user_id then
         raise exception 'That email already has a ChemDeck account';
       end if;
 
       update public.app_accounts
       set
         auth_user_id = p_auth_user_id,
-        name = coalesce(nullif(trim(p_name), ''), existing_account.name),
-        role = coalesce(existing_account.role, normalized_role),
+        name = coalesce(nullif(trim(p_name), ''), email_account.name),
+        role = email_account.role,
         provider = 'google',
         updated_at = now()
-      where id = existing_account.id
+      where id = email_account.id
       returning * into upserted_account;
 
       return query
@@ -368,11 +411,6 @@ begin
     normalized_email,
     'google'
   )
-  on conflict (auth_user_id) do update set
-    name = excluded.name,
-    role = excluded.role,
-    email = excluded.email,
-    updated_at = now()
   returning * into upserted_account;
 
   return query
@@ -381,7 +419,7 @@ begin
     upserted_account.name,
     upserted_account.birthday,
     upserted_account.username,
-    case when upserted_account.created_at = upserted_account.updated_at then generated_passcode else null::text end,
+    generated_passcode,
     public.issue_app_session(upserted_account.id),
     upserted_account.role,
     upserted_account.email,
