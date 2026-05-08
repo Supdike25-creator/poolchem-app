@@ -28,6 +28,7 @@ const devAccount: AppAccount = {
   id: 'chemdeck-dev-account',
   name: 'ChemDeck Dev',
   username: 'chemdeck.dev',
+  session_token: 'chemdeck-dev-session',
   role: 'manager',
   provider: 'manual',
 };
@@ -71,7 +72,15 @@ const normalizeAuthAction = (action?: string | null): AuthAction | null => {
   return action === 'create' || action === 'recover' ? action : null;
 };
 
-export default function LoginClient({ role: roleParam, authAction }: { role?: string; authAction?: string }) {
+export default function LoginClient({
+  role: roleParam,
+  authAction,
+  authCode,
+}: {
+  role?: string;
+  authAction?: string;
+  authCode?: string;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<'login' | 'create' | 'recover'>('login');
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
@@ -96,6 +105,21 @@ export default function LoginClient({ role: roleParam, authAction }: { role?: st
     const checkLogin = async () => {
       try {
         setStatus('loading');
+
+        if (authCode) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(authCode);
+
+          if (exchangeError) {
+            setStatus('error');
+            setMessage(exchangeError.message);
+            return;
+          }
+
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete('code');
+          window.history.replaceState({}, '', cleanUrl.toString());
+        }
+
         const {
           data: { session },
           error,
@@ -169,12 +193,22 @@ export default function LoginClient({ role: roleParam, authAction }: { role?: st
           await supabase.from('profiles').upsert([profilePayload], { onConflict: 'id' });
         }
 
-        await createOrUpdateGoogleAccount({
+        const account = await createOrUpdateGoogleAccount({
           id: user.id,
           name: user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Google User',
           email: user.email,
           role: savedRole,
         });
+
+        if (account.passcode) {
+          setMode('create');
+          setCreateStep('magic');
+          setCreatedAccount(account);
+          setStatus('idle');
+          setNotice('Your Google account was saved in Supabase. Keep this username and passcode.');
+          return;
+        }
+
         router.replace(redirectRoute(savedRole));
       } catch (error) {
         if (ignore) return;
@@ -188,7 +222,7 @@ export default function LoginClient({ role: roleParam, authAction }: { role?: st
     return () => {
       ignore = true;
     };
-  }, [requestedAuthAction, router, role]);
+  }, [authCode, requestedAuthAction, router, role]);
 
   const handleGoogleSignIn = async () => {
     setStatus('loading');

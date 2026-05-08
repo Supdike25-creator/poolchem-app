@@ -280,6 +280,8 @@ begin
 end;
 $$;
 
+drop function if exists public.create_google_app_account(uuid, text, text, text);
+
 create or replace function public.create_google_app_account(
   p_auth_user_id uuid,
   p_name text,
@@ -291,6 +293,7 @@ returns table (
   name text,
   birthday date,
   username text,
+  passcode text,
   session_token text,
   role text,
   email text,
@@ -304,6 +307,8 @@ declare
   generated_username text;
   generated_passcode text;
   normalized_role text;
+  normalized_email text;
+  existing_account public.app_accounts%rowtype;
   upserted_account public.app_accounts%rowtype;
 begin
   if auth.uid() is null or auth.uid() <> p_auth_user_id then
@@ -311,6 +316,44 @@ begin
   end if;
 
   normalized_role := public.normalize_app_role(p_role);
+  normalized_email := nullif(lower(trim(coalesce(p_email, ''))), '');
+
+  if normalized_email is not null then
+    select * into existing_account
+    from public.app_accounts
+    where lower(email) = normalized_email
+    limit 1;
+
+    if existing_account.id is not null then
+      if existing_account.auth_user_id is not null and existing_account.auth_user_id <> p_auth_user_id then
+        raise exception 'That email already has a ChemDeck account';
+      end if;
+
+      update public.app_accounts
+      set
+        auth_user_id = p_auth_user_id,
+        name = coalesce(nullif(trim(p_name), ''), existing_account.name),
+        role = coalesce(existing_account.role, normalized_role),
+        provider = 'google',
+        updated_at = now()
+      where id = existing_account.id
+      returning * into upserted_account;
+
+      return query
+      select
+        upserted_account.id,
+        upserted_account.name,
+        upserted_account.birthday,
+        upserted_account.username,
+        null::text,
+        public.issue_app_session(upserted_account.id),
+        upserted_account.role,
+        upserted_account.email,
+        upserted_account.provider;
+      return;
+    end if;
+  end if;
+
   generated_username := public.make_app_username(coalesce(nullif(trim(p_name), ''), p_email, 'google.user'), current_date);
   generated_passcode := floor(100000 + random() * 900000)::int::text;
 
@@ -322,7 +365,7 @@ begin
     generated_username,
     extensions.crypt(generated_passcode, extensions.gen_salt('bf')),
     normalized_role,
-    p_email,
+    normalized_email,
     'google'
   )
   on conflict (auth_user_id) do update set
@@ -338,6 +381,7 @@ begin
     upserted_account.name,
     upserted_account.birthday,
     upserted_account.username,
+    case when upserted_account.created_at = upserted_account.updated_at then generated_passcode else null::text end,
     public.issue_app_session(upserted_account.id),
     upserted_account.role,
     upserted_account.email,
