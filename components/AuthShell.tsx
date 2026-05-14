@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { clearAppSession, getStoredSession, normalizeAppRole } from '../lib/appAccounts';
 import { getSupabaseClient } from '../lib/supabaseClient';
+import { bypassProfileForRole, temporaryLoginBypass } from '../lib/temporaryLoginBypass';
 import BackButton from './BackButton';
 
 type AppRole = 'manager' | 'guard';
@@ -36,8 +37,6 @@ const roleLabels: Record<AppRole, string> = {
   guard: 'Guard / Technician',
 };
 
-const temporaryLoginBypass = true;
-
 const authorizedRoute = (role: AppRole) => (role === 'manager' ? '/management/dashboard' : '/guard');
 
 const normalizeProfileRole = (role?: string | null): AppRole => {
@@ -52,22 +51,18 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
-    const supabase = getSupabaseClient();
     let isMounted = true;
 
     const restoreSession = async () => {
       try {
         if (temporaryLoginBypass) {
           if (!isMounted) return;
-          setProfile({
-            full_name: 'ChemDeck Dev',
-            email: role === 'manager' ? 'manager bypass' : 'guard bypass',
-            role,
-          });
+          setProfile(bypassProfileForRole(role));
           setStatus('authenticated');
           return;
         }
 
+        const supabase = getSupabaseClient();
         const {
           data: { session },
           error: sessionError,
@@ -142,6 +137,10 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   }, [router, role]);
 
   useEffect(() => {
+    if (temporaryLoginBypass) {
+      return undefined;
+    }
+
     const supabase = getSupabaseClient();
     const { data } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
@@ -153,6 +152,12 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   }, [router]);
 
   const handleLogout = async () => {
+    if (temporaryLoginBypass) {
+      clearAppSession();
+      router.push('/');
+      return;
+    }
+
     const supabase = getSupabaseClient();
     await supabase.auth.signOut();
     clearAppSession();
@@ -160,6 +165,12 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   };
 
   const handleBackToLogin = async () => {
+    if (temporaryLoginBypass) {
+      clearAppSession();
+      router.push(`/login?role=${role}`);
+      return;
+    }
+
     const supabase = getSupabaseClient();
     await supabase.auth.signOut();
     clearAppSession();

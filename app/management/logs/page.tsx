@@ -4,6 +4,7 @@ import BackButton from '../../../components/BackButton';
 import LogDateSlider from '../../../components/LogDateSlider';
 import { getServerAppSession } from '../../../lib/serverAppSession';
 import { getSupabaseClient } from '../../../lib/supabaseClient';
+import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,7 +72,7 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
   const { data: { session } } = await supabase.auth.getSession();
   const appSession = await getServerAppSession();
 
-  if (!session?.user && appSession?.role !== 'manager') {
+  if (!temporaryLoginBypass && !session?.user && appSession?.role !== 'manager') {
     redirect('/login');
   }
 
@@ -118,11 +119,11 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
       .order('created_at', { ascending: false })
     : { data: [], error: null };
 
-  if (error) {
+  if (error && !temporaryLoginBypass) {
     throw new Error(`Unable to fetch logs: ${error.message}`);
   }
 
-  const dayLogs = (logs ?? []) as ChemicalLogRow[];
+  const dayLogs = (error ? [] : logs ?? []) as ChemicalLogRow[];
   const hours = Array.from({ length: 12 }, (_, index) => 9 + index);
 
   return (
@@ -141,6 +142,11 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
             </Link>
           </div>
         </div>
+        {temporaryLoginBypass && error ? (
+          <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+            Login bypass is active, so live Supabase log data may be hidden until the auth work is finished.
+          </div>
+        ) : null}
 
         <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_340px]">
           <LogDateSlider selectedDate={selectedDate} />

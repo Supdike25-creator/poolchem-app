@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getSupabaseClient } from '../../../lib/supabaseClient';
+import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
 import BackButton from '../../../components/BackButton';
 
 export const dynamic = 'force-dynamic';
@@ -128,7 +129,7 @@ export default async function ManagementDashboard() {
     .select('id,name')
     .order('name');
 
-  if (poolsError) {
+  if (poolsError && !temporaryLoginBypass) {
     throw new Error(`Unable to load pools: ${poolsError.message}`);
   }
 
@@ -138,12 +139,13 @@ export default async function ManagementDashboard() {
     .order('created_at', { ascending: false })
     .limit(200);
 
-  if (logsError) {
+  if (logsError && !temporaryLoginBypass) {
     throw new Error(`Unable to load logs: ${logsError.message}`);
   }
 
-  const poolList = pools ?? [];
-  const logs = recentLogs ?? [];
+  const poolList = poolsError ? [] : pools ?? [];
+  const logs = logsError ? [] : recentLogs ?? [];
+  const dataWarning = temporaryLoginBypass && (poolsError || logsError);
 
   const latestLogByPool = new Map<string, ChemicalLog>();
   for (const log of logs) {
@@ -173,6 +175,11 @@ export default async function ManagementDashboard() {
   return (
     <div>
       <ManagementHotBar />
+      {dataWarning ? (
+        <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+          Login bypass is active, so live Supabase data may be hidden until the auth work is finished.
+        </div>
+      ) : null}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-3">

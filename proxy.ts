@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { temporaryLoginBypass } from './lib/temporaryLoginBypass';
 
 type AppRole = 'manager' | 'guard';
 type AppSession = {
@@ -13,7 +14,6 @@ type AppSession = {
 
 const managerRoles = new Set(['admin', 'manager', 'supervisor']);
 const appSessionCookie = 'chemdeck_app_session';
-const temporaryLoginBypass = true;
 
 const normalizeRole = (role?: string | null): AppRole => {
   if (!role) return 'guard';

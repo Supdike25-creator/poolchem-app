@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getSupabaseClient } from '../../lib/supabaseClient';
+import { temporaryLoginBypass } from '../../lib/temporaryLoginBypass';
 import BackButton from '../../components/BackButton';
 
 export const dynamic = 'force-dynamic';
@@ -11,9 +12,11 @@ export default async function GuardHomePage() {
     .select('id,name,pool_type,volume_gallons')
     .order('name');
 
-  if (error) {
+  if (error && !temporaryLoginBypass) {
     throw new Error(`Unable to load pools: ${error.message}`);
   }
+
+  const poolList = error ? [] : pools ?? [];
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -47,11 +50,16 @@ export default async function GuardHomePage() {
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-xl font-semibold text-slate-900">Assigned Pools</h2>
           <p className="mt-2 text-slate-600">Choose the pool you are logging for today.</p>
+          {temporaryLoginBypass && error ? (
+            <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+              Login bypass is active, so live Supabase pool data may be hidden until the auth work is finished.
+            </div>
+          ) : null}
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            {(pools ?? []).length === 0 ? (
+            {poolList.length === 0 ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-slate-600">No pool assignments configured yet.</div>
             ) : (
-              (pools ?? []).map((pool) => (
+              poolList.map((pool) => (
                 <Link
                   key={pool.id}
                   href={`/guard/log?poolId=${pool.id}`}

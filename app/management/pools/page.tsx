@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getSupabaseClient } from '../../../lib/supabaseClient';
+import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
 import BackButton from '../../../components/BackButton';
 
 export const dynamic = 'force-dynamic';
@@ -18,11 +19,11 @@ export default async function ManagementPoolsPage() {
     .select('id,name,pool_type,volume_gallons')
     .order('name');
 
-  if (error) {
+  if (error && !temporaryLoginBypass) {
     throw new Error(`Unable to fetch pools: ${error.message}`);
   }
 
-  const poolList: Pool[] = pools ?? [];
+  const poolList: Pool[] = error ? [] : pools ?? [];
 
   return (
     <div>
@@ -52,6 +53,11 @@ export default async function ManagementPoolsPage() {
           </Link>
         </div>
       </div>
+      {temporaryLoginBypass && error ? (
+        <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+          Login bypass is active, so live Supabase pool data may be hidden until the auth work is finished.
+        </div>
+      ) : null}
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">

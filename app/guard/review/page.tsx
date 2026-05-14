@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import BackButton from '../../../components/BackButton';
 import { getSupabaseClient } from '../../../lib/supabaseClient';
+import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
 
 interface ChemicalLogRow {
   id: string;
@@ -63,11 +64,11 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
 
   const { data: logs, error } = await query;
 
-  if (error) {
+  if (error && !temporaryLoginBypass) {
     throw new Error(`Unable to load guard logs: ${error.message}`);
   }
 
-  const guardLogs = (logs ?? []) as ChemicalLogRow[];
+  const guardLogs = (error ? [] : logs ?? []) as ChemicalLogRow[];
   const title = isFullSheet ? 'Full Guard Sheet' : 'Current Hour Logs';
   const subtitle = isFullSheet
     ? 'All of your submitted logs for today.'
@@ -101,6 +102,11 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
           <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-600">{subtitle}</p>
         </div>
+        {temporaryLoginBypass && error ? (
+          <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+            Login bypass is active, so live Supabase log data may be hidden until the auth work is finished.
+          </div>
+        ) : null}
 
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
