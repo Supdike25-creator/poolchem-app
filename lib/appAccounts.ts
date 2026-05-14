@@ -1,6 +1,6 @@
 'use client';
 
-import { getSupabaseClient } from './supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 
 export type AppRole = 'manager' | 'guard';
 
@@ -90,7 +90,7 @@ export const clearAppSession = () => {
 };
 
 export const sendAccountMagicLink = async (email: string, shouldCreateUser = true, redirectTo = `${getAppBaseUrl()}/login`) => {
-  const supabase = getSupabaseClient();
+  const supabase = createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email: email.trim().toLowerCase(),
     options: {
@@ -115,7 +115,7 @@ export const startAccountSignup = async ({
   email: string;
   role: AppRole;
 }) => {
-  const supabase = getSupabaseClient();
+  const supabase = createClient();
   const { error } = await supabase.rpc('start_app_account_signup', {
     p_name: name.trim(),
     p_birthday: birthday,
@@ -129,7 +129,7 @@ export const startAccountSignup = async ({
 };
 
 export const createManualAccount = async (name?: string, birthday?: string | null, role?: AppRole | null) => {
-  const supabase = getSupabaseClient();
+  const supabase = createClient();
   const { data, error } = await supabase.rpc('create_app_account', {
     p_name: name?.trim() || null,
     p_birthday: birthday || null,
@@ -151,7 +151,7 @@ export const createManualAccount = async (name?: string, birthday?: string | nul
 };
 
 export const recoverAccount = async () => {
-  const supabase = getSupabaseClient();
+  const supabase = createClient();
   const { data, error } = await supabase.rpc('recover_app_account');
 
   if (error) {
@@ -179,7 +179,7 @@ export const createOrUpdateGoogleAccount = async ({
   email?: string;
   role: AppRole;
 }) => {
-  const supabase = getSupabaseClient();
+  const supabase = createClient();
   const { data, error } = await supabase.rpc('create_google_app_account', {
     p_auth_user_id: id,
     p_name: name,
@@ -202,7 +202,7 @@ export const createOrUpdateGoogleAccount = async ({
 };
 
 export const findAccount = async (username: string, passcode: string) => {
-  const supabase = getSupabaseClient();
+  const supabase = createClient();
   const { data, error } = await supabase.rpc('verify_app_account', {
     p_username: username.trim(),
     p_passcode: passcode.trim(),

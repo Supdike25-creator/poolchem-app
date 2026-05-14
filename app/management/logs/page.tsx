@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import BackButton from '../../../components/BackButton';
 import LogDateSlider from '../../../components/LogDateSlider';
 import { getServerAppSession } from '../../../lib/serverAppSession';
-import { getSupabaseClient } from '../../../lib/supabaseClient';
+import { createClient } from '@/utils/supabase/server';
 import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
 
 export const dynamic = 'force-dynamic';
@@ -68,7 +68,7 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
   const dayEnd = new Date(dayStart);
   dayEnd.setDate(dayEnd.getDate() + 1);
 
-  const supabase = getSupabaseClient();
+  const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
   const appSession = await getServerAppSession();
 

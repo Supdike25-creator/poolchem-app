@@ -17,7 +17,7 @@ import {
   startAccountSignup,
   type AppAccount,
 } from '../../lib/appAccounts';
-import { getSupabaseClient } from '../../lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 
 const roleLabels: Record<AppRole, string> = {
   manager: 'Manager / Supervisor',
@@ -75,16 +75,16 @@ const normalizeAuthAction = (action?: string | null): AuthAction | null => {
 export default function LoginClient({
   role: roleParam,
   authAction,
-  authCode,
+  authError,
 }: {
   role?: string;
   authAction?: string;
-  authCode?: string;
+  authError?: string;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<'login' | 'create' | 'recover'>('login');
-  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
-  const [message, setMessage] = useState('');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>(authError ? 'error' : 'idle');
+  const [message, setMessage] = useState(authError || '');
   const [notice, setNotice] = useState('');
   const [createdAccount, setCreatedAccount] = useState<AppAccount | null>(null);
   const [recoveredAccount, setRecoveredAccount] = useState<AppAccount | null>(null);
@@ -99,26 +99,12 @@ export default function LoginClient({
   const label = roleLabels[role];
 
   useEffect(() => {
-    const supabase = getSupabaseClient();
+    const supabase = createClient();
     let ignore = false;
 
     const checkLogin = async () => {
       try {
         setStatus('loading');
-
-        if (authCode) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(authCode);
-
-          if (exchangeError) {
-            setStatus('error');
-            setMessage(exchangeError.message);
-            return;
-          }
-
-          const cleanUrl = new URL(window.location.href);
-          cleanUrl.searchParams.delete('code');
-          window.history.replaceState({}, '', cleanUrl.toString());
-        }
 
         const {
           data: { session },
@@ -222,7 +208,7 @@ export default function LoginClient({
     return () => {
       ignore = true;
     };
-  }, [authCode, requestedAuthAction, router, role]);
+  }, [requestedAuthAction, router, role]);
 
   const handleGoogleSignIn = async () => {
     setStatus('loading');
@@ -231,11 +217,11 @@ export default function LoginClient({
     clearAppSession();
     clearPendingAuth();
 
-    const supabase = getSupabaseClient();
+    const supabase = createClient();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${getAppBaseUrl()}/login?role=${role}`,
+        redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 
@@ -254,7 +240,7 @@ export default function LoginClient({
 
     try {
       if (loginForm.username.trim().toLowerCase() === 'chemdeck.dev' && loginForm.passcode.trim() === '20260508') {
-        await getSupabaseClient().auth.signOut();
+        await createClient().auth.signOut();
         setAppSession(devAccount);
         router.replace(redirectRoute(devAccount.role));
         return;
@@ -273,7 +259,7 @@ export default function LoginClient({
         return;
       }
 
-      await getSupabaseClient().auth.signOut();
+      await createClient().auth.signOut();
       setAppSession(account);
       router.replace(redirectRoute(account.role));
     } catch (error) {
@@ -295,7 +281,7 @@ export default function LoginClient({
     }
 
     try {
-      await getSupabaseClient().auth.signOut();
+      await createClient().auth.signOut();
       await startAccountSignup({
         name: createForm.name,
         birthday: createForm.birthday,
@@ -333,7 +319,7 @@ export default function LoginClient({
     }
 
     try {
-      await getSupabaseClient().auth.signOut();
+      await createClient().auth.signOut();
       savePendingAuth({
         action: 'recover',
         email: recoverForm.email,

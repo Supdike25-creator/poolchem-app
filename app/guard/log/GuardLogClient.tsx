@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSupabaseClient } from '../../../lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 import BackButton from '../../../components/BackButton';
 
 interface Pool {
@@ -66,7 +66,7 @@ export default function GuardLogClient({ searchParams }: { searchParams: URLSear
 
   useEffect(() => {
     const loadPools = async () => {
-      const supabase = getSupabaseClient();
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('pools')
         .select('id,name,pool_type,volume_gallons,target_chlorine_min,target_chlorine_max,target_ph_min,target_ph_max,default_chlorine_strength')
@@ -130,7 +130,7 @@ export default function GuardLogClient({ searchParams }: { searchParams: URLSear
       return;
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = createClient();
     const { error: insertError } = await supabase.from('chemical_logs').insert([
       {
         pool_id: selectedPoolId,

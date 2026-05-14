@@ -1,27 +1,11 @@
-import { createBrowserClient } from '@supabase/ssr';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@/utils/supabase/client';
 
-let supabase: SupabaseClient | null = null;
+let supabase: ReturnType<typeof createClient> | null = null;
 
-export function getSupabaseClient(): SupabaseClient {
+export function getSupabaseClient(): ReturnType<typeof createClient> {
   if (!supabase) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error(
-        'Supabase env vars missing: NEXT_PUBLIC_SUPABASE_URL and (NEXT_PUBLIC_SUPABASE_ANON_KEY or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) must be set',
-      );
-    }
-
-    supabase =
-      typeof window === 'undefined'
-        ? createClient(supabaseUrl, supabaseAnonKey, {
-            auth: {
-              persistSession: false,
-            },
-          })
-        : createBrowserClient(supabaseUrl, supabaseAnonKey);
+    supabase = createClient();
   }
+
   return supabase;
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { getSupabaseClient } from '../../lib/supabaseClient';
+import { createClient } from '@/utils/supabase/server';
 import BackButton from '../../components/BackButton';
 
 export const dynamic = 'force-dynamic';
@@ -146,7 +146,7 @@ export default async function Dashboard() {
   let hasNoPools = false;
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = await createClient();
 
     // Fetch all pools
     const { data: pools, error: poolsError } = await supabase

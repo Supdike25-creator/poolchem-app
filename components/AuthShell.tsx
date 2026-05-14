@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { clearAppSession, getStoredSession, normalizeAppRole } from '../lib/appAccounts';
-import { getSupabaseClient } from '../lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 import { bypassProfileForRole, temporaryLoginBypass } from '../lib/temporaryLoginBypass';
 import BackButton from './BackButton';
 
@@ -62,7 +62,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
           return;
         }
 
-        const supabase = getSupabaseClient();
+        const supabase = createClient();
         const {
           data: { session },
           error: sessionError,
@@ -141,7 +141,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
       return undefined;
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = createClient();
     const { data } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
         router.replace('/');
@@ -158,7 +158,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
       return;
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = createClient();
     await supabase.auth.signOut();
     clearAppSession();
     router.push('/');
@@ -171,7 +171,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
       return;
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = createClient();
     await supabase.auth.signOut();
     clearAppSession();
     router.push(`/login?role=${role}`);

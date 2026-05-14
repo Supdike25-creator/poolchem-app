@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSupabaseClient } from '../../../../../lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 import BackButton from '../../../../../components/BackButton';
 
 interface PoolData {
@@ -44,7 +44,7 @@ export default function EditPoolPage({ params }: { params: { id: string } }) {
 
     const loadPool = async () => {
       setLoading(true);
-      const supabase = getSupabaseClient();
+      const supabase = createClient();
       const { data, error } = await supabase.from('pools').select('*').eq('id', id).single();
 
       if (error) {
@@ -79,7 +79,7 @@ export default function EditPoolPage({ params }: { params: { id: string } }) {
     setSaving(true);
     setError('');
 
-    const supabase = getSupabaseClient();
+    const supabase = createClient();
     const { error: updateError } = await supabase
       .from('pools')
       .update({

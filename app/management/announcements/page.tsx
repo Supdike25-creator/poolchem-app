@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getSupabaseClient } from '../../../lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 import BackButton from '../../../components/BackButton';
 import {
   Megaphone,
@@ -64,7 +64,7 @@ export default function AnnouncementsPage() {
   const [announcementNotifications, setAnnouncementNotifications] = useState(true);
 
   async function loadData() {
-    const supabase = getSupabaseClient();
+    const supabase = createClient();
 
     // Get user role
     const { data: { session } } = await supabase.auth.getSession();

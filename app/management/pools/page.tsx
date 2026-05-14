@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getSupabaseClient } from '../../../lib/supabaseClient';
+import { createClient } from '@/utils/supabase/server';
 import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
 import BackButton from '../../../components/BackButton';
 
@@ -13,7 +13,7 @@ interface Pool {
 }
 
 export default async function ManagementPoolsPage() {
-  const supabase = getSupabaseClient();
+  const supabase = await createClient();
   const { data: pools, error } = await supabase
     .from('pools')
     .select('id,name,pool_type,volume_gallons')

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSupabaseClient } from '../../../../lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 import BackButton from '../../../../components/BackButton';
 
 export default function NewPoolPage() {
@@ -24,7 +24,7 @@ export default function NewPoolPage() {
     setError('');
     setSubmitting(true);
 
-    const supabase = getSupabaseClient();
+    const supabase = createClient();
 
     // Get current user's organization
     const { data: { session } } = await supabase.auth.getSession();

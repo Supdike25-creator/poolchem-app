@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getSupabaseClient } from '../../../lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 import BackButton from '../../../components/BackButton';
 import {
   Settings,
@@ -106,7 +106,7 @@ export default function ManagementSettingsPage() {
   useEffect(() => {
     // Load profile
     const loadProfile = async () => {
-      const supabase = getSupabaseClient();
+      const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         const { data: profileData } = await supabase
@@ -130,7 +130,7 @@ export default function ManagementSettingsPage() {
   };
 
   const handleLogout = async () => {
-    const supabase = getSupabaseClient();
+    const supabase = createClient();
     await supabase.auth.signOut();
     window.location.href = '/';
   };

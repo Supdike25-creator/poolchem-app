@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getSupabaseClient } from '../../lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 import BackButton from '../../components/BackButton';
 
 interface Pool {
@@ -132,7 +132,7 @@ export default function LogPage() {
       setLoadingPools(true);
 
       try {
-        const supabase = getSupabaseClient();
+        const supabase = createClient();
 
         // Get current user's organization
         const { data: { session } } = await supabase.auth.getSession();
@@ -229,7 +229,7 @@ export default function LogPage() {
     setIsSubmitting(true);
 
     try {
-      const supabase = getSupabaseClient();
+      const supabase = createClient();
 
       // Get current user
       const { data: { session } } = await supabase.auth.getSession();

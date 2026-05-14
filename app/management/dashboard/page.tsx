@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getSupabaseClient } from '../../../lib/supabaseClient';
+import { createClient } from '@/utils/supabase/server';
 import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
 import BackButton from '../../../components/BackButton';
 
@@ -122,7 +122,7 @@ const ManagementHotBar = () => (
 );
 
 export default async function ManagementDashboard() {
-  const supabase = getSupabaseClient();
+  const supabase = await createClient();
 
   const { data: pools, error: poolsError } = await supabase
     .from('pools')

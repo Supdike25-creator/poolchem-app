@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import BackButton from '../../../components/BackButton';
-import { getSupabaseClient } from '../../../lib/supabaseClient';
+import { createClient } from '@/utils/supabase/server';
 import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
 
 interface ChemicalLogRow {
@@ -35,7 +35,7 @@ const formatTime = (value: Date) => value.toLocaleTimeString('en-US', { hour: 'n
 export default async function GuardReviewPage({ searchParams }: { searchParams: Promise<{ sheet?: string; poolId?: string; chlorine?: string; ph?: string }> }) {
   const params = await searchParams;
   const isFullSheet = params?.sheet === 'full';
-  const supabase = getSupabaseClient();
+  const supabase = await createClient();
 
   const { data: pools } = await supabase
     .from('pools')
