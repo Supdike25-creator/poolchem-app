@@ -36,6 +36,8 @@ const roleLabels: Record<AppRole, string> = {
   guard: 'Guard / Technician',
 };
 
+const temporaryLoginBypass = true;
+
 const authorizedRoute = (role: AppRole) => (role === 'manager' ? '/management/dashboard' : '/guard');
 
 const normalizeProfileRole = (role?: string | null): AppRole => {
@@ -55,6 +57,17 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
 
     const restoreSession = async () => {
       try {
+        if (temporaryLoginBypass) {
+          if (!isMounted) return;
+          setProfile({
+            full_name: 'ChemDeck Dev',
+            email: role === 'manager' ? 'manager bypass' : 'guard bypass',
+            role,
+          });
+          setStatus('authenticated');
+          return;
+        }
+
         const {
           data: { session },
           error: sessionError,

@@ -13,6 +13,7 @@ type AppSession = {
 
 const managerRoles = new Set(['admin', 'manager', 'supervisor']);
 const appSessionCookie = 'chemdeck_app_session';
+const temporaryLoginBypass = true;
 
 const normalizeRole = (role?: string | null): AppRole => {
   if (!role) return 'guard';
@@ -48,6 +49,10 @@ const readAppSession = (request: NextRequest): AppSession | null => {
 export async function proxy(request: NextRequest) {
   const requiredRole = protectedRoleForPath(request.nextUrl.pathname);
   const response = NextResponse.next();
+
+  if (temporaryLoginBypass) {
+    return response;
+  }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey =
