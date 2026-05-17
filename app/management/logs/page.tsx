@@ -3,7 +3,7 @@ import LogDateSlider from '../../../components/LogDateSlider';
 import { getServerAppSession } from '../../../lib/serverAppSession';
 import { createClient } from '@/utils/supabase/server';
 import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
-import { PageHeader, SectionCard, StatCard, StatusBadge, type StatusTone } from '../../../components/OperationsUI';
+import { EmptyState, PageHeader, SectionCard, StatCard, StatusBadge, type StatusTone } from '../../../components/OperationsUI';
 import { ClipboardList, Clock3, Rows3, Waves } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -147,8 +147,7 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
   const hours = Array.from({ length: 12 }, (_, index) => 9 + index);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <div className="space-y-5">
         <PageHeader
           eyebrow="Management"
           title="Daily Log Sheet"
@@ -156,21 +155,33 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
           icon={<ClipboardList className="h-4 w-4" />}
         />
         {temporaryLoginBypass && error ? (
-          <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
             Login bypass is active, so live Supabase log data may be hidden until the auth work is finished.
           </div>
         ) : null}
 
-        <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_340px]">
-          <LogDateSlider selectedDate={selectedDate} />
-          <div className="grid grid-cols-3 gap-3">
-            <StatCard label="Rows" value={dayLogs.length} icon={<Rows3 className="h-5 w-5" />} tone="info" />
-            <StatCard label="Pools" value={poolMap.size} icon={<Waves className="h-5 w-5" />} tone="neutral" />
-            <StatCard label="Slots" value="12" icon={<Clock3 className="h-5 w-5" />} tone="neutral" />
-          </div>
+        <LogDateSlider selectedDate={selectedDate} />
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <StatCard label="Rows" value={dayLogs.length} icon={<Rows3 className="h-5 w-5" />} tone="info" />
+          <StatCard label="Pools" value={poolMap.size} icon={<Waves className="h-5 w-5" />} tone="neutral" />
+          <StatCard label="Slots" value="12" icon={<Clock3 className="h-5 w-5" />} tone="neutral" />
         </div>
 
         <SectionCard className="overflow-hidden">
+          <div className="border-b border-slate-200 bg-white px-5 py-4">
+            <h2 className="text-base font-semibold text-slate-950">Log Rows</h2>
+            <p className="mt-1 text-sm text-slate-500">Chemistry submissions grouped by operating hour.</p>
+          </div>
+          {dayLogs.length === 0 ? (
+            <div className="p-5">
+              <EmptyState
+                icon={<ClipboardList className="h-6 w-6" />}
+                title="No chemical logs recorded for this day yet."
+                description="Use the date controls above to review another day, or submit a new chemical log from the Submit Log workflow."
+              />
+            </div>
+          ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full border-separate border-spacing-0">
               <thead className="bg-slate-50">
@@ -201,20 +212,20 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
                             {getHourLabel(hour)}
                           </td>
                         ) : null}
-                        <td className="border-b border-slate-200 px-4 py-3 text-sm font-semibold text-slate-900">{log ? poolMap.get(log.pool_id) || log.pool_id : '—'}</td>
-                        <td className="border-b border-slate-200 px-4 py-3 text-sm text-slate-600">{log ? formatTime(getLogTime(log)) : '—'}</td>
-                        <td className="border-b border-slate-200 px-4 py-3 text-sm text-slate-900">{typeof log?.free_chlorine === 'number' ? `${log.free_chlorine.toFixed(1)} ppm` : '—'}</td>
-                        <td className="border-b border-slate-200 px-4 py-3 text-sm text-slate-900">{typeof log?.ph === 'number' ? log.ph.toFixed(1) : '—'}</td>
+                        <td className="border-b border-slate-200 px-4 py-3 text-sm font-semibold text-slate-900">{log ? poolMap.get(log.pool_id) || log.pool_id : <span className="text-slate-400">No entry</span>}</td>
+                        <td className="border-b border-slate-200 px-4 py-3 text-sm text-slate-600">{log ? formatTime(getLogTime(log)) : <span className="text-slate-400">Not recorded</span>}</td>
+                        <td className="border-b border-slate-200 px-4 py-3 text-sm text-slate-900">{typeof log?.free_chlorine === 'number' ? `${log.free_chlorine.toFixed(1)} ppm` : <span className="text-slate-400">—</span>}</td>
+                        <td className="border-b border-slate-200 px-4 py-3 text-sm text-slate-900">{typeof log?.ph === 'number' ? log.ph.toFixed(1) : <span className="text-slate-400">—</span>}</td>
                         <td className="border-b border-slate-200 px-4 py-3 text-sm text-slate-700">
                           {log?.dosing_recommendation
                             || (log?.dosing_chemical
                               ? `${log.dosing_chemical}${typeof log.dosing_amount === 'number' ? ` · ${log.dosing_amount} ${log.dosing_unit || ''}` : ''}`
-                              : '—')}
+                              : <span className="text-slate-400">—</span>)}
                         </td>
                         <td className="border-b border-slate-200 px-4 py-3 text-sm">
-                          {status ? <StatusBadge tone={status.tone}>{status.label}</StatusBadge> : '—'}
+                          {status ? <StatusBadge tone={status.tone}>{status.label}</StatusBadge> : <span className="text-slate-400">—</span>}
                         </td>
-                        <td className="max-w-md border-b border-slate-200 px-4 py-3 text-sm text-slate-600">{log?.notes || '—'}</td>
+                        <td className="max-w-md border-b border-slate-200 px-4 py-3 text-sm text-slate-600">{log?.notes || <span className="text-slate-400">—</span>}</td>
                         <td className="border-b border-slate-200 px-4 py-3 text-xs text-slate-500">
                           {log?.submitted_by ? submitterMap.get(log.submitted_by) || 'Unknown' : 'Not recorded'}
                         </td>
@@ -225,8 +236,8 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
               </tbody>
             </table>
           </div>
+          )}
         </SectionCard>
-      </div>
     </div>
   );
 }

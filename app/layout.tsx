@@ -32,7 +32,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className={`${geistSans.className} min-h-full flex flex-col bg-slate-50 text-slate-950`}>
+      <body className={`${geistSans.className} min-h-full w-full flex flex-col bg-slate-50 text-slate-950`}>
         <ThemeManager />
         <ButtonSoundEffects />
         {children}

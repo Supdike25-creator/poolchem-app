@@ -13,6 +13,13 @@ import {
   HelpCircle,
   Mail,
   Users,
+  Building2,
+  Clipboard,
+  Clock,
+  Droplets,
+  FlaskConical,
+  KeyRound,
+  LogOut,
   Moon,
   Sun,
   Monitor,
@@ -30,6 +37,7 @@ type DosingUnit = 'ounces' | 'cups' | 'gallons' | 'pounds';
 interface SettingsData {
   theme: Theme;
   stylePreset: StylePreset;
+  chemCalcEnabled: boolean;
   chlorineType: ChlorineType;
   chlorineStrength: number;
   poolVolumeGallons: number;
@@ -49,11 +57,14 @@ interface SettingsData {
   requirePhotoBabyPools: boolean;
   allowGalleryUploads: boolean;
   cameraOnlyMode: boolean;
+  companyName: string;
+  companyCode: string;
 }
 
 const defaultSettings: SettingsData = {
   theme: 'system',
   stylePreset: 'default',
+  chemCalcEnabled: true,
   chlorineType: 'liquid',
   chlorineStrength: 12.5,
   poolVolumeGallons: 25000,
@@ -73,6 +84,8 @@ const defaultSettings: SettingsData = {
   requirePhotoBabyPools: true,
   allowGalleryUploads: true,
   cameraOnlyMode: false,
+  companyName: 'My Pool Company',
+  companyCode: 'CHEM7K2',
 };
 
 const loadStoredSettings = () => {
@@ -149,6 +162,7 @@ export default function ManagementSettingsPage() {
   const [settings, setSettings] = useState<SettingsData>(loadStoredSettings);
   const [profile, setProfile] = useState<{ full_name?: string; email?: string; role?: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [copyMessage, setCopyMessage] = useState('');
 
   useEffect(() => {
     // Load profile
@@ -172,6 +186,7 @@ export default function ManagementSettingsPage() {
   const saveSettings = (newSettings: Partial<SettingsData>) => {
     const updated = { ...settings, ...newSettings };
     setSettings(updated);
+    // TODO: Sync workspace-level settings to Supabase when the settings schema is added.
     localStorage.setItem('chemdeck-settings', JSON.stringify(updated));
     notifySettingsChanged();
   };
@@ -180,6 +195,16 @@ export default function ManagementSettingsPage() {
     const supabase = createClient();
     await supabase.auth.signOut();
     window.location.href = '/';
+  };
+
+  const copyCompanyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(settings.companyCode);
+      setCopyMessage('Copied');
+      window.setTimeout(() => setCopyMessage(''), 1600);
+    } catch {
+      setCopyMessage('Copy failed');
+    }
   };
 
   if (loading) {
@@ -275,16 +300,16 @@ export default function ManagementSettingsPage() {
           </div>
         </div>
 
-        {/* Chemical Calculator Settings */}
+        {/* Chemistry / Dosing */}
         <div className={cardClass}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50">
-                <Calculator className="h-4 w-4 text-slate-700" />
+          <div className="mb-5 flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-700">
+                <Calculator className="h-4 w-4" />
               </div>
               <div>
-                <h2 className={sectionTitleClass}>Chemical Calculator</h2>
-                <p className={sectionHelpClass}>Open the dosing calculator for live chemical math.</p>
+                <h2 className={sectionTitleClass}>Chemistry / Dosing</h2>
+                <p className={sectionHelpClass}>Calculator access and default safety rules for chemical recommendations.</p>
               </div>
             </div>
             <Link
@@ -296,6 +321,64 @@ export default function ManagementSettingsPage() {
               <Calculator className="h-3.5 w-3.5" />
               Open Calc
             </Link>
+          </div>
+
+          <div className="space-y-2">
+            <ToggleRow
+              title="Enable chemical calculator"
+              description="Show live dosing math in the calculator workflow."
+              checked={settings.chemCalcEnabled}
+              onToggle={() => saveSettings({ chemCalcEnabled: !settings.chemCalcEnabled })}
+            />
+            <ToggleRow
+              title="Require manager approval for large doses"
+              description="Flag high-dose recommendations before staff proceeds."
+              checked={settings.requireApproval}
+              disabled={!settings.chemCalcEnabled}
+              onToggle={() => saveSettings({ requireApproval: !settings.requireApproval })}
+            />
+            <ToggleRow
+              title="Baby pool safety cap"
+              description="Cap recommendations for smaller, higher-risk bodies of water."
+              checked={settings.babyPoolSafety}
+              disabled={!settings.chemCalcEnabled}
+              onToggle={() => saveSettings({ babyPoolSafety: !settings.babyPoolSafety })}
+            />
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-900">
+                <Droplets className="h-4 w-4 text-blue-600" />
+                Chlorine target
+              </div>
+              <p className="text-sm text-slate-600">Default range: 1.0-4.0 ppm</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-900">
+                <FlaskConical className="h-4 w-4 text-blue-600" />
+                pH target
+              </div>
+              <p className="text-sm text-slate-600">Default range: 7.2-7.8</p>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <label className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+              <Clock className="h-4 w-4" />
+              Retest reminder interval
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                min="0"
+                step="5"
+                value={settings.retestReminder}
+                onChange={(event) => saveSettings({ retestReminder: Number(event.target.value) || 0 })}
+                className="h-10 w-28 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+              <span className="text-sm text-slate-600">minutes after a flagged dose</span>
+            </div>
           </div>
         </div>
 
@@ -408,12 +491,64 @@ export default function ManagementSettingsPage() {
           </div>
         </div>
 
-        {/* Account / Workspace */}
+        {/* Company / Workspace */}
         <div className={cardClass}>
           <SectionHeader
-            icon={<User className="h-4 w-4" />}
-            title="Account & Workspace"
-            description="Review the signed-in account and workspace role."
+            icon={<Building2 className="h-4 w-4" />}
+            title="Company / Workspace"
+            description="Share the company code with staff joining this workspace."
+          />
+
+          <div className="space-y-3">
+            <div>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Company Name</label>
+              <input
+                type="text"
+                value={settings.companyName}
+                onChange={(event) => saveSettings({ companyName: event.target.value })}
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Company Code</p>
+              <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <code className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-base font-semibold tracking-[0.18em] text-slate-950">
+                  {settings.companyCode}
+                </code>
+                <button
+                  type="button"
+                  onClick={copyCompanyCode}
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                >
+                  <Clipboard className="h-4 w-4" />
+                  {copyMessage || 'Copy code'}
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center gap-2 text-sm text-slate-700">
+                <Users className="h-4 w-4 text-slate-500" />
+                <span>Current role: {profile?.role === 'manager' ? 'Manager / Supervisor' : 'Guard / Technician'}</span>
+              </div>
+              <button
+                type="button"
+                disabled
+                className="mt-3 inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-400"
+              >
+                Change company coming soon
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Account / Security */}
+        <div className={cardClass}>
+          <SectionHeader
+            icon={<KeyRound className="h-4 w-4" />}
+            title="Account / Security"
+            description="Review session status and signed-in account details."
           />
 
           <div className="space-y-3">
@@ -430,8 +565,8 @@ export default function ManagementSettingsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2 text-sm">
-                <Users className="h-4 w-4 text-slate-500" />
-                <span className="text-slate-700">Role: {profile?.role === 'manager' ? 'Manager / Supervisor' : 'Guard / Technician'}</span>
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <span className="text-slate-700">Session status: Active</span>
               </div>
             </div>
 
@@ -441,9 +576,7 @@ export default function ManagementSettingsPage() {
               data-sound="click"
               className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
             >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
+              <LogOut className="h-4 w-4" />
               Log Out
             </button>
           </div>

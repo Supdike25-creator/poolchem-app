@@ -48,7 +48,7 @@ function NavLink({ item, compact = false }: { item: SidebarNavItem; compact?: bo
           ? `flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[11px] font-semibold transition-colors ${
               active ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
             }`
-          : `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all ${
+          : `group flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-all ${
               active
                 ? 'bg-blue-50 text-blue-800 ring-1 ring-blue-200'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
@@ -56,7 +56,9 @@ function NavLink({ item, compact = false }: { item: SidebarNavItem; compact?: bo
       }
     >
       <Icon className={compact ? 'h-4 w-4 shrink-0' : 'h-5 w-5 shrink-0'} />
-      <span className={compact ? 'truncate' : 'truncate'}>{compact && item.label === 'Announcements' ? 'News' : item.label}</span>
+      <span className={compact ? 'truncate' : 'sidebar-label truncate whitespace-nowrap'}>
+        {compact && item.label === 'Announcements' ? 'News' : item.label}
+      </span>
     </Link>
   );
 }
@@ -72,15 +74,17 @@ export function SidebarNav({
 }) {
   return (
     <>
-      <aside className={`hidden lg:block ${className}`}>
-        <div className="sticky top-5 flex min-h-[calc(100vh-2.5rem)] flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+      <aside
+        className={`sidebar-rail fixed left-0 top-0 z-50 hidden h-screen w-16 overflow-hidden border-r border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)] transition-[width,box-shadow] duration-200 ease-out hover:w-64 focus-within:w-64 lg:flex ${className}`}
+      >
+        <div className="flex h-full w-full flex-col overflow-hidden p-3">
           {header ? <div className="mb-5">{header}</div> : null}
           <nav className="space-y-1" aria-label="Primary navigation">
             {mainNavItems.map((item) => (
               <NavLink key={item.href} item={item} />
             ))}
           </nav>
-          {footer ? <div className="mt-auto pt-5">{footer}</div> : null}
+          {footer ? <div className="sidebar-footer mt-auto pt-5">{footer}</div> : null}
         </div>
       </aside>
 

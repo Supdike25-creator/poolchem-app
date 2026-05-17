@@ -167,7 +167,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
 
   if (status === 'loading') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-8">
+      <div className="flex min-h-screen w-full items-center justify-center bg-slate-50 px-4 py-8">
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
           <div className="animate-pulse">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
@@ -182,34 +182,33 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24 lg:pb-0">
-      <div className="mx-auto grid max-w-[1600px] gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[248px_minmax(0,1fr)] lg:px-8">
-        <SidebarNav
-          header={(
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950">
-                <FlaskConical className="h-5 w-5 text-white" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">ChemDeck</p>
-                <p className="truncate text-sm font-semibold text-slate-950">{role === 'manager' ? 'Management' : 'Guard'}</p>
-              </div>
+    <div className="min-h-screen w-full bg-slate-50 pb-24 lg:pb-0">
+      <SidebarNav
+        header={(
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-950">
+              <FlaskConical className="h-5 w-5 text-white" />
             </div>
-          )}
-          footer={(
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <div className="mb-2 flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-slate-500" />
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Role</p>
-              </div>
-              <p className="text-sm font-semibold text-slate-950">{roleLabels[role]}</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">Session access is scoped to this workspace.</p>
+            <div className="min-w-0">
+              <p className="sidebar-label text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">ChemDeck</p>
+              <p className="sidebar-label truncate text-sm font-semibold text-slate-950">{role === 'manager' ? 'Management' : 'Guard'}</p>
             </div>
-          )}
-        />
+          </div>
+        )}
+        footer={(
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div className="mb-2 flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-slate-500" />
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Role</p>
+            </div>
+            <p className="text-sm font-semibold text-slate-950">{roleLabels[role]}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">Session access is scoped to this workspace.</p>
+          </div>
+        )}
+      />
 
-        <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.07)]">
-          <div className="border-b border-slate-200 bg-white px-5 py-5 lg:px-7">
+      <main className="min-h-screen w-full bg-white shadow-[0_18px_50px_rgba(15,23,42,0.07)] lg:ml-16 lg:w-[calc(100%-4rem)]">
+        <div className="border-b border-slate-200 bg-white px-5 py-5 lg:px-7">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div>
                 <div className="flex items-center gap-3">
@@ -259,26 +258,25 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
                 </button>
               </div>
             </div>
-          </div>
+        </div>
 
-          <main className="bg-slate-50 p-5 lg:p-6">
-            {error ? (
-              <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <svg className="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                  <div>
-                    <p className="font-semibold text-red-800">Authentication issue</p>
-                    <p className="mt-1 text-sm text-red-700">{error}</p>
-                  </div>
+        <div className="bg-slate-50 p-5 lg:p-6">
+          {error ? (
+            <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <div>
+                  <p className="font-semibold text-red-800">Authentication issue</p>
+                  <p className="mt-1 text-sm text-red-700">{error}</p>
                 </div>
               </div>
-            ) : null}
-            {children}
-          </main>
+            </div>
+          ) : null}
+          {children}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

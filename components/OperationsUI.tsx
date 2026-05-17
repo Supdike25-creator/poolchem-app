@@ -3,12 +3,12 @@ import type { ReactNode } from 'react';
 export type StatusTone = 'good' | 'warning' | 'critical' | 'overdue' | 'neutral' | 'info';
 
 const toneClasses: Record<StatusTone, string> = {
-  good: 'border-green-200 bg-green-50 text-green-700',
-  warning: 'border-amber-200 bg-amber-50 text-amber-800',
-  critical: 'border-red-200 bg-red-50 text-red-700',
-  overdue: 'border-orange-200 bg-orange-50 text-orange-700',
-  neutral: 'border-slate-200 bg-slate-100 text-slate-700',
-  info: 'border-blue-200 bg-blue-50 text-blue-700',
+  good: 'border-green-200 bg-green-50 text-green-700 dark-readable-badge-good',
+  warning: 'border-amber-200 bg-amber-50 text-amber-800 dark-readable-badge-warning',
+  critical: 'border-red-200 bg-red-50 text-red-700 dark-readable-badge-critical',
+  overdue: 'border-orange-200 bg-orange-50 text-orange-700 dark-readable-badge-overdue',
+  neutral: 'border-slate-200 bg-slate-100 text-slate-700 dark-readable-badge-neutral',
+  info: 'border-blue-200 bg-blue-50 text-blue-700 dark-readable-badge-info',
 };
 
 export function SectionCard({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -106,5 +106,5 @@ export function StatCard({
 
 export const buttonClass = {
   primary: 'inline-flex h-9 items-center justify-center rounded-lg bg-blue-600 px-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400',
-  secondary: 'inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50',
+  secondary: 'inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 dark-readable-secondary-button',
 };
