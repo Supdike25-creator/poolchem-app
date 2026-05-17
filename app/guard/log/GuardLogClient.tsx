@@ -131,9 +131,18 @@ export default function GuardLogClient({ searchParams }: { searchParams: URLSear
     }
 
     const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session?.user) {
+      setError('Unauthorized');
+      setSaving(false);
+      return;
+    }
+
     const { error: insertError } = await supabase.from('chemical_logs').insert([
       {
         pool_id: selectedPoolId,
+        submitted_by: session.user.id,
         free_chlorine: Number(chlorine),
         ph: Number(ph),
         notes,

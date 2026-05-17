@@ -1,9 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
-import BackButton from '../../../components/BackButton';
 import {
   Megaphone,
   Plus,
@@ -15,8 +13,10 @@ import {
   CheckCircle,
   Users,
   MapPin,
-  Calendar
+  Calendar,
+  X
 } from 'lucide-react';
+import { EmptyState, PageHeader, SectionCard, StatusBadge, buttonClass } from '../../../components/OperationsUI';
 
 type Priority = 'normal' | 'important' | 'emergency';
 type Audience = 'all_lifeguards' | 'specific_pool' | 'managers_only';
@@ -206,22 +206,14 @@ export default function AnnouncementsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <Megaphone className="w-6 h-6 text-blue-600" />
-            <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Management</p>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900">Announcements</h1>
-          <p className="mt-2 text-slate-600 max-w-2xl">
-            {isManager
-              ? 'Send important messages and updates to your team. Announcements appear in real-time for all users.'
-              : 'Stay updated with the latest news and important information from management.'
-            }
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {!isManager && (
+      <PageHeader
+        eyebrow="Management"
+        title="Announcements"
+        description={isManager
+          ? 'Send important messages and updates to your team.'
+          : 'Stay updated with the latest information from management.'}
+        icon={<Megaphone className="h-4 w-4" />}
+        actions={!isManager ? (
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-700">Announcement notifications</span>
               <button
@@ -237,37 +229,29 @@ export default function AnnouncementsPage() {
                 />
               </button>
             </div>
-          )}
-          <Link
-            href="/management/dashboard"
-            className="inline-flex items-center justify-center rounded-lg bg-white border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-          >
-            Dashboard
-          </Link>
-          <BackButton fallbackHref="/management/dashboard" label="Back" />
-        </div>
-      </div>
+        ) : undefined}
+      />
 
       {isManager && (
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+        <SectionCard className="p-4">
           {!showCreateForm ? (
             <button
               onClick={() => setShowCreateForm(true)}
-              className="w-full flex items-center justify-center gap-3 rounded-xl bg-blue-600 px-6 py-4 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="h-4 w-4" />
               Post New Announcement
             </button>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-slate-900">Create Announcement</h3>
+                <h3 className="text-lg font-semibold text-slate-950">Create Announcement</h3>
                 <button
                   type="button"
                   onClick={() => setShowCreateForm(false)}
                   className="text-slate-400 hover:text-slate-600"
                 >
-                  ✕
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
@@ -278,7 +262,7 @@ export default function AnnouncementsPage() {
                   required
                   value={formData.title}
                   onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   placeholder="Enter announcement title"
                 />
               </div>
@@ -301,7 +285,7 @@ export default function AnnouncementsPage() {
                   <select
                     value={formData.priority}
                     onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value as Priority }))}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   >
                     <option value="normal">Normal</option>
                     <option value="important">Important</option>
@@ -314,7 +298,7 @@ export default function AnnouncementsPage() {
                   <select
                     value={formData.audience}
                     onChange={(e) => setFormData(prev => ({ ...prev, audience: e.target.value as Audience }))}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   >
                     <option value="all_lifeguards">All Lifeguards</option>
                     <option value="specific_pool">Specific Pool</option>
@@ -329,7 +313,7 @@ export default function AnnouncementsPage() {
                   <select
                     value={formData.pool_id}
                     onChange={(e) => setFormData(prev => ({ ...prev, pool_id: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   >
                     <option value="">Choose a pool...</option>
                     {pools.map(pool => (
@@ -356,7 +340,7 @@ export default function AnnouncementsPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  className={buttonClass.primary}
                 >
                   <Send className="w-4 h-4" />
                   {submitting ? 'Posting...' : 'Post Announcement'}
@@ -364,27 +348,25 @@ export default function AnnouncementsPage() {
                 <button
                   type="button"
                   onClick={() => setShowCreateForm(false)}
-                  className="rounded-lg border border-slate-200 px-6 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                  className={buttonClass.secondary}
                 >
                   Cancel
                 </button>
               </div>
             </form>
           )}
-        </div>
+        </SectionCard>
       )}
 
       <div className="space-y-4">
         <h2 className="text-xl font-semibold text-slate-900">Recent Announcements</h2>
 
         {announcements.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center shadow-sm">
-            <Megaphone className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <p className="text-slate-600">No announcements yet</p>
-            <p className="text-sm text-slate-500 mt-1">
-              {isManager ? 'Create your first announcement to communicate with your team.' : 'Check back later for updates from management.'}
-            </p>
-          </div>
+          <EmptyState
+            icon={<Megaphone className="h-6 w-6" />}
+            title="No announcements yet"
+            description={isManager ? 'Create your first announcement to communicate with your team.' : 'Check back later for updates from management.'}
+          />
         ) : (
           announcements.map((announcement) => {
             const priority = priorityConfig[announcement.priority];
@@ -393,7 +375,7 @@ export default function AnnouncementsPage() {
             return (
               <div
                 key={announcement.id}
-                className={`bg-white rounded-2xl border p-6 shadow-sm ${
+                className={`rounded-xl border bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${
                   announcement.priority === 'emergency'
                     ? 'border-red-200 bg-red-50'
                     : announcement.priority === 'important'
@@ -438,15 +420,9 @@ export default function AnnouncementsPage() {
                       </div>
                     </div>
                   </div>
-                  <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    announcement.priority === 'emergency'
-                      ? 'bg-red-100 text-red-700'
-                      : announcement.priority === 'important'
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'bg-blue-100 text-blue-700'
-                  }`}>
+                  <StatusBadge tone={announcement.priority === 'emergency' ? 'critical' : announcement.priority === 'important' ? 'warning' : 'info'}>
                     {priority.label}
-                  </div>
+                  </StatusBadge>
                 </div>
 
                 <p className="text-slate-700 leading-relaxed">{announcement.message}</p>

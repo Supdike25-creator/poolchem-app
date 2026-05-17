@@ -3,6 +3,17 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import BackButton from '../../components/BackButton';
+import {
+  AlertTriangle,
+  Check,
+  CheckCircle2,
+  ClipboardCheck,
+  ClipboardList,
+  Droplets,
+  FlaskConical,
+  NotebookPen,
+  Waves,
+} from 'lucide-react';
 
 interface Pool {
   id: string;
@@ -95,18 +106,18 @@ const calculateChlorineDose = (
   return { doseOunces, needsChlorine: true, warnings, status: 'add' };
 };
 
-const getChlorineStatus = (chlorine: number): { status: string; color: string; icon: string } => {
-  if (chlorine < 1.0) return { status: 'Too Low', color: 'text-red-600', icon: '⚠️' };
-  if (chlorine > 5.0) return { status: 'Too High', color: 'text-red-600', icon: '🚨' };
-  if (chlorine >= 1.0 && chlorine <= 5.0) return { status: 'Good', color: 'text-green-600', icon: '✅' };
-  return { status: 'Unknown', color: 'text-gray-600', icon: '❓' };
+const getChlorineStatus = (chlorine: number): { status: string; color: string; tone: 'danger' | 'success' | 'neutral' } => {
+  if (chlorine < 1.0) return { status: 'Too Low', color: 'text-red-600', tone: 'danger' };
+  if (chlorine > 5.0) return { status: 'Too High', color: 'text-red-600', tone: 'danger' };
+  if (chlorine >= 1.0 && chlorine <= 5.0) return { status: 'Good', color: 'text-green-600', tone: 'success' };
+  return { status: 'Unknown', color: 'text-slate-600', tone: 'neutral' };
 };
 
-const getPhStatus = (ph: number): { status: string; color: string; icon: string } => {
-  if (ph < 7.2) return { status: 'Too Low', color: 'text-red-600', icon: '⚠️' };
-  if (ph > 7.8) return { status: 'Too High', color: 'text-red-600', icon: '🚨' };
-  if (ph >= 7.2 && ph <= 7.8) return { status: 'Good', color: 'text-green-600', icon: '✅' };
-  return { status: 'Unknown', color: 'text-gray-600', icon: '❓' };
+const getPhStatus = (ph: number): { status: string; color: string; tone: 'danger' | 'success' | 'neutral' } => {
+  if (ph < 7.2) return { status: 'Too Low', color: 'text-red-600', tone: 'danger' };
+  if (ph > 7.8) return { status: 'Too High', color: 'text-red-600', tone: 'danger' };
+  if (ph >= 7.2 && ph <= 7.8) return { status: 'Good', color: 'text-green-600', tone: 'success' };
+  return { status: 'Unknown', color: 'text-slate-600', tone: 'neutral' };
 };
 
 export default function LogPage() {
@@ -242,12 +253,19 @@ export default function LogPage() {
       const { error } = await supabase.from('chemical_logs').insert([
         {
           pool_id: formData.poolId,
-          user_id: session.user.id,
-          chemical_type: 'chlorine',
-          amount: 0, // This would be calculated based on dosing
-          unit: 'oz',
+          submitted_by: session.user.id,
+          free_chlorine: Number(formData.freeChlorine),
+          ph: Number(formData.ph),
           notes: formData.notes,
-          logged_at: new Date().toISOString()
+          photo_url: null,
+          dosing_amount: dosingResult.needsChlorine ? Number(dosingResult.doseOunces.toFixed(2)) : null,
+          dosing_unit: dosingResult.needsChlorine ? 'oz' : null,
+          dosing_chemical: selectedPool?.default_chlorine_type || 'chlorine',
+          dosing_recommendation: dosingResult.status === 'do-not-add'
+            ? 'Do not add chlorine'
+            : dosingResult.needsChlorine
+            ? `Add ${dosingResult.doseOunces.toFixed(1)} oz ${selectedPool?.default_chlorine_type || 'chlorine'}`
+            : 'No chlorine needed',
         }
       ]);
 
@@ -299,11 +317,11 @@ export default function LogPage() {
 
   const renderStepIndicator = () => {
     const steps = [
-      { key: 'pool', label: 'Pool', icon: '🏊' },
-      { key: 'chlorine', label: 'Chlorine', icon: '💧' },
-      { key: 'ph', label: 'pH', icon: '🧪' },
-      { key: 'notes', label: 'Notes', icon: '📝' },
-      { key: 'review', label: 'Review', icon: '✅' }
+      { key: 'pool', label: 'Pool', icon: Waves },
+      { key: 'chlorine', label: 'Chlorine', icon: Droplets },
+      { key: 'ph', label: 'pH', icon: FlaskConical },
+      { key: 'notes', label: 'Notes', icon: NotebookPen },
+      { key: 'review', label: 'Review', icon: ClipboardCheck }
     ];
 
     return (
@@ -311,18 +329,19 @@ export default function LogPage() {
         {steps.map((step, index) => {
           const isActive = currentStep === step.key;
           const isCompleted = steps.findIndex(s => s.key === currentStep) > index;
+          const Icon = step.icon;
 
           return (
             <div key={step.key} className="flex flex-col items-center">
               <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg mb-2 transition-colors ${
-                isCompleted ? 'bg-green-500 text-white' :
-                isActive ? 'bg-blue-500 text-white' :
-                'bg-gray-200 text-gray-400'
+                isCompleted ? 'bg-green-600 text-white' :
+                isActive ? 'bg-blue-600 text-white' :
+                'bg-slate-100 text-slate-400'
               }`}>
-                {isCompleted ? '✓' : step.icon}
+                {isCompleted ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
               </div>
               <span className={`text-xs font-medium ${
-                isActive ? 'text-blue-600' : isCompleted ? 'text-green-600' : 'text-gray-400'
+                isActive ? 'text-blue-600' : isCompleted ? 'text-green-600' : 'text-slate-400'
               }`}>
                 {step.label}
               </span>
@@ -412,8 +431,9 @@ export default function LogPage() {
 
         {formData.freeChlorine && (
           <div className="text-center">
-            <div className={`text-2xl font-bold ${getChlorineStatus(chlorineValue).color}`}>
-              {getChlorineStatus(chlorineValue).icon} {getChlorineStatus(chlorineValue).status}
+            <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-semibold ${getChlorineStatus(chlorineValue).tone === 'success' ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+              {getChlorineStatus(chlorineValue).tone === 'success' ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+              {getChlorineStatus(chlorineValue).status}
             </div>
           </div>
         )}
@@ -421,7 +441,7 @@ export default function LogPage() {
         {(chlorineValue < 1.0 || chlorineValue > 5.0) && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex items-center">
-              <span className="text-red-600 text-xl mr-3">⚠️</span>
+              <AlertTriangle className="mr-3 h-5 w-5 text-red-600" />
               <div>
                 <p className="font-semibold text-red-800">Chemistry Out of Range</p>
                 <p className="text-red-700 text-sm">
@@ -486,8 +506,9 @@ export default function LogPage() {
 
         {formData.ph && (
           <div className="text-center">
-            <div className={`text-2xl font-bold ${getPhStatus(phValue).color}`}>
-              {getPhStatus(phValue).icon} {getPhStatus(phValue).status}
+            <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-semibold ${getPhStatus(phValue).tone === 'success' ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+              {getPhStatus(phValue).tone === 'success' ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+              {getPhStatus(phValue).status}
             </div>
           </div>
         )}
@@ -495,7 +516,7 @@ export default function LogPage() {
         {(phValue < 7.2 || phValue > 7.8) && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex items-center">
-              <span className="text-red-600 text-xl mr-3">⚠️</span>
+              <AlertTriangle className="mr-3 h-5 w-5 text-red-600" />
               <div>
                 <p className="font-semibold text-red-800">pH Out of Range</p>
                 <p className="text-red-700 text-sm">
@@ -598,13 +619,13 @@ export default function LogPage() {
         <div className="flex justify-between items-center">
           <span className="font-semibold text-gray-900">Free Chlorine:</span>
           <span className={`font-bold ${getChlorineStatus(chlorineValue).color}`}>
-            {chlorineValue} ppm {getChlorineStatus(chlorineValue).icon}
+            {chlorineValue} ppm
           </span>
         </div>
         <div className="flex justify-between items-center">
           <span className="font-semibold text-gray-900">pH:</span>
           <span className={`font-bold ${getPhStatus(phValue).color}`}>
-            {phValue} {getPhStatus(phValue).icon}
+            {phValue}
           </span>
         </div>
         {formData.notes && (
@@ -664,7 +685,7 @@ export default function LogPage() {
             <div className="space-y-1">
               {dosingResult.warnings.map((warning, index) => (
                 <div key={index} className="flex items-start space-x-2">
-                  <span className="text-orange-500 text-sm mt-0.5">⚠️</span>
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
                   <p className="text-orange-700 text-sm">{warning}</p>
                 </div>
               ))}
@@ -701,7 +722,7 @@ export default function LogPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="bg-gray-50 rounded-lg p-6 text-center">
-          <div className="text-6xl mb-4">📋</div>
+          <ClipboardList className="mx-auto mb-4 h-12 w-12 text-slate-500" />
           <p className="text-lg text-gray-700">
             Ready to submit chemical log for <strong>{selectedPool?.name}</strong>?
           </p>
@@ -720,7 +741,7 @@ export default function LogPage() {
             </>
           ) : (
             <>
-              <span>✅</span>
+              <CheckCircle2 className="h-5 w-5" />
               <span>Submit Chemical Log</span>
             </>
           )}
@@ -745,7 +766,7 @@ export default function LogPage() {
       {submitMessage && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center space-x-3">
-            <span className="text-green-600 text-xl">✅</span>
+            <CheckCircle2 className="h-5 w-5 text-green-600" />
             <p className="text-green-700 font-medium">{submitMessage}</p>
           </div>
         </div>
@@ -754,7 +775,7 @@ export default function LogPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-slate-50">
       <div className="max-w-md mx-auto px-4 py-6">
         <div className="mb-4">
           <BackButton fallbackHref="/dashboard" label="Back" />
