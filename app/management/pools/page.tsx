@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/server';
 import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
-import BackButton from '../../../components/BackButton';
+import { EmptyState, PageHeader, SectionCard, StatusBadge, buttonClass } from '../../../components/OperationsUI';
+import { Pencil, Plus, SlidersHorizontal, Waves } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,72 +28,61 @@ export default async function ManagementPoolsPage() {
 
   return (
     <div>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
-            </svg>
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Management</p>
-              <h1 className="text-2xl font-bold text-slate-900">Pool Configuration</h1>
-            </div>
-          </div>
-          <p className="mt-3 text-slate-600 max-w-2xl">Create and update managed pools, targets, and dosing rules.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <BackButton fallbackHref="/management/dashboard" label="Back" />
+      <PageHeader
+        eyebrow="Management"
+        title="Pool Configuration"
+        description="Create and update managed pools, chemistry targets, and dosing rules."
+        icon={<SlidersHorizontal className="h-4 w-4" />}
+        actions={(
           <Link
             href="/management/pools/new"
-            className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+            className={buttonClass.primary}
           >
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          Add New Pool
+            <Plus className="mr-2 h-4 w-4" />
+            Add Pool
           </Link>
-        </div>
-      </div>
+        )}
+      />
       {temporaryLoginBypass && error ? (
         <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
           Login bypass is active, so live Supabase pool data may be hidden until the auth work is finished.
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <SectionCard className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-blue-50">
+            <thead className="bg-slate-50">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-blue-600">Pool Name</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-blue-600">Type</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-blue-600">Volume</th>
-                <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-blue-600">Actions</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Pool Name</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Type</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Volume</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
               {poolList.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-10 text-center text-sm text-slate-500">
-                    <div className="flex flex-col items-center gap-3">
-                      <svg className="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                      </svg>
-                      <p>No pools configured yet.</p>
-                    </div>
+                  <td colSpan={5} className="px-6 py-8">
+                    <EmptyState
+                      icon={<Waves className="h-6 w-6" />}
+                      title="No pools configured"
+                      description="Create a pool to begin assigning tests and tracking chemistry status."
+                      action={<Link href="/management/pools/new" className={buttonClass.primary}>Add Pool</Link>}
+                    />
                   </td>
                 </tr>
               ) : (
                 poolList.map((pool) => (
-                  <tr key={pool.id} className="hover:bg-blue-50 transition-colors duration-150">
-                    <td className="px-6 py-4 text-sm font-medium text-slate-900">{pool.name}</td>
+                  <tr key={pool.id} className="hover:bg-slate-50 transition-colors duration-150">
+                    <td className="px-6 py-4 text-sm font-semibold text-slate-950">{pool.name}</td>
                     <td className="px-6 py-4 text-sm text-slate-600">{pool.pool_type || 'General'}</td>
                     <td className="px-6 py-4 text-sm text-slate-600">{pool.volume_gallons ? `${pool.volume_gallons} gal` : 'Unknown'}</td>
+                    <td className="px-6 py-4 text-sm"><StatusBadge tone="neutral">Configured</StatusBadge></td>
                     <td className="px-6 py-4 text-right text-sm font-medium">
-                      <Link href={`/management/pools/${pool.id}/edit`} className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
+                      <Link href={`/management/pools/${pool.id}/edit`} className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-900 transition-colors">
+                        <Pencil className="h-4 w-4" />
                         Edit
                       </Link>
                     </td>
@@ -102,7 +92,7 @@ export default async function ManagementPoolsPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </SectionCard>
     </div>
   );
 }

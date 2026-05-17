@@ -1,0 +1,99 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+  ClipboardList,
+  ClipboardPlus,
+  LayoutDashboard,
+  Megaphone,
+  Settings,
+  Waves,
+} from 'lucide-react';
+import type { ComponentType, ReactNode } from 'react';
+
+type SidebarNavItem = {
+  label: string;
+  href: string;
+  icon: ComponentType<{ className?: string }>;
+  match?: string[];
+};
+
+export const mainNavItems: SidebarNavItem[] = [
+  { label: 'Overview', href: '/management/dashboard', icon: LayoutDashboard, match: ['/dashboard', '/management/dashboard'] },
+  { label: 'Submit Log', href: '/log', icon: ClipboardPlus, match: ['/log', '/guard/log'] },
+  { label: 'Review Logs', href: '/management/logs', icon: ClipboardList, match: ['/management/logs', '/guard/review'] },
+  { label: 'Pools', href: '/management/pools', icon: Waves, match: ['/management/pools'] },
+  { label: 'Announcements', href: '/management/announcements', icon: Megaphone, match: ['/management/announcements'] },
+  { label: 'Settings', href: '/management/settings', icon: Settings, match: ['/management/settings', '/dashboard/settings'] },
+];
+
+const isActiveItem = (pathname: string, item: SidebarNavItem) => {
+  const matches = item.match ?? [item.href];
+  return matches.some((match) => pathname === match || pathname.startsWith(`${match}/`));
+};
+
+function NavLink({ item, compact = false }: { item: SidebarNavItem; compact?: boolean }) {
+  const pathname = usePathname();
+  const active = isActiveItem(pathname, item);
+  const Icon = item.icon;
+
+  return (
+    <Link
+      href={item.href}
+      data-sound="click"
+      aria-current={active ? 'page' : undefined}
+      className={
+        compact
+          ? `flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[11px] font-semibold transition-colors ${
+              active ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+            }`
+          : `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all ${
+              active
+                ? 'bg-blue-50 text-blue-800 ring-1 ring-blue-200'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
+            }`
+      }
+    >
+      <Icon className={compact ? 'h-4 w-4 shrink-0' : 'h-5 w-5 shrink-0'} />
+      <span className={compact ? 'truncate' : 'truncate'}>{compact && item.label === 'Announcements' ? 'News' : item.label}</span>
+    </Link>
+  );
+}
+
+export function SidebarNav({
+  header,
+  footer,
+  className = '',
+}: {
+  header?: ReactNode;
+  footer?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <>
+      <aside className={`hidden lg:block ${className}`}>
+        <div className="sticky top-5 flex min-h-[calc(100vh-2.5rem)] flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+          {header ? <div className="mb-5">{header}</div> : null}
+          <nav className="space-y-1" aria-label="Primary navigation">
+            {mainNavItems.map((item) => (
+              <NavLink key={item.href} item={item} />
+            ))}
+          </nav>
+          {footer ? <div className="mt-auto pt-5">{footer}</div> : null}
+        </div>
+      </aside>
+
+      <nav
+        className="fixed inset-x-3 bottom-3 z-40 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-[0_18px_50px_rgba(15,23,42,0.16)] backdrop-blur lg:hidden"
+        aria-label="Primary mobile navigation"
+      >
+        <div className="flex items-center gap-1">
+          {mainNavItems.map((item) => (
+            <NavLink key={item.href} item={item} compact />
+          ))}
+        </div>
+      </nav>
+    </>
+  );
+}

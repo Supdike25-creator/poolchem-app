@@ -1,7 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/server';
-import BackButton from '../../components/BackButton';
+import { AlertCircle, ClipboardCheck, Clock3, Plus, Waves } from 'lucide-react';
+import { EmptyState, StatCard, StatusBadge, buttonClass, type StatusTone } from '../../components/OperationsUI';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,11 +14,18 @@ interface Pool {
 interface ChemicalLog {
   id: string;
   pool_id: string;
+  submitted_by?: string | null;
   free_chlorine: number;
   ph: number;
   notes: string | null;
   photo_url: string | null;
   created_at: string;
+}
+
+interface ProfileSummary {
+  id: string;
+  full_name?: string | null;
+  email?: string | null;
 }
 
 type PoolStatus = 'good' | 'high_chlorine' | 'low_chlorine' | 'ph_warning' | 'overdue';
@@ -54,18 +62,19 @@ const getPoolStatus = (latestLog?: ChemicalLog): PoolStatus => {
   return 'good';
 };
 
-const getStatusColor = (status: PoolStatus) => {
+const getStatusColor = (status: PoolStatus): StatusTone => {
   switch (status) {
     case 'good':
-      return 'bg-green-100 text-green-800 border-green-200';
+      return 'good';
     case 'high_chlorine':
     case 'low_chlorine':
+      return 'critical';
     case 'ph_warning':
-      return 'bg-red-100 text-red-800 border-red-200';
+      return 'warning';
     case 'overdue':
-      return 'bg-orange-100 text-orange-800 border-orange-200';
+      return 'overdue';
     default:
-      return 'bg-gray-100 text-gray-700 border-gray-200';
+      return 'neutral';
   }
 };
 
@@ -74,11 +83,10 @@ const getStatusText = (status: PoolStatus) => {
     case 'good':
       return 'Good';
     case 'high_chlorine':
-      return 'High Chlorine';
     case 'low_chlorine':
-      return 'Low Chlorine';
+      return 'Critical';
     case 'ph_warning':
-      return 'pH Warning';
+      return 'Warning';
     case 'overdue':
       return 'Overdue';
     default:
@@ -98,38 +106,6 @@ const formatDateTime = (value: string) => {
   });
 };
 
-const dashboardTabs = [
-  { label: 'Overview', href: '/dashboard', active: true },
-  { label: 'Submit Log', href: '/log' },
-  { label: 'Review Logs', href: '/management/logs' },
-  { label: 'Pools', href: '/management/pools' },
-  { label: 'Announcements', href: '/management/announcements' },
-  { label: 'Settings', href: '/management/settings' },
-];
-
-const DashboardHotBar = () => (
-  <nav className="mb-6 rounded-lg border border-slate-200 bg-white/95 shadow-sm" aria-label="Dashboard sections">
-    <div className="flex items-center gap-2 overflow-x-auto px-3 py-3">
-      <BackButton fallbackHref="/" label="Back" />
-      {dashboardTabs.map((tab) => (
-        <Link
-          key={tab.href}
-          href={tab.href}
-          data-sound="click"
-          className={`whitespace-nowrap rounded-md px-4 py-2 text-sm font-semibold transition-colors ${
-            tab.active
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
-          }`}
-          aria-current={tab.active ? 'page' : undefined}
-        >
-          {tab.label}
-        </Link>
-      ))}
-    </div>
-  </nav>
-);
-
 export default async function Dashboard() {
   let poolsWithStatus: Array<{
     id: string;
@@ -138,12 +114,12 @@ export default async function Dashboard() {
     status: PoolStatus;
   }> = [];
   let totalPools = 0;
-  let goodPools = 0;
   let outOfRangePools = 0;
   let overduePools = 0;
   let testsToday = 0;
   let errorMessage = '';
   let hasNoPools = false;
+  let submitterMap = new Map<string, string>();
 
   try {
     const supabase = await createClient();
@@ -168,7 +144,7 @@ export default async function Dashboard() {
       // Fetch recent logs for all pools
       const { data: recentLogs, error: logsError } = await supabase
         .from('chemical_logs')
-        .select('id, pool_id, free_chlorine, ph, notes, photo_url, created_at')
+        .select('id, pool_id, submitted_by, free_chlorine, ph, notes, photo_url, created_at')
         .order('created_at', { ascending: false });
 
       if (logsError) {
@@ -176,6 +152,21 @@ export default async function Dashboard() {
       }
 
       const allLogs: ChemicalLog[] = recentLogs ?? [];
+      const submitterIds = Array.from(new Set(allLogs.map((log) => log.submitted_by).filter(Boolean))) as string[];
+
+      if (submitterIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', submitterIds);
+
+        submitterMap = new Map(
+          ((profiles ?? []) as ProfileSummary[]).map((profile) => [
+            profile.id,
+            profile.full_name || profile.email || profile.id,
+          ])
+        );
+      }
 
       // Count tests from today
       const now = new Date();
@@ -203,7 +194,6 @@ export default async function Dashboard() {
 
       // Calculate summary stats
       totalPools = poolsWithStatus.length;
-      goodPools = poolsWithStatus.filter(p => p.status === 'good').length;
       outOfRangePools = poolsWithStatus.filter(p => ['high_chlorine', 'low_chlorine', 'ph_warning'].includes(p.status)).length;
       overduePools = poolsWithStatus.filter(p => p.status === 'overdue').length;
 
@@ -231,9 +221,7 @@ export default async function Dashboard() {
 
   if (errorMessage) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <DashboardHotBar />
+      <>
           <div className="bg-red-50 border border-red-200 rounded-xl p-6">
             <div className="flex items-start">
               <div className="flex-shrink-0">
@@ -250,141 +238,64 @@ export default async function Dashboard() {
               </div>
             </div>
           </div>
-        </div>
-      </div>
+      </>
     );
   }
 
   if (hasNoPools) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <DashboardHotBar />
+      <>
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-slate-900">Pool Operations Dashboard</h1>
-            <p className="mt-2 text-slate-600">Real-time pool chemistry monitoring and management</p>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Pool Operations Dashboard</h1>
+            <p className="mt-2 text-sm leading-6 text-slate-500">Real-time pool chemistry monitoring and management</p>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
-            <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m0 0l8 4m-8-4v10l8 4m0-10l8 4m-8-4l8-4" />
-              </svg>
-            </div>
-            <h2 className="text-xl font-semibold text-slate-900 mb-2">No Pools Configured</h2>
-            <p className="text-slate-600 mb-6">Get started by creating your first pool in the admin panel.</p>
-            <Link
-              href="/admin"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
-            >
-              Go to Admin Settings
-            </Link>
-          </div>
-        </div>
-      </div>
+          <EmptyState
+            icon={<Waves className="h-6 w-6" />}
+            title="No pools configured"
+            description="Create your first pool to start tracking tests, exceptions, and daily operations."
+            action={(
+              <Link href="/management/pools/new" className={buttonClass.primary}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Pool
+              </Link>
+            )}
+          />
+      </>
     );
   }
 
   return (
 
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <DashboardHotBar />
+    <>
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Pool Operations Dashboard</h1>
-              <p className="mt-2 text-slate-600">Real-time pool chemistry monitoring and management</p>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Pool Operations Dashboard</h1>
+              <p className="mt-2 text-sm leading-6 text-slate-500">Real-time pool chemistry monitoring and management</p>
             </div>
             <Link
               href="/log"
               data-sound="click"
-              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm hover:shadow-md"
+              className="inline-flex h-9 items-center justify-center rounded-lg bg-blue-600 px-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
             >
-              <svg className="mr-2 -ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
+              <Plus className="mr-2 h-4 w-4" />
               Submit Log
             </Link>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Pools</p>
-                <p className="text-3xl font-bold text-slate-900 mt-2">{totalPools}</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Good Status</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">{goodPools}</p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Out of Range</p>
-                <p className="text-3xl font-bold text-red-600 mt-2">{outOfRangePools}</p>
-              </div>
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Overdue</p>
-                <p className="text-3xl font-bold text-orange-600 mt-2">{overduePools}</p>
-              </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Tests Today</p>
-                <p className="text-3xl font-bold text-purple-600 mt-2">{testsToday}</p>
-              </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                </svg>
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <StatCard label="Total Pools" value={totalPools} icon={<Waves className="h-5 w-5" />} tone="info" />
+          <StatCard label="Overdue Tests" value={overduePools} icon={<Clock3 className="h-5 w-5" />} tone="overdue" />
+          <StatCard label="Out of Range" value={outOfRangePools} icon={<AlertCircle className="h-5 w-5" />} tone="critical" />
+          <StatCard label="Tests Today" value={testsToday} icon={<ClipboardCheck className="h-5 w-5" />} tone="info" />
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-          <div className="px-6 py-4 sm:px-6 sm:py-5 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50">
-            <h2 className="text-lg font-semibold text-slate-900">Pool Status Overview</h2>
-            <p className="mt-1 text-sm text-slate-600">Monitor chemical levels and testing schedules</p>
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+          <div className="border-b border-slate-200 bg-slate-50 px-6 py-4 sm:px-6 sm:py-5">
+            <h2 className="text-lg font-semibold text-slate-950">Pool Status Overview</h2>
+            <p className="mt-1 text-sm text-slate-500">Monitor chemical levels and testing schedules</p>
           </div>
 
           {poolsWithStatus.length === 0 ? (
@@ -422,6 +333,12 @@ export default async function Dashboard() {
                     <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                       Status
                     </th>
+                    <th className="hidden lg:table-cell px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Submitted By
+                    </th>
+                    <th className="px-4 sm:px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-slate-200">
@@ -447,9 +364,15 @@ export default async function Dashboard() {
                           {latestLog ? latestLog.ph.toFixed(1) : '—'}
                         </td>
                         <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full border ${getStatusColor(status)}`}>
-                            {getStatusText(status)}
-                          </span>
+                          <StatusBadge tone={getStatusColor(status)}>{getStatusText(status)}</StatusBadge>
+                        </td>
+                        <td className="hidden lg:table-cell px-6 py-4 text-xs text-slate-500">
+                          {latestLog?.submitted_by ? submitterMap.get(latestLog.submitted_by) || 'Unknown' : 'Not recorded'}
+                        </td>
+                        <td className="px-4 sm:px-6 py-4 text-right">
+                          <Link href={`/log?poolId=${pool.id}`} className={buttonClass.secondary}>
+                            Log
+                          </Link>
                         </td>
                       </tr>
                     );
@@ -459,7 +382,6 @@ export default async function Dashboard() {
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </>
   );
 }

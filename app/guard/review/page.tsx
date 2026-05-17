@@ -6,12 +6,18 @@ import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
 interface ChemicalLogRow {
   id: string;
   pool_id: string;
-  user_id?: string | null;
+  submitted_by?: string | null;
   free_chlorine?: number | null;
   ph?: number | null;
   notes?: string | null;
   logged_at?: string | null;
   created_at: string;
+}
+
+interface ProfileSummary {
+  id: string;
+  full_name?: string | null;
+  email?: string | null;
 }
 
 export const dynamic = 'force-dynamic';
@@ -57,7 +63,7 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
 
   const query = supabase
     .from('chemical_logs')
-    .select('id,pool_id,user_id,free_chlorine,ph,notes,logged_at,created_at')
+    .select('id,pool_id,submitted_by,free_chlorine,ph,notes,logged_at,created_at')
     .gte('created_at', (isFullSheet ? dayStart : rangeStart).toISOString())
     .lt('created_at', (isFullSheet ? dayEnd : rangeEnd).toISOString())
     .order('created_at', { ascending: false });
@@ -69,6 +75,19 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
   }
 
   const guardLogs = (error ? [] : logs ?? []) as ChemicalLogRow[];
+  const submitterIds = Array.from(new Set(guardLogs.map((log) => log.submitted_by).filter(Boolean))) as string[];
+  const { data: submitters } = submitterIds.length > 0
+    ? await supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .in('id', submitterIds)
+    : { data: [] };
+  const submitterMap = new Map(
+    ((submitters ?? []) as ProfileSummary[]).map((profile) => [
+      profile.id,
+      profile.full_name || profile.email || profile.id,
+    ])
+  );
   const title = isFullSheet ? 'Full Guard Sheet' : 'Current Hour Logs';
   const subtitle = isFullSheet
     ? 'All of your submitted logs for today.'
@@ -118,6 +137,7 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Free Chlorine</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">pH</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Submitted By</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Notes</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Edit</th>
                 </tr>
@@ -125,7 +145,7 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
               <tbody className="divide-y divide-slate-200 bg-white">
                 {guardLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">
+                    <td colSpan={8} className="px-6 py-10 text-center text-sm text-slate-500">
                       No logs in this view yet.
                     </td>
                   </tr>
@@ -141,6 +161,9 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
                         <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-900">{typeof log.ph === 'number' ? log.ph.toFixed(1) : '—'}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-sm">
                           <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${status.className}`}>{status.label}</span>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-500">
+                          {log.submitted_by ? submitterMap.get(log.submitted_by) || 'Unknown' : 'Not recorded'}
                         </td>
                         <td className="max-w-sm truncate px-4 py-3 text-sm text-slate-600">{log.notes || '—'}</td>
                         <td className="px-4 py-3 text-right text-sm">

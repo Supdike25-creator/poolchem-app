@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import BackButton from '../../../../components/BackButton';
+import { PageHeader, SectionCard, buttonClass } from '../../../../components/OperationsUI';
+import { Waves } from 'lucide-react';
 
 export default function NewPoolPage() {
   const router = useRouter();
@@ -74,22 +76,22 @@ export default function NewPoolPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-sm text-slate-500 uppercase tracking-wide">Management</p>
-            <h1 className="text-2xl font-semibold text-slate-900">New Pool</h1>
-            <p className="mt-2 text-sm text-slate-600">Configure a managed pool with target chemistry ranges and dosing defaults.</p>
-          </div>
-          <BackButton fallbackHref="/management/pools" label="Back" />
-        </div>
+        <PageHeader
+          eyebrow="Management"
+          title="New Pool"
+          description="Configure a managed pool with target chemistry ranges and dosing defaults."
+          icon={<Waves className="h-4 w-4" />}
+          actions={<BackButton fallbackHref="/management/pools" label="Back" />}
+        />
 
-        <form onSubmit={handleSubmit} className="space-y-4 rounded-xl bg-white border border-slate-200 p-5 shadow-sm">
+        <SectionCard className="p-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700">Pool Name</label>
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
-              className="mt-2 block w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:ring-blue-500"
+              className="mt-2 block h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               placeholder="Example: Main Facility Pool"
               required
             />
@@ -101,7 +103,7 @@ export default function NewPoolPage() {
               <input
                 value={poolType}
                 onChange={(event) => setPoolType(event.target.value)}
-                className="mt-2 block w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:ring-blue-500"
+                className="mt-2 block h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 placeholder="Chlorine, Salt, Spa"
               />
             </div>
@@ -112,7 +114,7 @@ export default function NewPoolPage() {
                 min="0"
                 value={volume}
                 onChange={(event) => setVolume(event.target.value)}
-                className="mt-2 block w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:ring-blue-500"
+                className="mt-2 block h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 placeholder="12000"
               />
             </div>
@@ -126,7 +128,7 @@ export default function NewPoolPage() {
                 step="0.1"
                 value={chlorineMin}
                 onChange={(event) => setChlorineMin(event.target.value)}
-                className="mt-2 block w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:ring-blue-500"
+                className="mt-2 block h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -136,7 +138,7 @@ export default function NewPoolPage() {
                 step="0.1"
                 value={chlorineMax}
                 onChange={(event) => setChlorineMax(event.target.value)}
-                className="mt-2 block w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:ring-blue-500"
+                className="mt-2 block h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -149,7 +151,7 @@ export default function NewPoolPage() {
                 step="0.1"
                 value={phMin}
                 onChange={(event) => setPhMin(event.target.value)}
-                className="mt-2 block w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:ring-blue-500"
+                className="mt-2 block h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -159,7 +161,7 @@ export default function NewPoolPage() {
                 step="0.1"
                 value={phMax}
                 onChange={(event) => setPhMax(event.target.value)}
-                className="mt-2 block w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:ring-blue-500"
+                className="mt-2 block h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -172,7 +174,7 @@ export default function NewPoolPage() {
                 step="0.1"
                 value={chlorineStrength}
                 onChange={(event) => setChlorineStrength(event.target.value)}
-                className="mt-2 block w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:ring-blue-500"
+                className="mt-2 block h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -193,7 +195,7 @@ export default function NewPoolPage() {
               type="button"
               onClick={() => router.push('/management/pools')}
               data-sound="back"
-              className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className={buttonClass.secondary}
             >
               Cancel
             </button>
@@ -201,12 +203,13 @@ export default function NewPoolPage() {
               type="submit"
               disabled={submitting}
               data-sound="success"
-              className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+              className={buttonClass.primary}
             >
               {submitting ? 'Saving...' : 'Create Pool'}
             </button>
           </div>
         </form>
+        </SectionCard>
       </div>
     </div>
   );

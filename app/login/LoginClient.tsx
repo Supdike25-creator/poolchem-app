@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
+import { ArrowLeft, FlaskConical } from 'lucide-react';
 import {
   AppRole,
   clearAppSession,
@@ -346,30 +347,26 @@ export default function LoginClient({
   };
 
   return (
-    <main className="min-h-screen bg-slate-100 flex items-center justify-center px-4 py-10">
+    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
       <div className="w-full max-w-lg">
         <Link
           href="/"
           data-sound="back"
-          className="mb-4 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+          className="mb-4 inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
         >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
+          <ArrowLeft className="h-4 w-4" />
           Go back
         </Link>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
-          <div className="border-b border-slate-200 bg-slate-50 px-6 py-5">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+          <div className="border-b border-slate-200 bg-white px-6 py-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                </svg>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950">
+                <FlaskConical className="h-5 w-5 text-white" />
               </div>
               <div>
-                <p className="text-sm font-bold uppercase tracking-wide text-blue-600">ChemDeck</p>
-                <p className="text-sm text-slate-600">{label}</p>
+                <p className="text-sm font-semibold tracking-tight text-slate-950">ChemDeck</p>
+                <p className="text-sm text-slate-500">{label}</p>
               </div>
             </div>
           </div>
@@ -396,7 +393,7 @@ export default function LoginClient({
               ))}
             </div>
 
-            <h1 className="text-2xl font-bold text-slate-900">
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
               {mode === 'login'
                 ? 'Enter your username and passcode'
                 : mode === 'create'

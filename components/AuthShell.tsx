@@ -1,12 +1,17 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import {
+  ArrowLeft,
+  FlaskConical,
+  LogOut,
+  ShieldCheck,
+} from 'lucide-react';
 import { clearAppSession, getStoredSession, normalizeAppRole } from '../lib/appAccounts';
 import { createClient } from '@/utils/supabase/client';
 import { bypassProfileForRole, temporaryLoginBypass } from '../lib/temporaryLoginBypass';
-import BackButton from './BackButton';
+import { SidebarNav } from './SidebarNav';
 
 type AppRole = 'manager' | 'guard';
 
@@ -14,22 +19,6 @@ type Profile = {
   full_name?: string | null;
   email?: string | null;
   role?: string | null;
-};
-
-const navItems: Record<AppRole, Array<{ label: string; href: string }>> = {
-  manager: [
-    { label: 'Dashboard', href: '/management/dashboard' },
-    { label: 'Pools', href: '/management/pools' },
-    { label: 'Logs', href: '/management/logs' },
-    { label: 'Announcements', href: '/management/announcements' },
-    { label: 'Settings', href: '/management/settings' },
-    { label: 'Help', href: '/management/settings#help' },
-  ],
-  guard: [
-    { label: 'Guard Home', href: '/guard' },
-    { label: 'New Log', href: '/guard/log' },
-    { label: 'Review Logs', href: '/guard/review' },
-  ],
 };
 
 const roleLabels: Record<AppRole, string> = {
@@ -45,7 +34,6 @@ const normalizeProfileRole = (role?: string | null): AppRole => {
 
 export default function AuthShell({ role, children }: { role: AppRole; children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
   const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState<string>('');
@@ -179,12 +167,14 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-200 flex items-center justify-center px-4 py-8">
-        <div className="rounded-3xl border border-blue-200 bg-white p-8 shadow-xl text-center">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-8">
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
           <div className="animate-pulse">
-            <div className="w-12 h-12 bg-blue-100 rounded-full mx-auto mb-4"></div>
-            <p className="text-sm text-blue-600 font-medium">Restoring your session</p>
-            <p className="mt-2 text-xl font-semibold text-slate-900">Please wait…</p>
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
+              <FlaskConical className="h-6 w-6 text-blue-600" />
+            </div>
+            <p className="text-sm font-semibold text-blue-700">Restoring your session</p>
+            <p className="mt-2 text-lg font-semibold text-slate-950">Please wait...</p>
           </div>
         </div>
       </div>
@@ -192,38 +182,59 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   }
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+    <div className="min-h-screen bg-slate-50 pb-24 lg:pb-0">
+      <div className="mx-auto grid max-w-[1600px] gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[248px_minmax(0,1fr)] lg:px-8">
+        <SidebarNav
+          header={(
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950">
+                <FlaskConical className="h-5 w-5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">ChemDeck</p>
+                <p className="truncate text-sm font-semibold text-slate-950">{role === 'manager' ? 'Management' : 'Guard'}</p>
+              </div>
+            </div>
+          )}
+          footer={(
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="mb-2 flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-slate-500" />
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Role</p>
+              </div>
+              <p className="text-sm font-semibold text-slate-950">{roleLabels[role]}</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">Session access is scoped to this workspace.</p>
+            </div>
+          )}
+        />
+
+        <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.07)]">
           <div className="border-b border-slate-200 bg-white px-5 py-5 lg:px-7">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                    </svg>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950">
+                    <FlaskConical className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">{roleLabels[role]}</p>
-                    <h1 className="text-2xl font-bold text-slate-900">{role === 'manager' ? 'Management Workspace' : 'Guard Workbench'}</h1>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{roleLabels[role]}</p>
+                    <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{role === 'manager' ? 'Management Workspace' : 'Guard Workbench'}</h1>
                   </div>
                 </div>
-                <p className="mt-2 max-w-2xl text-sm text-slate-600">
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
                   Quick access to the work that needs attention today.
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <BackButton fallbackHref={role === 'manager' ? '/management/dashboard' : '/guard'} label="Back" />
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                      <span className="text-white font-semibold text-sm">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900">
+                      <span className="text-sm font-semibold text-white">
                         {(profile?.full_name || profile?.email || 'U')[0].toUpperCase()}
                       </span>
                     </div>
                     <div>
-                      <p className="font-semibold text-slate-900">{profile?.full_name || 'User'}</p>
+                      <p className="font-semibold text-slate-950">{profile?.full_name || 'User'}</p>
                       <p className="text-slate-500">{profile?.email}</p>
                     </div>
                   </div>
@@ -232,88 +243,40 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
                   type="button"
                   onClick={handleBackToLogin}
                   data-sound="back"
-                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                  className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
                 >
-                  <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
                   Back to login
                 </button>
                 <button
                   type="button"
                   onClick={handleLogout}
                   data-sound="click"
-                  className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+                  className="inline-flex h-9 items-center justify-center rounded-lg bg-slate-950 px-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
                 >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
+                  <LogOut className="mr-2 h-4 w-4" />
                   Log out
                 </button>
               </div>
             </div>
           </div>
 
-            <div className="grid gap-6 bg-slate-50 p-5 lg:p-6 xl:grid-cols-[1fr_280px]">
-              <main>{children}</main>
-
-              <aside className="space-y-6">
-                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-center gap-2 mb-4">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                    </svg>
-                    <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Quick links</p>
-                  </div>
-                  <div className="space-y-2">
-                    {navItems[role].map((item) => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        data-sound="click"
-                        className={`group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-semibold transition-all ${
-                          pathname === item.href
-                            ? 'bg-blue-600 text-white shadow-sm'
-                            : 'border border-transparent bg-slate-50 text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700'
-                        }`}
-                      >
-                        <span>{item.label}</span>
-                        <svg className={`w-4 h-4 transition-transform ${pathname === item.href ? 'text-white' : 'text-blue-400 group-hover:translate-x-1'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </Link>
-                    ))}
+          <main className="bg-slate-50 p-5 lg:p-6">
+            {error ? (
+              <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <div>
+                    <p className="font-semibold text-red-800">Authentication issue</p>
+                    <p className="mt-1 text-sm text-red-700">{error}</p>
                   </div>
                 </div>
-
-                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-center gap-2 mb-4">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                    <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Your role</p>
-                  </div>
-                  <p className="text-base font-bold text-slate-900 mb-2">{roleLabels[role]}</p>
-                  <p className="text-sm text-slate-600 leading-relaxed">
-                    Your current session is limited to the selected workspace. Use the log out button to start again.
-                  </p>
-                </div>
-
-                {error ? (
-                  <div className="rounded-xl border border-red-200 bg-red-50 p-4 shadow-sm">
-                    <div className="flex items-start gap-3">
-                      <svg className="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                      </svg>
-                      <div>
-                        <p className="font-semibold text-red-800">Authentication issue</p>
-                        <p className="mt-1 text-sm text-red-700">{error}</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-              </aside>
-            </div>
+              </div>
+            ) : null}
+            {children}
+          </main>
         </div>
       </div>
     </div>

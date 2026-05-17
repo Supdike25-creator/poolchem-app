@@ -1,25 +1,32 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import BackButton from '../../../components/BackButton';
 import LogDateSlider from '../../../components/LogDateSlider';
 import { getServerAppSession } from '../../../lib/serverAppSession';
 import { createClient } from '@/utils/supabase/server';
 import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
+import { PageHeader, SectionCard, StatCard, StatusBadge, type StatusTone } from '../../../components/OperationsUI';
+import { ClipboardList, Clock3, Rows3, Waves } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 interface ChemicalLogRow {
   id: string;
   pool_id: string;
-  user_id?: string | null;
+  submitted_by?: string | null;
   free_chlorine?: number | null;
   ph?: number | null;
-  chemical_type?: string | null;
-  amount?: number | null;
-  unit?: string | null;
+  dosing_amount?: number | null;
+  dosing_unit?: string | null;
+  dosing_chemical?: string | null;
+  dosing_recommendation?: string | null;
   notes?: string | null;
   logged_at?: string | null;
   created_at: string;
+}
+
+interface ProfileSummary {
+  id: string;
+  full_name?: string | null;
+  email?: string | null;
 }
 
 const toDateInputValue = (date: Date) => {
@@ -49,14 +56,14 @@ const getLogStatus = (log: ChemicalLogRow) => {
   const ph = log.ph;
 
   if (typeof chlorine !== 'number' || typeof ph !== 'number') {
-    return { label: 'Legacy', className: 'bg-slate-100 text-slate-700 border-slate-200' };
+    return { label: 'Legacy', tone: 'neutral' as StatusTone };
   }
 
   if (chlorine < 1 || chlorine > 4 || ph < 7.2 || ph > 7.8) {
-    return { label: 'Review', className: 'bg-red-100 text-red-800 border-red-200' };
+    return { label: 'Review', tone: 'critical' as StatusTone };
   }
 
-  return { label: 'In Range', className: 'bg-green-100 text-green-800 border-green-200' };
+  return { label: 'In Range', tone: 'good' as StatusTone };
 };
 
 const formatTime = (date: Date) => date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
@@ -112,7 +119,7 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
   const { data: logs, error } = poolIds.length > 0
     ? await supabase
       .from('chemical_logs')
-      .select('id,pool_id,user_id,free_chlorine,ph,chemical_type,amount,unit,notes,logged_at,created_at')
+      .select('id,pool_id,submitted_by,free_chlorine,ph,dosing_amount,dosing_unit,dosing_chemical,dosing_recommendation,notes,logged_at,created_at')
       .in('pool_id', poolIds)
       .gte('created_at', dayStart.toISOString())
       .lt('created_at', dayEnd.toISOString())
@@ -124,24 +131,30 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
   }
 
   const dayLogs = (error ? [] : logs ?? []) as ChemicalLogRow[];
+  const submitterIds = Array.from(new Set(dayLogs.map((log) => log.submitted_by).filter(Boolean))) as string[];
+  const { data: submitters } = submitterIds.length > 0
+    ? await supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .in('id', submitterIds)
+    : { data: [] };
+  const submitterMap = new Map(
+    ((submitters ?? []) as ProfileSummary[]).map((profile) => [
+      profile.id,
+      profile.full_name || profile.email || profile.id,
+    ])
+  );
   const hours = Array.from({ length: 12 }, (_, index) => 9 + index);
 
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-wide text-slate-500">Management</p>
-            <h1 className="text-2xl font-semibold text-slate-900">Daily Log Sheet</h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-600">All logged pool chemistry data for the selected day, grouped by hour.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <BackButton fallbackHref="/management/dashboard" label="Back" />
-            <Link href="/management/dashboard" data-sound="click" className="inline-flex items-center justify-center rounded-lg bg-white border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-              Dashboard
-            </Link>
-          </div>
-        </div>
+        <PageHeader
+          eyebrow="Management"
+          title="Daily Log Sheet"
+          description="Audit pool chemistry submissions by date, time slot, status, and staff member."
+          icon={<ClipboardList className="h-4 w-4" />}
+        />
         {temporaryLoginBypass && error ? (
           <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
             Login bypass is active, so live Supabase log data may be hidden until the auth work is finished.
@@ -151,22 +164,13 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
         <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_340px]">
           <LogDateSlider selectedDate={selectedDate} />
           <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Rows</p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">{dayLogs.length}</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pools</p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">{poolMap.size}</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Slots</p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">12</p>
-            </div>
+            <StatCard label="Rows" value={dayLogs.length} icon={<Rows3 className="h-5 w-5" />} tone="info" />
+            <StatCard label="Pools" value={poolMap.size} icon={<Waves className="h-5 w-5" />} tone="neutral" />
+            <StatCard label="Slots" value="12" icon={<Clock3 className="h-5 w-5" />} tone="neutral" />
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <SectionCard className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full border-separate border-spacing-0">
               <thead className="bg-slate-50">
@@ -202,13 +206,18 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
                         <td className="border-b border-slate-200 px-4 py-3 text-sm text-slate-900">{typeof log?.free_chlorine === 'number' ? `${log.free_chlorine.toFixed(1)} ppm` : '—'}</td>
                         <td className="border-b border-slate-200 px-4 py-3 text-sm text-slate-900">{typeof log?.ph === 'number' ? log.ph.toFixed(1) : '—'}</td>
                         <td className="border-b border-slate-200 px-4 py-3 text-sm text-slate-700">
-                          {log?.chemical_type ? `${log.chemical_type}${typeof log.amount === 'number' ? ` · ${log.amount} ${log.unit || ''}` : ''}` : '—'}
+                          {log?.dosing_recommendation
+                            || (log?.dosing_chemical
+                              ? `${log.dosing_chemical}${typeof log.dosing_amount === 'number' ? ` · ${log.dosing_amount} ${log.dosing_unit || ''}` : ''}`
+                              : '—')}
                         </td>
                         <td className="border-b border-slate-200 px-4 py-3 text-sm">
-                          {status ? <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${status.className}`}>{status.label}</span> : '—'}
+                          {status ? <StatusBadge tone={status.tone}>{status.label}</StatusBadge> : '—'}
                         </td>
                         <td className="max-w-md border-b border-slate-200 px-4 py-3 text-sm text-slate-600">{log?.notes || '—'}</td>
-                        <td className="border-b border-slate-200 px-4 py-3 text-xs text-slate-500">{log?.user_id || '—'}</td>
+                        <td className="border-b border-slate-200 px-4 py-3 text-xs text-slate-500">
+                          {log?.submitted_by ? submitterMap.get(log.submitted_by) || 'Unknown' : 'Not recorded'}
+                        </td>
                       </tr>
                     );
                   });
@@ -216,7 +225,7 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
               </tbody>
             </table>
           </div>
-        </div>
+        </SectionCard>
       </div>
     </div>
   );
