@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/utils/supabase/server';
 import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
 import { EmptyState, PageHeader, SectionCard, StatusBadge, buttonClass } from '../../../components/OperationsUI';
-import { Pencil, Plus, SlidersHorizontal, Waves } from 'lucide-react';
+import { ClipboardList, Pencil, Plus, SlidersHorizontal, Waves } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,6 +46,75 @@ export default async function ManagementPoolsPage() {
       {temporaryLoginBypass && error ? (
         <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
           Login bypass is active, so live Supabase pool data may be hidden until the auth work is finished.
+        </div>
+      ) : null}
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        {['All Pools', 'Good', 'Overdue', 'Out of Range', 'Baby Pools', 'No Data'].map((filter) => (
+          <button
+            key={filter}
+            type="button"
+            className={`rounded-full border px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors ${
+              filter === 'All Pools'
+                ? 'border-slate-950 bg-slate-950 text-white'
+                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            {filter}
+          </button>
+        ))}
+      </div>
+
+      {poolList.length > 0 ? (
+        <div className="mb-6">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold text-slate-950">Pool Card View</h2>
+            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+              <span className="rounded-md bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white">Card View</span>
+              <span className="px-3 py-1.5 text-xs font-semibold text-slate-500">Table View</span>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {poolList.map((pool) => (
+              <SectionCard key={pool.id} className="p-5">
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-950">{pool.name}</h3>
+                    <p className="mt-1 text-sm text-slate-500">{pool.pool_type || 'General pool'}</p>
+                  </div>
+                  <StatusBadge tone="neutral">No Data</StatusBadge>
+                </div>
+                <dl className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Volume</dt>
+                    <dd className="mt-1 font-semibold text-slate-900">{pool.volume_gallons ? `${pool.volume_gallons.toLocaleString()} gal` : 'Unknown'}</dd>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Last Test</dt>
+                    <dd className="mt-1 font-semibold text-slate-900">Not recorded</dd>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Next Due</dt>
+                    <dd className="mt-1 font-semibold text-slate-900">Start today</dd>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Status</dt>
+                    <dd className="mt-1"><StatusBadge tone="neutral">Configured</StatusBadge></dd>
+                  </div>
+                </dl>
+                <div className="mt-4 flex gap-2">
+                  <Link href={`/log?poolId=${pool.id}`} className={buttonClass.primary}>
+                    <ClipboardList className="mr-2 h-4 w-4" />
+                    Log Test
+                  </Link>
+                  <Link href={`/management/pools/${pool.id}`} className={buttonClass.secondary}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    View History
+                  </Link>
+                </div>
+              </SectionCard>
+            ))}
+          </div>
         </div>
       ) : null}
 

@@ -3,6 +3,8 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
+import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
+import { appVersion } from '../../../lib/generatedVersion';
 import {
   Settings,
   Palette,
@@ -37,6 +39,8 @@ type DosingUnit = 'ounces' | 'cups' | 'gallons' | 'pounds';
 interface SettingsData {
   theme: Theme;
   stylePreset: StylePreset;
+  compactLayout: boolean;
+  largerTextMode: boolean;
   chemCalcEnabled: boolean;
   chlorineType: ChlorineType;
   chlorineStrength: number;
@@ -64,6 +68,8 @@ interface SettingsData {
 const defaultSettings: SettingsData = {
   theme: 'system',
   stylePreset: 'default',
+  compactLayout: false,
+  largerTextMode: false,
   chemCalcEnabled: true,
   chlorineType: 'liquid',
   chlorineStrength: 12.5,
@@ -296,6 +302,24 @@ export default function ManagementSettingsPage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <ToggleRow
+                title="Compact layout"
+                description="Reduce spacing for denser management views."
+                checked={settings.compactLayout}
+                onToggle={() => {
+                  const compactLayout = !settings.compactLayout;
+                  saveSettings({ compactLayout, stylePreset: compactLayout ? 'compact' : 'default' });
+                }}
+              />
+              <ToggleRow
+                title="Larger text mode"
+                description="Increase readability for staff using tablets or phones outdoors."
+                checked={settings.largerTextMode}
+                onToggle={() => saveSettings({ largerTextMode: !settings.largerTextMode })}
+              />
             </div>
           </div>
         </div>
@@ -552,6 +576,17 @@ export default function ManagementSettingsPage() {
           />
 
           <div className="space-y-3">
+            {temporaryLoginBypass ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">Developer bypass active</p>
+                    <p className="mt-1 text-sm leading-5 text-amber-800">Temporary login bypass is enabled for development. Disable it before production auth testing.</p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
               <div className="mb-3 flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900">
@@ -653,6 +688,7 @@ export default function ManagementSettingsPage() {
                       <Mail className="h-4 w-4" />
                       ChemdeckCo@gmail.com
                     </a>
+                    <p className="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">App version {appVersion}</p>
                   </div>
                 </div>
               </div>

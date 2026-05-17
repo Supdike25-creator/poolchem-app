@@ -14,6 +14,7 @@ import {
   Users,
   MapPin,
   Calendar,
+  CheckCheck,
   X
 } from 'lucide-react';
 import { EmptyState, PageHeader, SectionCard, StatusBadge, buttonClass } from '../../../components/OperationsUI';
@@ -33,6 +34,10 @@ interface Announcement {
   author_name: string;
   created_at: string;
   send_notification: boolean;
+  require_acknowledgment: boolean;
+  acknowledged_count: number;
+  recipient_count: number;
+  unread?: boolean;
 }
 
 interface Pool {
@@ -59,6 +64,7 @@ export default function AnnouncementsPage() {
     audience: 'all_lifeguards' as Audience,
     pool_id: '',
     send_notification: true,
+    require_acknowledgment: false,
   });
   const [submitting, setSubmitting] = useState(false);
   const [announcementNotifications, setAnnouncementNotifications] = useState(true);
@@ -96,6 +102,9 @@ export default function AnnouncementsPage() {
         author_name: 'John Manager',
         created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
         send_notification: true,
+        require_acknowledgment: false,
+        acknowledged_count: 12,
+        recipient_count: 12,
       },
       {
         id: '2',
@@ -107,6 +116,10 @@ export default function AnnouncementsPage() {
         author_name: 'John Manager',
         created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         send_notification: true,
+        require_acknowledgment: true,
+        acknowledged_count: 8,
+        recipient_count: 12,
+        unread: true,
       },
       {
         id: '3',
@@ -120,6 +133,10 @@ export default function AnnouncementsPage() {
         author_name: 'John Manager',
         created_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
         send_notification: true,
+        require_acknowledgment: true,
+        acknowledged_count: 10,
+        recipient_count: 12,
+        unread: true,
       },
     ];
 
@@ -156,6 +173,10 @@ export default function AnnouncementsPage() {
       author_name: 'Current User',
       created_at: new Date().toISOString(),
       send_notification: formData.send_notification,
+      require_acknowledgment: formData.require_acknowledgment,
+      acknowledged_count: 0,
+      recipient_count: formData.audience === 'managers_only' ? 3 : 12,
+      unread: true,
     };
 
     setAnnouncements(prev => [newAnnouncement, ...prev]);
@@ -166,6 +187,7 @@ export default function AnnouncementsPage() {
       audience: 'all_lifeguards',
       pool_id: '',
       send_notification: true,
+      require_acknowledgment: false,
     });
     setShowCreateForm(false);
     setSubmitting(false);
@@ -323,16 +345,25 @@ export default function AnnouncementsPage() {
                 </div>
               )}
 
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="send_notification"
-                  checked={formData.send_notification}
-                  onChange={(e) => setFormData(prev => ({ ...prev, send_notification: e.target.checked }))}
-                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                />
-                <label htmlFor="send_notification" className="text-sm text-slate-700">
-                  Send push notification to recipients
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <input
+                    type="checkbox"
+                    id="send_notification"
+                    checked={formData.send_notification}
+                    onChange={(e) => setFormData(prev => ({ ...prev, send_notification: e.target.checked }))}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-slate-700">Send push notification</span>
+                </label>
+                <label className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <input
+                    type="checkbox"
+                    checked={formData.require_acknowledgment}
+                    onChange={(e) => setFormData(prev => ({ ...prev, require_acknowledgment: e.target.checked }))}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-slate-700">Require acknowledgment</span>
                 </label>
               </div>
 
@@ -420,9 +451,12 @@ export default function AnnouncementsPage() {
                       </div>
                     </div>
                   </div>
-                  <StatusBadge tone={announcement.priority === 'emergency' ? 'critical' : announcement.priority === 'important' ? 'warning' : 'info'}>
-                    {priority.label}
-                  </StatusBadge>
+                  <div className="flex flex-col items-end gap-2">
+                    {announcement.unread && !isManager ? <StatusBadge tone="info">Unread</StatusBadge> : null}
+                    <StatusBadge tone={announcement.priority === 'emergency' ? 'critical' : announcement.priority === 'important' ? 'warning' : 'info'}>
+                      {priority.label}
+                    </StatusBadge>
+                  </div>
                 </div>
 
                 <p className="text-slate-700 leading-relaxed">{announcement.message}</p>
@@ -440,10 +474,23 @@ export default function AnnouncementsPage() {
                         Notification sent
                       </div>
                     )}
+                    {announcement.require_acknowledgment && (
+                      <div className="flex items-center gap-1">
+                        <CheckCheck className="w-4 h-4 text-blue-600" />
+                        Ack {announcement.acknowledged_count}/{announcement.recipient_count}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-xs text-slate-500">
-                    <Calendar className="w-3 h-3 inline mr-1" />
-                    {new Date(announcement.created_at).toLocaleDateString()}
+                  <div className="flex items-center gap-3">
+                    {!isManager && announcement.require_acknowledgment ? (
+                      <button type="button" className="inline-flex h-8 items-center rounded-lg bg-slate-950 px-3 text-xs font-semibold text-white shadow-sm hover:bg-slate-800">
+                        Acknowledge
+                      </button>
+                    ) : null}
+                    <div className="text-xs text-slate-500">
+                      <Calendar className="w-3 h-3 inline mr-1" />
+                      {new Date(announcement.created_at).toLocaleDateString()}
+                    </div>
                   </div>
                 </div>
               </div>

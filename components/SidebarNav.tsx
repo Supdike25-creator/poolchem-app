@@ -75,7 +75,7 @@ export function SidebarNav({
   return (
     <>
       <aside
-        className={`sidebar-rail fixed left-0 top-0 z-50 hidden h-screen w-16 overflow-hidden border-r border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)] transition-[width,box-shadow] duration-200 ease-out hover:w-64 focus-within:w-64 lg:flex ${className}`}
+        className={`sidebar-rail group fixed left-0 top-0 z-50 hidden h-screen w-16 overflow-hidden border-r border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)] transition-[width,box-shadow] duration-200 ease-out hover:w-64 focus-within:w-64 lg:flex ${className}`}
       >
         <div className="flex h-full w-full flex-col overflow-hidden p-3">
           {header ? <div className="mb-5">{header}</div> : null}
@@ -84,7 +84,7 @@ export function SidebarNav({
               <NavLink key={item.href} item={item} />
             ))}
           </nav>
-          {footer ? <div className="sidebar-footer mt-auto pt-5">{footer}</div> : null}
+          {footer ? <div className="mt-auto pt-5">{footer}</div> : null}
         </div>
       </aside>
 

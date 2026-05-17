@@ -4,7 +4,7 @@ import { getServerAppSession } from '../../../lib/serverAppSession';
 import { createClient } from '@/utils/supabase/server';
 import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
 import { EmptyState, PageHeader, SectionCard, StatCard, StatusBadge, type StatusTone } from '../../../components/OperationsUI';
-import { ClipboardList, Clock3, Rows3, Waves } from 'lucide-react';
+import { ClipboardList, Clock3, Download, Filter, Rows3, Search, Waves } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -167,6 +167,46 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
           <StatCard label="Pools" value={poolMap.size} icon={<Waves className="h-5 w-5" />} tone="neutral" />
           <StatCard label="Slots" value="12" icon={<Clock3 className="h-5 w-5" />} tone="neutral" />
         </div>
+
+        <SectionCard className="p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Filter className="h-4 w-4 text-slate-500" />
+            <h2 className="text-sm font-semibold text-slate-950">Search and Filters</h2>
+          </div>
+          {/* TODO: Wire these filter controls to server search params once log filtering is persisted in route state. */}
+          <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
+            <label className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <span className="sr-only">Search by pool name</span>
+              <input
+                type="search"
+                placeholder="Search by pool name"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+            </label>
+            <select className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500" defaultValue="">
+              <option value="">All statuses</option>
+              <option value="in-range">In range</option>
+              <option value="review">Needs review</option>
+              <option value="legacy">Legacy / missing values</option>
+            </select>
+            <select className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500" defaultValue="">
+              <option value="">All loggers</option>
+              {submitterIds.map((id) => (
+                <option key={id} value={id}>{submitterMap.get(id) || 'Unknown'}</option>
+              ))}
+            </select>
+            <select className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500" defaultValue="">
+              <option value="">All records</option>
+              <option value="missing-photo">Missing photo</option>
+              <option value="overdue">Overdue slots</option>
+            </select>
+            <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+              <Download className="h-4 w-4" />
+              Export CSV
+            </button>
+          </div>
+        </SectionCard>
 
         <SectionCard className="overflow-hidden">
           <div className="border-b border-slate-200 bg-white px-5 py-4">

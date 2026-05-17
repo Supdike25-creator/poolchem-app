@@ -5,13 +5,18 @@ import { createClient } from '@/utils/supabase/client';
 import BackButton from '../../components/BackButton';
 import {
   AlertTriangle,
+  Camera,
   Check,
   CheckCircle2,
   ClipboardCheck,
   ClipboardList,
   Droplets,
+  Eye,
   FlaskConical,
-  NotebookPen,
+  Minus,
+  Plus,
+  RotateCcw,
+  Trash2,
   Waves,
 } from 'lucide-react';
 
@@ -39,7 +44,7 @@ interface FormData {
   photo: File | null;
 }
 
-type Step = 'pool' | 'chlorine' | 'ph' | 'notes' | 'review' | 'submit';
+type Step = 'pool' | 'chlorine' | 'ph' | 'photo' | 'review' | 'submit';
 
 const getDefaultPoolVolume = () => {
   if (typeof window === 'undefined') {
@@ -136,6 +141,7 @@ export default function LogPage() {
   const [submitMessage, setSubmitMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [photoKey, setPhotoKey] = useState(0);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState('');
   const [defaultPoolVolume, setDefaultPoolVolume] = useState(getDefaultPoolVolume);
 
   useEffect(() => {
@@ -206,6 +212,18 @@ export default function LogPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!formData.photo) {
+      setPhotoPreviewUrl('');
+      return;
+    }
+
+    const url = URL.createObjectURL(formData.photo);
+    setPhotoPreviewUrl(url);
+
+    return () => URL.revokeObjectURL(url);
+  }, [formData.photo]);
+
   const handleInputChange = (field: keyof FormData, value: string | File | null | boolean) => {
     setFormData((prev) => ({
       ...prev,
@@ -218,8 +236,20 @@ export default function LogPage() {
     handleInputChange('photo', file);
   };
 
+  const clearPhoto = () => {
+    handleInputChange('photo', null);
+    setPhotoKey((prev) => prev + 1);
+  };
+
+  const adjustNumberField = (field: 'freeChlorine' | 'ph', delta: number, precision = 1) => {
+    const fallback = field === 'ph' ? '7.4' : '0';
+    const current = Number.parseFloat(formData[field] || fallback);
+    const next = Math.max(0, current + delta);
+    handleInputChange(field, next.toFixed(precision));
+  };
+
   const nextStep = () => {
-    const steps: Step[] = ['pool', 'chlorine', 'ph', 'notes', 'review', 'submit'];
+    const steps: Step[] = ['pool', 'chlorine', 'ph', 'photo', 'review', 'submit'];
     const currentIndex = steps.indexOf(currentStep);
     if (currentIndex < steps.length - 1) {
       setCurrentStep(steps[currentIndex + 1]);
@@ -227,7 +257,7 @@ export default function LogPage() {
   };
 
   const prevStep = () => {
-    const steps: Step[] = ['pool', 'chlorine', 'ph', 'notes', 'review', 'submit'];
+    const steps: Step[] = ['pool', 'chlorine', 'ph', 'photo', 'review', 'submit'];
     const currentIndex = steps.indexOf(currentStep);
     if (currentIndex > 0) {
       setCurrentStep(steps[currentIndex - 1]);
@@ -314,13 +344,19 @@ export default function LogPage() {
     isBabyPool,
     maxSingleDoseOz
   );
+  const isOutOfRange = Boolean(formData.freeChlorine && (chlorineValue < 1.0 || chlorineValue > 5.0)) || Boolean(formData.ph && (phValue < 7.2 || phValue > 7.8));
+  const photoRequirementMessage = isBabyPool
+    ? 'Photo required for baby pools.'
+    : isOutOfRange
+    ? 'Photo required for out-of-range readings.'
+    : 'Photo optional for normal tests.';
 
   const renderStepIndicator = () => {
     const steps = [
       { key: 'pool', label: 'Pool', icon: Waves },
       { key: 'chlorine', label: 'Chlorine', icon: Droplets },
       { key: 'ph', label: 'pH', icon: FlaskConical },
-      { key: 'notes', label: 'Notes', icon: NotebookPen },
+      { key: 'photo', label: 'Photo', icon: Camera },
       { key: 'review', label: 'Review', icon: ClipboardCheck }
     ];
 
@@ -417,16 +453,34 @@ export default function LogPage() {
       <div className="space-y-4">
         <label className="block">
           <span className="text-lg font-medium text-gray-900 mb-2 block">Free Chlorine (ppm)</span>
-          <input
-            type="number"
-            step="0.1"
-            min="0"
-            max="20"
-            value={formData.freeChlorine}
-            onChange={(e) => handleInputChange('freeChlorine', e.target.value)}
-            className="w-full text-center text-3xl font-bold py-6 px-4 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-0"
-            placeholder="0.0"
-          />
+          <div className="grid grid-cols-[56px_1fr_56px] items-center gap-3">
+            <button
+              type="button"
+              onClick={() => adjustNumberField('freeChlorine', -0.1)}
+              className="flex h-14 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+              aria-label="Decrease free chlorine"
+            >
+              <Minus className="h-5 w-5" />
+            </button>
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              max="20"
+              value={formData.freeChlorine}
+              onChange={(e) => handleInputChange('freeChlorine', e.target.value)}
+              className="w-full text-center text-3xl font-bold py-6 px-4 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-0"
+              placeholder="0.0"
+            />
+            <button
+              type="button"
+              onClick={() => adjustNumberField('freeChlorine', 0.1)}
+              className="flex h-14 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+              aria-label="Increase free chlorine"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
+          </div>
         </label>
 
         {formData.freeChlorine && (
@@ -446,8 +500,8 @@ export default function LogPage() {
                 <p className="font-semibold text-red-800">Chemistry Out of Range</p>
                 <p className="text-red-700 text-sm">
                   {chlorineValue < 1.0
-                    ? 'Chlorine is too low. Immediate shock treatment required.'
-                    : 'Chlorine is too high. Allow to dissipate naturally.'}
+                    ? 'Chlorine is below target. Review the dosing recommendation and notify a manager if the pool is unsafe.'
+                    : 'Do not add chlorine. Chlorine is already above target. Retest later and notify a manager if it stays high.'}
                 </p>
               </div>
             </div>
@@ -492,16 +546,34 @@ export default function LogPage() {
       <div className="space-y-4">
         <label className="block">
           <span className="text-lg font-medium text-gray-900 mb-2 block">pH Level</span>
-          <input
-            type="number"
-            step="0.1"
-            min="0"
-            max="14"
-            value={formData.ph}
-            onChange={(e) => handleInputChange('ph', e.target.value)}
-            className="w-full text-center text-3xl font-bold py-6 px-4 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-0"
-            placeholder="7.4"
-          />
+          <div className="grid grid-cols-[56px_1fr_56px] items-center gap-3">
+            <button
+              type="button"
+              onClick={() => adjustNumberField('ph', -0.1)}
+              className="flex h-14 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+              aria-label="Decrease pH"
+            >
+              <Minus className="h-5 w-5" />
+            </button>
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              max="14"
+              value={formData.ph}
+              onChange={(e) => handleInputChange('ph', e.target.value)}
+              className="w-full text-center text-3xl font-bold py-6 px-4 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-0"
+              placeholder="7.4"
+            />
+            <button
+              type="button"
+              onClick={() => adjustNumberField('ph', 0.1)}
+              className="flex h-14 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+              aria-label="Increase pH"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
+          </div>
         </label>
 
         {formData.ph && (
@@ -544,20 +616,28 @@ export default function LogPage() {
           data-sound="click"
           className="flex-1 bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
         >
-          Next: Add Notes
+          Next: Add Photo
         </button>
       </div>
     </div>
   );
 
-  const renderNotesStep = () => (
+  const renderPhotoStep = () => (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Notes & Photo</h2>
-        <p className="text-gray-600">Add any observations or photos</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Photo Verification</h2>
+        <p className="text-gray-600">Attach evidence and add any field notes.</p>
       </div>
 
       <div className="space-y-4">
+        <div className={`rounded-lg border p-4 ${isBabyPool || isOutOfRange ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-blue-200 bg-blue-50 text-blue-800'}`}>
+          <div className="flex items-start gap-3">
+            <Camera className="mt-0.5 h-5 w-5 shrink-0" />
+            <p className="text-sm font-medium">{photoRequirementMessage}</p>
+          </div>
+          {/* TODO: Persist and enforce workspace photo rules once the Supabase settings schema exists. */}
+        </div>
+
         <label className="block">
           <span className="text-lg font-medium text-gray-900 mb-2 block">Notes (Optional)</span>
           <textarea
@@ -569,19 +649,50 @@ export default function LogPage() {
           />
         </label>
 
-        <label className="block">
-          <span className="text-lg font-medium text-gray-900 mb-2 block">Photo (Optional)</span>
+        <div className="rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <span className="text-lg font-medium text-gray-900">Photo</span>
+              <p className="mt-1 text-sm text-gray-600">Take or upload a clear photo of the test result.</p>
+            </div>
+            <Camera className="h-5 w-5 text-slate-500" />
+          </div>
           <input
             key={photoKey}
             type="file"
             accept="image/*"
+            capture="environment"
             onChange={handlePhotoChange}
-            className="w-full p-4 border-2 border-gray-300 rounded-lg file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:text-lg file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            className="w-full rounded-lg border border-slate-300 bg-white p-3 text-sm file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
           />
           {formData.photo && (
-            <p className="mt-2 text-green-600 font-medium">✓ {formData.photo.name}</p>
+            <div className="mt-4 rounded-lg border border-green-200 bg-white p-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm font-semibold text-green-700">Photo attached: {formData.photo.name}</p>
+                <div className="flex flex-wrap gap-2">
+                  {photoPreviewUrl ? (
+                    <a href={photoPreviewUrl} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+                      <Eye className="h-4 w-4" />
+                      View Photo
+                    </a>
+                  ) : null}
+                  <button type="button" onClick={() => setPhotoKey((prev) => prev + 1)} className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+                    <RotateCcw className="h-4 w-4" />
+                    Retake
+                  </button>
+                  <button type="button" onClick={clearPhoto} className="inline-flex h-9 items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700 shadow-sm hover:bg-red-100">
+                    <Trash2 className="h-4 w-4" />
+                    Remove
+                  </button>
+                </div>
+              </div>
+              {photoPreviewUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photoPreviewUrl} alt="Chemical test preview" className="mt-3 max-h-56 w-full rounded-lg object-cover" />
+              ) : null}
+            </div>
           )}
-        </label>
+        </div>
       </div>
 
       <div className="flex space-x-4">
@@ -606,8 +717,8 @@ export default function LogPage() {
   const renderReviewStep = () => (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Review & Dosing Calculator</h2>
-        <p className="text-gray-600">Review your readings and calculate chemical dosing</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Review Recommendation</h2>
+        <p className="text-gray-600">Review readings and safe dosing guidance before submitting.</p>
       </div>
 
       {/* Summary */}
@@ -638,7 +749,7 @@ export default function LogPage() {
 
       {/* Dosing Calculator */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-blue-900">Chlorine Dosing Calculator</h3>
+        <h3 className="text-lg font-semibold text-blue-900">Recommendation</h3>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="rounded-lg bg-white p-4 border border-blue-200">
@@ -691,6 +802,11 @@ export default function LogPage() {
               ))}
             </div>
           )}
+          {!poolVolumeValue ? (
+            <p className="mt-3 text-sm text-blue-800">
+              Dosing recommendation will appear here once pool volume and chemical settings are configured.
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -786,7 +902,7 @@ export default function LogPage() {
           {currentStep === 'pool' && renderPoolStep()}
           {currentStep === 'chlorine' && renderChlorineStep()}
           {currentStep === 'ph' && renderPhStep()}
-          {currentStep === 'notes' && renderNotesStep()}
+          {currentStep === 'photo' && renderPhotoStep()}
           {currentStep === 'review' && renderReviewStep()}
           {currentStep === 'submit' && renderSubmitStep()}
         </div>

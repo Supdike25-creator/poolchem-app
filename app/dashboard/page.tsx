@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/server';
-import { AlertCircle, ClipboardCheck, Clock3, Plus, Waves } from 'lucide-react';
+import { AlertCircle, Camera, CheckCircle2, ClipboardCheck, Clock3, Eye, Info, Plus, Waves } from 'lucide-react';
 import { EmptyState, StatCard, StatusBadge, buttonClass, type StatusTone } from '../../components/OperationsUI';
 
 export const dynamic = 'force-dynamic';
@@ -9,6 +9,8 @@ export const dynamic = 'force-dynamic';
 interface Pool {
   id: string;
   name: string;
+  pool_type?: string | null;
+  is_baby_pool?: boolean | null;
 }
 
 interface ChemicalLog {
@@ -28,11 +30,11 @@ interface ProfileSummary {
   email?: string | null;
 }
 
-type PoolStatus = 'good' | 'high_chlorine' | 'low_chlorine' | 'ph_warning' | 'overdue';
+type PoolStatus = 'good' | 'due_soon' | 'overdue' | 'high_chlorine' | 'low_chlorine' | 'ph_low' | 'ph_high' | 'closed' | 'needs_retest' | 'no_data';
 
 const getPoolStatus = (latestLog?: ChemicalLog): PoolStatus => {
   if (!latestLog) {
-    return 'overdue';
+    return 'no_data';
   }
 
   // Check if test is overdue (no test in last 60 minutes)
@@ -42,6 +44,10 @@ const getPoolStatus = (latestLog?: ChemicalLog): PoolStatus => {
 
   if (minutesSinceTest > 60) {
     return 'overdue';
+  }
+
+  if (minutesSinceTest > 45) {
+    return 'due_soon';
   }
 
   const chlorine = latestLog.free_chlorine;
@@ -55,8 +61,12 @@ const getPoolStatus = (latestLog?: ChemicalLog): PoolStatus => {
     return 'low_chlorine';
   }
 
-  if (ph < 7.2 || ph > 7.8) {
-    return 'ph_warning';
+  if (ph < 7.2) {
+    return 'ph_low';
+  }
+
+  if (ph > 7.8) {
+    return 'ph_high';
   }
 
   return 'good';
@@ -66,13 +76,19 @@ const getStatusColor = (status: PoolStatus): StatusTone => {
   switch (status) {
     case 'good':
       return 'good';
+    case 'due_soon':
+      return 'warning';
     case 'high_chlorine':
     case 'low_chlorine':
+    case 'ph_low':
+    case 'ph_high':
       return 'critical';
-    case 'ph_warning':
-      return 'warning';
     case 'overdue':
       return 'overdue';
+    case 'no_data':
+    case 'closed':
+    case 'needs_retest':
+      return 'neutral';
     default:
       return 'neutral';
   }
@@ -82,13 +98,24 @@ const getStatusText = (status: PoolStatus) => {
   switch (status) {
     case 'good':
       return 'Good';
+    case 'due_soon':
+      return 'Due Soon';
     case 'high_chlorine':
+      return 'High Chlorine';
     case 'low_chlorine':
-      return 'Critical';
-    case 'ph_warning':
-      return 'Warning';
+      return 'Low Chlorine';
+    case 'ph_low':
+      return 'pH Low';
+    case 'ph_high':
+      return 'pH High';
     case 'overdue':
       return 'Overdue';
+    case 'closed':
+      return 'Closed';
+    case 'needs_retest':
+      return 'Needs Retest';
+    case 'no_data':
+      return 'No Data';
     default:
       return 'Unknown';
   }
@@ -106,16 +133,37 @@ const formatDateTime = (value: string) => {
   });
 };
 
+const formatRelativeDue = (latestLog?: ChemicalLog) => {
+  if (!latestLog) {
+    return 'Start today';
+  }
+
+  const latest = new Date(latestLog.created_at).getTime();
+  const dueAt = latest + 60 * 60 * 1000;
+  const minutes = Math.round((dueAt - Date.now()) / (1000 * 60));
+
+  if (minutes <= 0) {
+    return `${Math.abs(minutes)} min overdue`;
+  }
+
+  return `Due in ${minutes} min`;
+};
+
 export default async function Dashboard() {
   let poolsWithStatus: Array<{
     id: string;
     name: string;
+    pool_type?: string | null;
+    is_baby_pool?: boolean | null;
     latestLog?: ChemicalLog;
     status: PoolStatus;
   }> = [];
   let totalPools = 0;
   let outOfRangePools = 0;
   let overduePools = 0;
+  let dueSoonPools = 0;
+  let goodPools = 0;
+  let photosWaitingReview = 0;
   let testsToday = 0;
   let errorMessage = '';
   let hasNoPools = false;
@@ -127,7 +175,7 @@ export default async function Dashboard() {
     // Fetch all pools
     const { data: pools, error: poolsError } = await supabase
       .from('pools')
-      .select('id, name')
+      .select('id, name, pool_type, is_baby_pool')
       .order('name');
 
     if (poolsError) {
@@ -194,16 +242,24 @@ export default async function Dashboard() {
 
       // Calculate summary stats
       totalPools = poolsWithStatus.length;
-      outOfRangePools = poolsWithStatus.filter(p => ['high_chlorine', 'low_chlorine', 'ph_warning'].includes(p.status)).length;
+      outOfRangePools = poolsWithStatus.filter(p => ['high_chlorine', 'low_chlorine', 'ph_low', 'ph_high'].includes(p.status)).length;
       overduePools = poolsWithStatus.filter(p => p.status === 'overdue').length;
+      dueSoonPools = poolsWithStatus.filter(p => p.status === 'due_soon').length;
+      goodPools = poolsWithStatus.filter(p => p.status === 'good').length;
+      photosWaitingReview = allLogs.filter((log) => Boolean(log.photo_url)).length;
 
       // Sort pools: Overdue and unsafe first, then by status priority
       const statusPriority = {
         overdue: 0,
         high_chlorine: 1,
         low_chlorine: 1,
-        ph_warning: 1,
-        good: 2
+        ph_low: 1,
+        ph_high: 1,
+        due_soon: 2,
+        needs_retest: 3,
+        no_data: 4,
+        closed: 5,
+        good: 6
       };
 
       poolsWithStatus.sort((a, b) => {
@@ -218,6 +274,22 @@ export default async function Dashboard() {
   } catch (error) {
     errorMessage = error instanceof Error ? error.message : String(error);
   }
+
+  const urgentPools = poolsWithStatus.filter((pool) => ['overdue', 'high_chlorine', 'low_chlorine', 'ph_low', 'ph_high'].includes(pool.status));
+  const priorityActions = [
+    ...poolsWithStatus
+      .filter((pool) => pool.status === 'overdue')
+      .map((pool) => ({ tone: 'overdue' as StatusTone, title: `${pool.name} is overdue`, detail: 'Submit a chemical test or assign a guard.' })),
+    ...poolsWithStatus
+      .filter((pool) => pool.is_baby_pool && ['high_chlorine', 'low_chlorine', 'ph_low', 'ph_high'].includes(pool.status))
+      .map((pool) => ({ tone: 'critical' as StatusTone, title: `${pool.name} baby pool needs review`, detail: getStatusText(pool.status) })),
+    ...poolsWithStatus
+      .filter((pool) => pool.latestLog && ['high_chlorine', 'low_chlorine', 'ph_low', 'ph_high'].includes(pool.status) && !pool.latestLog.photo_url)
+      .map((pool) => ({ tone: 'warning' as StatusTone, title: `${pool.name} is missing a review photo`, detail: 'Ask staff to attach verification on the next check.' })),
+    ...poolsWithStatus
+      .filter((pool) => pool.status === 'due_soon')
+      .map((pool) => ({ tone: 'warning' as StatusTone, title: `${pool.name} is due soon`, detail: formatRelativeDue(pool.latestLog) })),
+  ].slice(0, 5);
 
   if (errorMessage) {
     return (
@@ -246,7 +318,8 @@ export default async function Dashboard() {
     return (
       <>
           <div className="mb-8">
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Pool Operations Dashboard</h1>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Today&apos;s Pool Status</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Pool Operations Dashboard</h1>
             <p className="mt-2 text-sm leading-6 text-slate-500">Real-time pool chemistry monitoring and management</p>
           </div>
 
@@ -271,7 +344,8 @@ export default async function Dashboard() {
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Pool Operations Dashboard</h1>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Today&apos;s Pool Status</p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Pool Operations Dashboard</h1>
               <p className="mt-2 text-sm leading-6 text-slate-500">Real-time pool chemistry monitoring and management</p>
             </div>
             <Link
@@ -285,11 +359,115 @@ export default async function Dashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className={`mb-6 rounded-xl border p-4 ${urgentPools.length > 0 ? 'border-red-200 bg-red-50 text-red-800' : 'border-green-200 bg-green-50 text-green-800'}`}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              {urgentPools.length > 0 ? <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" /> : <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />}
+              <div>
+                <p className="text-sm font-semibold">
+                  {urgentPools.length > 0
+                    ? `Urgent: ${overduePools} pools overdue and ${outOfRangePools} out of range.`
+                    : 'All pools on track'}
+                </p>
+                <p className="mt-1 text-sm opacity-85">
+                  {urgentPools.length > 0 ? 'Review priority actions before the next guard rotation.' : 'No urgent pool chemistry issues are currently flagged.'}
+                </p>
+              </div>
+            </div>
+            {urgentPools.length > 0 ? (
+              <Link href="#priority-actions" className="inline-flex h-9 items-center justify-center rounded-lg bg-white px-3 text-sm font-semibold text-red-700 shadow-sm ring-1 ring-red-200 hover:bg-red-50">
+                View Alerts
+              </Link>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 mb-8 sm:grid-cols-2 xl:grid-cols-7">
           <StatCard label="Total Pools" value={totalPools} icon={<Waves className="h-5 w-5" />} tone="info" />
-          <StatCard label="Overdue Tests" value={overduePools} icon={<Clock3 className="h-5 w-5" />} tone="overdue" />
+          <StatCard label="Pools Good" value={goodPools} icon={<CheckCircle2 className="h-5 w-5" />} tone="good" />
+          <StatCard label="Due Soon" value={dueSoonPools} icon={<Clock3 className="h-5 w-5" />} tone="warning" />
+          <StatCard label="Overdue" value={overduePools} icon={<Clock3 className="h-5 w-5" />} tone="overdue" />
           <StatCard label="Out of Range" value={outOfRangePools} icon={<AlertCircle className="h-5 w-5" />} tone="critical" />
           <StatCard label="Tests Today" value={testsToday} icon={<ClipboardCheck className="h-5 w-5" />} tone="info" />
+          <StatCard label="Photos Waiting Review" value={photosWaitingReview || '0'} icon={<Camera className="h-5 w-5" />} tone="neutral" />
+        </div>
+
+        <div id="priority-actions" className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-950">Priority Actions</h2>
+              <p className="mt-1 text-sm text-slate-500">The items most likely to affect operations today.</p>
+            </div>
+            <Info className="h-5 w-5 text-slate-400" />
+          </div>
+          {priorityActions.length > 0 ? (
+            <div className="grid gap-3 lg:grid-cols-2">
+              {priorityActions.map((action, index) => (
+                <div key={`${action.title}-${index}`} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-2"><StatusBadge tone={action.tone}>{action.tone === 'critical' ? 'Urgent' : action.tone === 'overdue' ? 'Overdue' : 'Warning'}</StatusBadge></div>
+                  <p className="text-sm font-semibold text-slate-950">{action.title}</p>
+                  <p className="mt-1 text-sm text-slate-600">{action.detail}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={<CheckCircle2 className="h-6 w-6" />}
+              title="No alerts right now"
+              description="All pools are currently on track. New exceptions will appear here as guards submit tests."
+            />
+          )}
+        </div>
+
+        <div className="mb-8">
+          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-950">Pool Card View</h2>
+              <p className="mt-1 text-sm text-slate-500">Fast scan view for guard assignments and exceptions.</p>
+            </div>
+            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+              <span className="rounded-md bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white">Card View</span>
+              <span className="px-3 py-1.5 text-xs font-semibold text-slate-500">Table View</span>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {poolsWithStatus.map((pool) => (
+              <div key={pool.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-950">{pool.name}</h3>
+                    <p className="mt-1 text-sm text-slate-500">{pool.pool_type || 'General pool'}</p>
+                  </div>
+                  <StatusBadge tone={getStatusColor(pool.status)}>{getStatusText(pool.status)}</StatusBadge>
+                </div>
+                <dl className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Last Test</dt>
+                    <dd className="mt-1 font-semibold text-slate-900">{pool.latestLog ? formatDateTime(pool.latestLog.created_at) : 'Never'}</dd>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Next Due</dt>
+                    <dd className="mt-1 font-semibold text-slate-900">{formatRelativeDue(pool.latestLog)}</dd>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Free Chlorine</dt>
+                    <dd className="mt-1 font-mono font-semibold text-slate-900">{pool.latestLog ? `${pool.latestLog.free_chlorine.toFixed(1)} ppm` : 'No data'}</dd>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">pH</dt>
+                    <dd className="mt-1 font-mono font-semibold text-slate-900">{pool.latestLog ? pool.latestLog.ph.toFixed(1) : 'No data'}</dd>
+                  </div>
+                </dl>
+                <div className="mt-4 flex gap-2">
+                  <Link href={`/log?poolId=${pool.id}`} className={buttonClass.primary}>Log Test</Link>
+                  <Link href={`/management/pools/${pool.id}`} className={buttonClass.secondary}>
+                    <Eye className="mr-2 h-4 w-4" />
+                    View History
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">

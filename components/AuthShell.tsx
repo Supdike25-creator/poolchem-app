@@ -196,13 +196,17 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
           </div>
         )}
         footer={(
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <div className="mb-2 flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-slate-500" />
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Role</p>
+          <div className="flex h-11 w-10 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2 transition-[width,padding] duration-200 ease-out group-hover:w-full group-hover:p-3 group-focus-within:w-full group-focus-within:p-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200">
+                <ShieldCheck className="h-4 w-4 text-slate-500" />
+              </div>
+              <div className="min-w-0 max-w-0 overflow-hidden opacity-0 transition-[max-width,opacity] duration-200 ease-out group-hover:max-w-[180px] group-hover:opacity-100 group-focus-within:max-w-[180px] group-focus-within:opacity-100">
+                <p className="whitespace-nowrap text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Role</p>
+                <p className="mt-1 whitespace-nowrap text-sm font-semibold text-slate-950">{roleLabels[role]}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Session access is scoped to this workspace.</p>
+              </div>
             </div>
-            <p className="text-sm font-semibold text-slate-950">{roleLabels[role]}</p>
-            <p className="mt-1 text-xs leading-5 text-slate-500">Session access is scoped to this workspace.</p>
           </div>
         )}
       />
