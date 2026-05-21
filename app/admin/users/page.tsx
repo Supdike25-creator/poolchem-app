@@ -38,7 +38,8 @@ export default function AdminUsersPage() {
         .eq('admin_id', userId)
         .single();
 
-      if (adminErr || !adminRow?.organization_id) throw new Error(adminErr?.message || 'No organization found');
+      if (adminErr) throw new Error(adminErr.message || 'Admin organization not found');
+      if (!adminRow) throw new Error('Admin organization not found');
       const orgId = adminRow.organization_id;
 
       const { data: membersData, error: membersErr } = await supabase
@@ -73,11 +74,14 @@ export default function AdminUsersPage() {
       if (userErr || !userRes?.user) throw new Error(userErr?.message || 'Not authenticated');
       const userId = userRes.user.id;
 
-      const { data: adminRow } = await supabase
+      const { data: adminRow, error: adminErr } = await supabase
         .from('admin_organizations')
         .select('organization_id')
         .eq('admin_id', userId)
         .single();
+
+      if (adminErr) throw new Error(adminErr.message || 'Admin organization not found');
+      if (!adminRow) throw new Error('Admin organization not found');
       const orgId = adminRow.organization_id;
 
       const token = crypto.randomUUID();

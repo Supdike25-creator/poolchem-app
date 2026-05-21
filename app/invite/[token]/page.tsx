@@ -137,6 +137,11 @@ export default function InviteAcceptPage() {
                 <p className="font-semibold text-red-800">Error</p>
                 <p className="mt-1 text-sm text-red-700">{error}</p>
               </div>
+            ) : !invite ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                <p className="font-semibold text-red-800">Error</p>
+                <p className="mt-1 text-sm text-red-700">Invite not found</p>
+              </div>
             ) : (
               <>
                 <h1 className="text-2xl font-bold text-slate-900">You&apos;ve been invited</h1>
