@@ -20,18 +20,12 @@ const normalizeRole = (role?: string | null): AppRole => {
   return managerRoles.has(role.toLowerCase()) ? 'manager' : 'guard';
 };
 
-const protectedRoleForPath = (pathname: string): AppRole => {
-  if (pathname.startsWith('/guard')) return 'guard';
-  return 'manager';
-};
-
 const redirectRoute = (role: AppRole) => (role === 'manager' ? '/management/dashboard' : '/guard');
 
-const loginUrl = (request: NextRequest, role: AppRole) => {
+const loginUrl = (request: NextRequest) => {
   const url = request.nextUrl.clone();
   url.pathname = '/login';
   url.search = '';
-  url.searchParams.set('role', role);
   return url;
 };
 
@@ -46,20 +40,30 @@ const readAppSession = (request: NextRequest): AppSession | null => {
   }
 };
 
+const isPublicPath = (pathname: string) => {
+  if (pathname === '/login') return true;
+  if (pathname === '/auth/callback') return true;
+  if (pathname === '/auth/reset-password') return true;
+  if (pathname === '/pending') return true;
+  if (pathname === '/admin/setup') return true;
+  if (pathname.startsWith('/invite')) return true;
+  if (pathname === '/forgot-password') return true;
+  return false;
+};
+
 export async function proxy(request: NextRequest) {
-  const requiredRole = protectedRoleForPath(request.nextUrl.pathname);
+  const pathname = request.nextUrl.pathname;
   const response = NextResponse.next();
 
-  if (temporaryLoginBypass) {
-    return response;
-  }
+  if (temporaryLoginBypass) return response;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.redirect(loginUrl(request, requiredRole));
+    if (isPublicPath(pathname)) return response;
+    return NextResponse.redirect(loginUrl(request));
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -67,14 +71,10 @@ export async function proxy(request: NextRequest) {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet, headers) {
+      setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
           request.cookies.set(name, value);
           response.cookies.set(name, value, options);
-        });
-
-        Object.entries(headers).forEach(([key, value]) => {
-          response.headers.set(key, value);
         });
       },
     },
@@ -84,8 +84,7 @@ export async function proxy(request: NextRequest) {
   if (
     appSession?.id === 'chemdeck-dev-account' &&
     appSession.username === 'chemdeck.dev' &&
-    appSession.token === 'chemdeck-dev-session' &&
-    normalizeRole(appSession.role) === requiredRole
+    appSession.token === 'chemdeck-dev-session'
   ) {
     return response;
   }
@@ -96,7 +95,7 @@ export async function proxy(request: NextRequest) {
     });
     const account = Array.isArray(data) ? data[0] : null;
 
-    if (account?.username && normalizeRole(account.role) === requiredRole) {
+    if (account?.username) {
       return response;
     }
   }
@@ -107,19 +106,60 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (error || !user) {
-    return NextResponse.redirect(loginUrl(request, requiredRole));
+    if (isPublicPath(pathname)) return response;
+    return NextResponse.redirect(loginUrl(request));
   }
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  const actualRole = normalizeRole(profile?.role);
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, status, has_org')
+    .eq('id', user.id)
+    .single();
 
-  if (actualRole !== requiredRole) {
-    return NextResponse.redirect(new URL(redirectRoute(actualRole), request.url));
+  const roleNormalized = normalizeRole(profile?.role);
+  const hasOrg = Boolean(profile?.has_org);
+  const status = profile?.status ?? null;
+
+  // Not a member of any org yet
+  if (!hasOrg) {
+    if (isPublicPath(pathname)) return response;
+    // Admin users should create their org
+    if ((profile?.role || '').toLowerCase() === 'admin') {
+      return NextResponse.redirect(new URL('/admin/setup', request.url));
+    }
+    // Guards & managers wait for invites
+    return NextResponse.redirect(new URL('/pending', request.url));
+  }
+
+  // Has org but not active
+  if (hasOrg && status !== 'active') {
+    if (isPublicPath(pathname)) return response;
+    return NextResponse.redirect(new URL('/pending', request.url));
+  }
+
+  // Active members with org
+  if (status === 'active') {
+    // Block guards from admin routes
+    if (pathname.startsWith('/admin') && roleNormalized === 'guard') {
+      return NextResponse.redirect(new URL('/guard', request.url));
+    }
+
+    // Block admins/managers from guard routes
+    if (pathname.startsWith('/guard') && roleNormalized === 'manager') {
+      return NextResponse.redirect(new URL('/management/dashboard', request.url));
+    }
+
+    // If middleware protecting other admin/guard routes, ensure user is routed to correct dashboard
+    if (pathname === '/' || pathname === '/dashboard') {
+      return NextResponse.redirect(new URL(redirectRoute(roleNormalized), request.url));
+    }
   }
 
   return response;
 }
 
 export const config = {
-  matcher: ['/management/:path*', '/dashboard/:path*', '/log/:path*', '/guard/:path*'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 };

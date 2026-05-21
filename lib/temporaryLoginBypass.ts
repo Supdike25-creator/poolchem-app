@@ -1,4 +1,4 @@
-export const temporaryLoginBypass = true;
+export const temporaryLoginBypass = false;
 
 export const bypassProfileForRole = (role: 'manager' | 'guard') => ({
   full_name: 'ChemDeck Dev',

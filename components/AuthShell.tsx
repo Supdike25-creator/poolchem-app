@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { clearAppSession, getStoredSession, normalizeAppRole } from '../lib/appAccounts';
 import { createClient } from '@/utils/supabase/client';
 import { bypassProfileForRole, temporaryLoginBypass } from '../lib/temporaryLoginBypass';
 import BackButton from './BackButton';
@@ -37,10 +36,12 @@ const roleLabels: Record<AppRole, string> = {
   guard: 'Guard / Technician',
 };
 
+const managerRoles = new Set(['admin', 'manager', 'supervisor']);
 const authorizedRoute = (role: AppRole) => (role === 'manager' ? '/management/dashboard' : '/guard');
 
 const normalizeProfileRole = (role?: string | null): AppRole => {
-  return normalizeAppRole(role);
+  if (!role) return 'guard';
+  return managerRoles.has(role.toLowerCase()) ? 'manager' : 'guard';
 };
 
 export default function AuthShell({ role, children }: { role: AppRole; children: React.ReactNode }) {
@@ -79,23 +80,6 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
 
         const user = session?.user;
         if (!user) {
-          const appSession = getStoredSession();
-
-          if (appSession && appSession.role === role) {
-            setProfile({
-              full_name: appSession.name || appSession.username,
-              email: appSession.email || appSession.username,
-              role: appSession.role,
-            });
-            setStatus('authenticated');
-            return;
-          }
-
-          if (appSession && appSession.role !== role) {
-            router.replace(authorizedRoute(appSession.role));
-            return;
-          }
-
           setStatus('unauthenticated');
           router.replace(`/login?role=${role}`);
           return;
@@ -153,27 +137,23 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
 
   const handleLogout = async () => {
     if (temporaryLoginBypass) {
-      clearAppSession();
       router.push('/');
       return;
     }
 
     const supabase = createClient();
     await supabase.auth.signOut();
-    clearAppSession();
     router.push('/');
   };
 
   const handleBackToLogin = async () => {
     if (temporaryLoginBypass) {
-      clearAppSession();
       router.push(`/login?role=${role}`);
       return;
     }
 
     const supabase = createClient();
     await supabase.auth.signOut();
-    clearAppSession();
     router.push(`/login?role=${role}`);
   };
 
