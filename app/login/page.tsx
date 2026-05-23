@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -31,6 +32,7 @@ export default function LoginPage() {
   const handleEmailSignIn = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
+    setNotice("");
 
     if (!supabase) {
       setError("Authentication is not configured for this environment.");
@@ -62,6 +64,7 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     setError("");
+    setNotice("");
 
     if (!supabase) {
       setError("Authentication is not configured for this environment.");
@@ -90,6 +93,7 @@ export default function LoginPage() {
 
   const handleAppleSignIn = async () => {
     setError("");
+    setNotice("");
 
     if (!supabase) {
       setError("Authentication is not configured for this environment.");
@@ -116,6 +120,40 @@ export default function LoginPage() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    setError("");
+    setNotice("");
+
+    if (!supabase) {
+      setError("Authentication is not configured for this environment.");
+      return;
+    }
+
+    if (!email.trim()) {
+      setError("Enter your email first, then select Forgot password.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/login?auth_action=reset_password`,
+      });
+
+      if (resetError) {
+        setError(resetError.message);
+        return;
+      }
+
+      setNotice("Password reset link sent. Check your email for the next step.");
+    } catch {
+      setError("Unable to send password reset email. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
       <div className="w-full max-w-md px-6 py-8 bg-white rounded-lg shadow-lg">
@@ -129,6 +167,11 @@ export default function LoginPage() {
         {(!supabase || error) && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
             <p className="text-red-700 text-sm">{error || "Authentication is not configured for this environment."}</p>
+          </div>
+        )}
+        {notice && (
+          <div className="mb-6 rounded-md border border-green-200 bg-green-50 p-4">
+            <p className="text-sm text-green-700">{notice}</p>
           </div>
         )}
 
@@ -151,9 +194,19 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">
-              Password
-            </label>
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+                Password
+              </label>
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={loading || !supabase}
+                className="text-sm font-semibold text-blue-700 transition hover:text-blue-800 disabled:cursor-not-allowed disabled:text-slate-400"
+              >
+                Forgot password?
+              </button>
+            </div>
             <input
               id="password"
               type="password"
@@ -206,8 +259,8 @@ export default function LoginPage() {
             disabled={loading || !supabase}
             className="w-full py-2 px-4 border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M17.05 13.5c-.91 2.92-.369 5.707 1.523 7.605.46.459 1.08.536 1.618.188.539-.348.843-1.012.814-1.641-.381-8.054-6.287-14.058-14.071-14.925-.633-.055-1.297.254-1.645.793-.348.54-.27 1.159.188 1.618 1.898 1.892 4.685 2.433 7.605 1.523 1.565-.738 2.695-2.035 2.968-3.684.059-.348-.013-.721-.2-1.05-.187-.328-.506-.554-.88-.616-2.402-.386-4.735 1.256-5.238 3.683-.276 1.328.154 2.576 1.106 3.465.952.889 2.226 1.366 3.553 1.366 1.326 0 2.601-.477 3.553-1.366.952-.889 1.382-2.137 1.106-3.465-.503-2.427-2.836-4.069-5.238-3.683z" />
+            <svg className="h-5 w-5 text-slate-950" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M16.37 1.43c0 1.02-.42 1.97-1.12 2.7-.75.78-1.94 1.38-2.9 1.3-.13-.98.35-2.02 1.04-2.76.75-.8 2.07-1.4 2.98-1.24ZM20.34 17.06c-.42.97-.62 1.4-1.16 2.25-.75 1.15-1.8 2.58-3.1 2.59-1.15.01-1.45-.75-3.02-.74-1.57.01-1.9.75-3.05.74-1.3-.01-2.3-1.3-3.05-2.45-2.08-3.2-2.3-6.96-1.02-8.95.92-1.42 2.36-2.25 3.72-2.25 1.38 0 2.25.76 3.4.76 1.1 0 1.78-.77 3.38-.77 1.2 0 2.48.66 3.39 1.79-2.98 1.64-2.5 5.9.51 7.03Z" />
             </svg>
             Sign in with Apple
           </button>
