@@ -177,11 +177,11 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
     <div className="min-h-screen w-full bg-slate-50 pb-24 lg:pb-0">
       <SidebarNav
         header={(
-          <div className="h-[58px] overflow-hidden">
+          <div className="h-[74px] overflow-hidden pt-1">
             <ChemDeckLogo variant="mark" className="h-10 w-10 group-hover:hidden group-focus-within:hidden" />
             <div className="sidebar-label hidden min-w-0 group-hover:block group-focus-within:block">
-              <ChemDeckLogo variant="full" className="w-40" />
-              <p className="mt-1 truncate text-sm font-semibold text-slate-950">{role === 'manager' ? 'Management' : 'Guard'}</p>
+              <ChemDeckLogo variant="full" className="w-[170px]" />
+              <p className="mt-2 truncate pl-1 text-sm font-semibold leading-5 text-slate-950">{role === 'manager' ? 'Management' : 'Guard'}</p>
             </div>
           </div>
         )}
@@ -207,7 +207,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
               <div>
                 <div className="flex items-center gap-3">
                   <ChemDeckLogo variant="mark" className="h-10 w-10 sm:hidden" />
-                  <ChemDeckLogo variant="full" className="hidden w-40 sm:block" />
+                  <ChemDeckLogo variant="full" className="hidden w-[180px] sm:block" />
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{roleLabels[role]}</p>
                     <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{role === 'manager' ? 'Management Workspace' : 'Guard Workbench'}</h1>

@@ -228,7 +228,7 @@ export default function LoginPage() {
         <div className="mb-8 text-center">
           <div className="mb-6 flex justify-center">
             <div className="hidden w-fit rounded-2xl bg-white px-[18px] py-2.5 shadow-lg shadow-blue-950/30 sm:block">
-              <ChemDeckLogo variant="full" className="w-[218px]" />
+              <ChemDeckLogo variant="full" scheme="light" className="w-[218px]" />
             </div>
             <ChemDeckLogo variant="mark" className="h-12 w-12 sm:hidden" />
           </div>
