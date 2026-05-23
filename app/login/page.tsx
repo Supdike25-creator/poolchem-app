@@ -265,19 +265,9 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <label htmlFor="password" className="block text-sm font-semibold text-slate-200">
-                Password
-              </label>
-              <button
-                type="button"
-                onClick={handleForgotPassword}
-                disabled={loading || !supabase}
-                className="text-sm font-semibold text-blue-300 transition hover:text-blue-200 disabled:cursor-not-allowed disabled:text-slate-600"
-              >
-                Forgot password?
-              </button>
-            </div>
+            <label htmlFor="password" className="mb-2 block text-sm font-semibold text-slate-200">
+              Password
+            </label>
             <input
               id="password"
               type="password"
@@ -289,6 +279,16 @@ export default function LoginPage() {
               autoComplete="current-password"
               required
             />
+            <div className="mt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={loading || !supabase}
+                className="text-sm font-semibold text-blue-300 transition hover:text-blue-200 disabled:cursor-not-allowed disabled:text-slate-600"
+              >
+                Forgot password?
+              </button>
+            </div>
           </div>
 
           <button
