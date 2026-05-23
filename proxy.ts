@@ -1,125 +1,107 @@
-import { createServerClient } from '@supabase/ssr';
-import { NextResponse, type NextRequest } from 'next/server';
-import { temporaryLoginBypass } from './lib/temporaryLoginBypass';
+import { type NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 
-type AppRole = 'manager' | 'guard';
-type AppSession = {
-  id?: string;
-  name?: string;
-  username?: string;
-  token?: string;
-  role?: string;
-  email?: string;
-};
-
-const managerRoles = new Set(['admin', 'manager', 'supervisor']);
-const appSessionCookie = 'chemdeck_app_session';
-
-const normalizeRole = (role?: string | null): AppRole => {
-  if (!role) return 'guard';
-  return managerRoles.has(role.toLowerCase()) ? 'manager' : 'guard';
-};
-
-const protectedRoleForPath = (pathname: string): AppRole => {
-  if (pathname.startsWith('/guard')) return 'guard';
-  return 'manager';
-};
-
-const redirectRoute = (role: AppRole) => (role === 'manager' ? '/management/dashboard' : '/guard');
-
-const loginUrl = (request: NextRequest, role: AppRole) => {
-  const url = request.nextUrl.clone();
-  url.pathname = '/login';
-  url.search = '';
-  url.searchParams.set('role', role);
-  return url;
-};
-
-const readAppSession = (request: NextRequest): AppSession | null => {
-  const rawSession = request.cookies.get(appSessionCookie)?.value;
-  if (!rawSession) return null;
-
-  try {
-    return JSON.parse(decodeURIComponent(rawSession)) as AppSession;
-  } catch {
-    return null;
-  }
-};
+const PUBLIC_PATHS = ["/login", "/auth/callback", "/pending"];
 
 export async function proxy(request: NextRequest) {
-  const requiredRole = protectedRoleForPath(request.nextUrl.pathname);
-  const response = NextResponse.next();
-
-  if (temporaryLoginBypass) {
-    return response;
-  }
+  const { pathname } = request.nextUrl;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.redirect(loginUrl(request, requiredRole));
+  if (!supabaseUrl || !supabaseKey) {
+    console.error("Supabase environment variables not found");
+    return NextResponse.next({ request });
   }
 
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+  let supabaseResponse = NextResponse.next({ request });
+
+  const supabase = createServerClient(supabaseUrl!, supabaseKey!, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet, headers) {
+      setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          request.cookies.set(name, value);
-          response.cookies.set(name, value, options);
+          supabaseResponse.cookies.set(name, value, options);
         });
-
-        Object.entries(headers).forEach(([key, value]) => {
-          response.headers.set(key, value);
+        supabaseResponse = NextResponse.next({ request });
+        cookiesToSet.forEach(({ name, value, options }) => {
+          supabaseResponse.cookies.set(name, value, options);
         });
       },
     },
   });
-
-  const appSession = readAppSession(request);
-  if (
-    appSession?.id === 'chemdeck-dev-account' &&
-    appSession.username === 'chemdeck.dev' &&
-    appSession.token === 'chemdeck-dev-session' &&
-    normalizeRole(appSession.role) === requiredRole
-  ) {
-    return response;
-  }
-
-  if (appSession?.token) {
-    const { data } = await supabase.rpc('verify_app_session', {
-      p_session_token: appSession.token,
-    });
-    const account = Array.isArray(data) ? data[0] : null;
-
-    if (account?.username && normalizeRole(account.role) === requiredRole) {
-      return response;
-    }
-  }
 
   const {
     data: { user },
     error,
   } = await supabase.auth.getUser();
 
-  if (error || !user) {
-    return NextResponse.redirect(loginUrl(request, requiredRole));
+  if (!user || error) {
+    if (PUBLIC_PATHS.includes(pathname)) {
+      return supabaseResponse;
+    }
+
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  const actualRole = normalizeRole(profile?.role);
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, role, status")
+    .eq("id", user.id)
+    .single();
 
-  if (actualRole !== requiredRole) {
-    return NextResponse.redirect(new URL(redirectRoute(actualRole), request.url));
+  if (profileError || !profile) {
+    if (pathname !== "/pending") {
+      return NextResponse.redirect(new URL("/pending", request.url));
+    }
+    return supabaseResponse;
   }
 
-  return response;
+  if (profile.status !== "active") {
+    if (pathname !== "/pending") {
+      return NextResponse.redirect(new URL("/pending", request.url));
+    }
+    return supabaseResponse;
+  }
+
+  const role = profile.role;
+
+  if (pathname === "/login" || pathname === "/") {
+    if (role === "guard") {
+      return NextResponse.redirect(new URL("/guard/dashboard", request.url));
+    }
+    if (role === "manager" || role === "admin") {
+      return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+    }
+  }
+
+  if (pathname === "/pending") {
+    if (role === "guard") {
+      return NextResponse.redirect(new URL("/guard/dashboard", request.url));
+    }
+    if (role === "manager" || role === "admin") {
+      return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+    }
+  }
+
+  if (role === "guard" && pathname.startsWith("/admin/")) {
+    return NextResponse.redirect(new URL("/guard/dashboard", request.url));
+  }
+
+  if (
+    (role === "admin" || role === "manager") &&
+    pathname.startsWith("/guard/")
+  ) {
+    return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+  }
+
+  return supabaseResponse;
 }
 
 export const config = {
-  matcher: ['/management/:path*', '/dashboard/:path*', '/log/:path*', '/guard/:path*'],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };
