@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
-import { ArrowLeft, FlaskConical } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import ChemDeckLogo from '@/components/ChemDeckLogo';
 import {
   AppRole,
   clearAppSession,
@@ -361,11 +362,9 @@ export default function LoginClient({
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
           <div className="border-b border-slate-200 bg-white px-6 py-5">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950">
-                <FlaskConical className="h-5 w-5 text-white" />
-              </div>
+              <ChemDeckLogo variant="mark" className="h-10 w-10" />
               <div>
-                <p className="text-sm font-semibold tracking-tight text-slate-950">ChemDeck</p>
+                <ChemDeckLogo variant="full" className="w-36" />
                 <p className="text-sm text-slate-500">{label}</p>
               </div>
             </div>

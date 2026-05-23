@@ -20,6 +20,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "ChemDeck",
   description: "Role-based pool chemistry supervision and guard logging",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/chemdeck-mark.svg",
+  },
 };
 
 export default function RootLayout({

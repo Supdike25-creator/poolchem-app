@@ -7,6 +7,7 @@ import {
   inactiveAccountMessage,
   routeForRole,
 } from "@/lib/auth/accountAccess";
+import ChemDeckLogo from "@/components/ChemDeckLogo";
 import { createClient } from "../../lib/supabase/client";
 
 const authErrorMessages: Record<string, string> = {
@@ -225,10 +226,12 @@ export default function LoginPage() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.28),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.16),transparent_32%)]" />
       <section className="relative w-full max-w-md rounded-[2rem] border border-white/10 bg-slate-950/82 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.45)] backdrop-blur sm:p-8">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-950/40">
-            <span className="text-sm font-bold tracking-tight text-white">CD</span>
+          <div className="mb-5 flex justify-center">
+            <div className="hidden rounded-2xl bg-white px-4 py-3 shadow-lg shadow-blue-950/30 sm:block">
+              <ChemDeckLogo variant="full" className="w-52" />
+            </div>
+            <ChemDeckLogo variant="mark" className="h-14 w-14 sm:hidden" />
           </div>
-          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-200">ChemDeck</p>
           <h1 className="mt-5 text-4xl font-semibold tracking-tight text-white">Sign in</h1>
           <p className="mt-3 text-sm leading-6 text-slate-300">Access your pool chemistry workspace.</p>
         </div>

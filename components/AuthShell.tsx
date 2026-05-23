@@ -4,10 +4,10 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
-  FlaskConical,
   LogOut,
   ShieldCheck,
 } from 'lucide-react';
+import ChemDeckLogo from '@/components/ChemDeckLogo';
 import {
   AppRole,
   getAccountAccess,
@@ -162,8 +162,8 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
       <div className="flex min-h-screen w-full items-center justify-center bg-slate-50 px-4 py-8">
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
           <div className="animate-pulse">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
-              <FlaskConical className="h-6 w-6 text-blue-600" />
+            <div className="mx-auto mb-4 flex justify-center">
+              <ChemDeckLogo variant="mark" className="h-12 w-12" />
             </div>
             <p className="text-sm font-semibold text-blue-700">Restoring your session</p>
             <p className="mt-2 text-lg font-semibold text-slate-950">Please wait...</p>
@@ -178,11 +178,9 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
       <SidebarNav
         header={(
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-950">
-              <FlaskConical className="h-5 w-5 text-white" />
-            </div>
-            <div className="min-w-0">
-              <p className="sidebar-label text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">ChemDeck</p>
+            <ChemDeckLogo variant="mark" className="h-10 w-10" />
+            <div className="sidebar-label min-w-0">
+              <ChemDeckLogo variant="full" className="w-36" />
               <p className="sidebar-label truncate text-sm font-semibold text-slate-950">{role === 'manager' ? 'Management' : 'Guard'}</p>
             </div>
           </div>
@@ -208,9 +206,8 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950">
-                    <FlaskConical className="h-5 w-5 text-white" />
-                  </div>
+                  <ChemDeckLogo variant="mark" className="h-10 w-10 sm:hidden" />
+                  <ChemDeckLogo variant="full" className="hidden w-40 sm:block" />
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{roleLabels[role]}</p>
                     <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{role === 'manager' ? 'Management Workspace' : 'Guard Workbench'}</h1>
