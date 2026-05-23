@@ -1,13 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const PUBLIC_PATHS = ["/login", "/auth/callback", "/pending"];
+const PUBLIC_PATHS = ["/login", "/auth/callback", "/pending", "/onboarding/company"];
+
+const managerDashboardPath = "/management/dashboard";
+const guardDashboardPath = "/guard";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
     console.error("Supabase environment variables not found");
@@ -48,7 +53,7 @@ export async function proxy(request: NextRequest) {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id, role, status")
+    .select("*")
     .eq("id", user.id)
     .single();
 
@@ -59,7 +64,9 @@ export async function proxy(request: NextRequest) {
     return supabaseResponse;
   }
 
-  if (profile.status !== "active") {
+  const profileStatus = typeof profile.status === "string" ? profile.status : "active";
+
+  if (profileStatus !== "active") {
     if (pathname !== "/pending") {
       return NextResponse.redirect(new URL("/pending", request.url));
     }
@@ -70,31 +77,31 @@ export async function proxy(request: NextRequest) {
 
   if (pathname === "/login" || pathname === "/") {
     if (role === "guard") {
-      return NextResponse.redirect(new URL("/guard/dashboard", request.url));
+      return NextResponse.redirect(new URL(guardDashboardPath, request.url));
     }
     if (role === "manager" || role === "admin") {
-      return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+      return NextResponse.redirect(new URL(managerDashboardPath, request.url));
     }
   }
 
   if (pathname === "/pending") {
     if (role === "guard") {
-      return NextResponse.redirect(new URL("/guard/dashboard", request.url));
+      return NextResponse.redirect(new URL(guardDashboardPath, request.url));
     }
     if (role === "manager" || role === "admin") {
-      return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+      return NextResponse.redirect(new URL(managerDashboardPath, request.url));
     }
   }
 
   if (role === "guard" && pathname.startsWith("/admin/")) {
-    return NextResponse.redirect(new URL("/guard/dashboard", request.url));
+    return NextResponse.redirect(new URL(guardDashboardPath, request.url));
   }
 
   if (
     (role === "admin" || role === "manager") &&
     pathname.startsWith("/guard/")
   ) {
-    return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+    return NextResponse.redirect(new URL(managerDashboardPath, request.url));
   }
 
   return supabaseResponse;

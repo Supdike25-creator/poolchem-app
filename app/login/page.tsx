@@ -1,21 +1,42 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
+  const supabase = useMemo(() => {
+    try {
+      return createClient();
+    } catch (clientError) {
+      console.error("Supabase login client unavailable:", clientError);
+      return null;
+    }
+  }, []);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authError = params.get("error");
+    if (authError) {
+      setError(authError === "auth_not_configured" ? "Authentication is not configured for this environment." : authError);
+    }
+  }, []);
+
   const handleEmailSignIn = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
+
+    if (!supabase) {
+      setError("Authentication is not configured for this environment.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -41,6 +62,12 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     setError("");
+
+    if (!supabase) {
+      setError("Authentication is not configured for this environment.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -63,6 +90,12 @@ export default function LoginPage() {
 
   const handleAppleSignIn = async () => {
     setError("");
+
+    if (!supabase) {
+      setError("Authentication is not configured for this environment.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -93,9 +126,9 @@ export default function LoginPage() {
         </div>
 
         {/* Error Message */}
-        {error && (
+        {(!supabase || error) && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-red-700 text-sm">{error}</p>
+            <p className="text-red-700 text-sm">{error || "Authentication is not configured for this environment."}</p>
           </div>
         )}
 
@@ -112,7 +145,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={loading}
+              disabled={loading || !supabase}
               required
             />
           </div>
@@ -128,14 +161,14 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={loading}
+              disabled={loading || !supabase}
               required
             />
           </div>
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !supabase}
             className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Signing in..." : "Sign In"}
@@ -156,7 +189,7 @@ export default function LoginPage() {
         <div className="space-y-3">
           <button
             onClick={handleGoogleSignIn}
-            disabled={loading}
+            disabled={loading || !supabase}
             className="w-full py-2 px-4 border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -170,7 +203,7 @@ export default function LoginPage() {
 
           <button
             onClick={handleAppleSignIn}
-            disabled={loading}
+            disabled={loading || !supabase}
             className="w-full py-2 px-4 border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
