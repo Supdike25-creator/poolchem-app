@@ -361,12 +361,9 @@ export default function LoginClient({
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
           <div className="border-b border-slate-200 bg-white px-6 py-5">
-            <div className="flex items-center gap-3">
-              <ChemDeckLogo variant="mark" className="h-10 w-10" />
-              <div>
-                <ChemDeckLogo variant="full" className="w-36" />
-                <p className="text-sm text-slate-500">{label}</p>
-              </div>
+            <div>
+              <ChemDeckLogo variant="full" className="w-40" />
+              <p className="mt-1 text-sm text-slate-500">{label}</p>
             </div>
           </div>
 

@@ -177,11 +177,11 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
     <div className="min-h-screen w-full bg-slate-50 pb-24 lg:pb-0">
       <SidebarNav
         header={(
-          <div className="flex items-center gap-3">
-            <ChemDeckLogo variant="mark" className="h-10 w-10" />
-            <div className="sidebar-label min-w-0">
-              <ChemDeckLogo variant="full" className="w-36" />
-              <p className="sidebar-label truncate text-sm font-semibold text-slate-950">{role === 'manager' ? 'Management' : 'Guard'}</p>
+          <div className="h-[58px] overflow-hidden">
+            <ChemDeckLogo variant="mark" className="h-10 w-10 group-hover:hidden group-focus-within:hidden" />
+            <div className="sidebar-label hidden min-w-0 group-hover:block group-focus-within:block">
+              <ChemDeckLogo variant="full" className="w-40" />
+              <p className="mt-1 truncate text-sm font-semibold text-slate-950">{role === 'manager' ? 'Management' : 'Guard'}</p>
             </div>
           </div>
         )}

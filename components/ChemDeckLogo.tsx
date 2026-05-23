@@ -10,7 +10,7 @@ export default function ChemDeckLogo({
   alt = "ChemDeck logo",
 }: ChemDeckLogoProps) {
   const src = variant === "full" ? "/chemdeck-logo-full.svg" : "/chemdeck-mark.svg";
-  const baseSize = variant === "full" ? "h-auto w-44" : "h-10 w-10";
+  const baseSize = variant === "full" ? "h-auto w-44 max-w-full" : "h-10 w-10";
 
   return (
     <img

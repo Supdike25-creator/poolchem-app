@@ -226,13 +226,13 @@ export default function LoginPage() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.28),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.16),transparent_32%)]" />
       <section className="relative w-full max-w-md rounded-[2rem] border border-white/10 bg-slate-950/82 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.45)] backdrop-blur sm:p-8">
         <div className="mb-8 text-center">
-          <div className="mb-5 flex justify-center">
-            <div className="hidden rounded-2xl bg-white px-4 py-3 shadow-lg shadow-blue-950/30 sm:block">
-              <ChemDeckLogo variant="full" className="w-52" />
+          <div className="mb-6 flex justify-center">
+            <div className="hidden w-full max-w-[232px] rounded-2xl bg-white px-4 py-3 shadow-lg shadow-blue-950/30 sm:block">
+              <ChemDeckLogo variant="full" className="mx-auto w-full max-w-[210px]" />
             </div>
-            <ChemDeckLogo variant="mark" className="h-14 w-14 sm:hidden" />
+            <ChemDeckLogo variant="mark" className="h-12 w-12 sm:hidden" />
           </div>
-          <h1 className="mt-5 text-4xl font-semibold tracking-tight text-white">Sign in</h1>
+          <h1 className="text-4xl font-semibold tracking-tight text-white">Sign in</h1>
           <p className="mt-3 text-sm leading-6 text-slate-300">Access your pool chemistry workspace.</p>
         </div>
 
