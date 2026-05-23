@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { getAccountAccess, routeForRole } from "@/lib/auth/accountAccess";
 
-const PUBLIC_PATHS = ["/login", "/auth/callback", "/pending", "/onboarding/company"];
+const PUBLIC_PATHS = ["/", "/login", "/auth/callback", "/pending", "/onboarding/company"];
 
 const managerDashboardPath = "/management/dashboard";
 const guardDashboardPath = "/guard";
@@ -89,7 +89,7 @@ export async function proxy(request: NextRequest) {
 
   const role = access.role;
 
-  if (pathname === "/login" || pathname === "/") {
+  if (pathname === "/login") {
     return NextResponse.redirect(new URL(routeForRole(role), request.url));
   }
 

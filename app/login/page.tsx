@@ -1,7 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import {
   getAccountAccess,
   inactiveAccountMessage,
@@ -225,6 +227,14 @@ export default function LoginPage() {
     <main className="flex min-h-screen w-full items-center justify-center overflow-hidden bg-[#07111f] px-4 py-8 text-slate-100 sm:px-6">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.28),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.16),transparent_32%)]" />
       <section className="relative w-full max-w-md rounded-[2rem] border border-white/10 bg-slate-950/82 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.45)] backdrop-blur sm:p-8">
+        <Link
+          href="/"
+          className="mb-6 inline-flex h-10 items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/70 px-3 text-sm font-semibold text-slate-300 transition hover:border-slate-600 hover:bg-slate-900 hover:text-white"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to homepage
+        </Link>
+
         <div className="mb-8 text-center">
           <div className="mb-6 flex justify-center">
             <div className="hidden w-fit rounded-2xl bg-white px-[18px] py-2.5 shadow-lg shadow-blue-950/30 sm:block">
