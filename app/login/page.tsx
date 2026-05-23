@@ -227,8 +227,8 @@ export default function LoginPage() {
       <section className="relative w-full max-w-md rounded-[2rem] border border-white/10 bg-slate-950/82 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.45)] backdrop-blur sm:p-8">
         <div className="mb-8 text-center">
           <div className="mb-6 flex justify-center">
-            <div className="hidden w-full max-w-[232px] rounded-2xl bg-white px-4 py-3 shadow-lg shadow-blue-950/30 sm:block">
-              <ChemDeckLogo variant="full" className="mx-auto w-full max-w-[210px]" />
+            <div className="hidden w-fit rounded-2xl bg-white px-[18px] py-2.5 shadow-lg shadow-blue-950/30 sm:block">
+              <ChemDeckLogo variant="full" className="w-[218px]" />
             </div>
             <ChemDeckLogo variant="mark" className="h-12 w-12 sm:hidden" />
           </div>
