@@ -8,12 +8,15 @@ import {
   LogOut,
   ShieldCheck,
 } from 'lucide-react';
-import { clearAppSession, getStoredSession, normalizeAppRole } from '../lib/appAccounts';
+import {
+  AppRole,
+  getAccountAccess,
+  inactiveAccountMessage,
+  normalizeProfileRole,
+  routeForRole,
+} from '@/lib/auth/accountAccess';
 import { createClient } from '@/utils/supabase/client';
-import { bypassProfileForRole, temporaryLoginBypass } from '../lib/temporaryLoginBypass';
 import { SidebarNav } from './SidebarNav';
-
-type AppRole = 'manager' | 'guard';
 
 type Profile = {
   full_name?: string | null;
@@ -26,10 +29,13 @@ const roleLabels: Record<AppRole, string> = {
   guard: 'Guard / Technician',
 };
 
-const authorizedRoute = (role: AppRole) => (role === 'manager' ? '/management/dashboard' : '/guard');
+const clearLegacyAppSession = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
 
-const normalizeProfileRole = (role?: string | null): AppRole => {
-  return normalizeAppRole(role);
+  window.localStorage.removeItem('chemdeck.session');
+  document.cookie = 'chemdeck_app_session=; path=/; max-age=0; samesite=lax';
 };
 
 export default function AuthShell({ role, children }: { role: AppRole; children: React.ReactNode }) {
@@ -43,13 +49,6 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
 
     const restoreSession = async () => {
       try {
-        if (temporaryLoginBypass) {
-          if (!isMounted) return;
-          setProfile(bypassProfileForRole(role));
-          setStatus('authenticated');
-          return;
-        }
-
         const supabase = createClient();
         const {
           data: { session },
@@ -67,39 +66,48 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
 
         const user = session?.user;
         if (!user) {
-          const appSession = getStoredSession();
-
-          if (appSession && appSession.role === role) {
-            setProfile({
-              full_name: appSession.name || appSession.username,
-              email: appSession.email || appSession.username,
-              role: appSession.role,
-            });
-            setStatus('authenticated');
-            return;
-          }
-
-          if (appSession && appSession.role !== role) {
-            router.replace(authorizedRoute(appSession.role));
-            return;
-          }
-
+          clearLegacyAppSession();
           setStatus('unauthenticated');
           router.replace(`/login?role=${role}`);
           return;
         }
 
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('id,email,full_name,role')
+          .select('*')
           .eq('id', user.id)
           .single();
 
         if (!isMounted) return;
 
-        const savedRole = profileData?.role ? normalizeProfileRole(profileData.role) : role;
+        if (profileError || !profileData) {
+          await supabase.auth.signOut();
+          clearLegacyAppSession();
+          setError(inactiveAccountMessage);
+          setStatus('unauthenticated');
+          router.replace(`/login?role=${role}&error=inactive_account`);
+          return;
+        }
+
+        const access = getAccountAccess(profileData as Record<string, unknown>);
+
+        if (!access.allowed) {
+          if (access.reason === 'missing_workspace') {
+            router.replace('/onboarding/company');
+            return;
+          }
+
+          await supabase.auth.signOut();
+          clearLegacyAppSession();
+          setError(inactiveAccountMessage);
+          setStatus('unauthenticated');
+          router.replace(`/login?role=${role}&error=inactive_account`);
+          return;
+        }
+
+        const savedRole = normalizeProfileRole(profileData.role);
         if (savedRole !== role) {
-          router.replace(authorizedRoute(savedRole));
+          router.replace(routeForRole(savedRole));
           return;
         }
 
@@ -125,10 +133,6 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   }, [router, role]);
 
   useEffect(() => {
-    if (temporaryLoginBypass) {
-      return undefined;
-    }
-
     const supabase = createClient();
     const { data } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
@@ -140,28 +144,16 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   }, [router]);
 
   const handleLogout = async () => {
-    if (temporaryLoginBypass) {
-      clearAppSession();
-      router.push('/');
-      return;
-    }
-
     const supabase = createClient();
     await supabase.auth.signOut();
-    clearAppSession();
+    clearLegacyAppSession();
     router.push('/');
   };
 
   const handleBackToLogin = async () => {
-    if (temporaryLoginBypass) {
-      clearAppSession();
-      router.push(`/login?role=${role}`);
-      return;
-    }
-
     const supabase = createClient();
     await supabase.auth.signOut();
-    clearAppSession();
+    clearLegacyAppSession();
     router.push(`/login?role=${role}`);
   };
 

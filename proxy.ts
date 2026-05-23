@@ -1,10 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { getAccountAccess, routeForRole } from "@/lib/auth/accountAccess";
 
 const PUBLIC_PATHS = ["/login", "/auth/callback", "/pending", "/onboarding/company"];
 
 const managerDashboardPath = "/management/dashboard";
 const guardDashboardPath = "/guard";
+const inactiveLoginPath = "/login?error=inactive_account";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -58,39 +60,41 @@ export async function proxy(request: NextRequest) {
     .single();
 
   if (profileError || !profile) {
+    if (pathname === "/login") {
+      return supabaseResponse;
+    }
+
     if (pathname !== "/pending") {
-      return NextResponse.redirect(new URL("/pending", request.url));
+      return NextResponse.redirect(new URL(inactiveLoginPath, request.url));
     }
     return supabaseResponse;
   }
 
-  const profileStatus = typeof profile.status === "string" ? profile.status : "active";
+  const access = getAccountAccess(profile as Record<string, unknown>);
 
-  if (profileStatus !== "active") {
-    if (pathname !== "/pending") {
-      return NextResponse.redirect(new URL("/pending", request.url));
+  if (!access.allowed) {
+    if (pathname === "/login") {
+      return supabaseResponse;
     }
-    return supabaseResponse;
+
+    if (access.reason === "missing_workspace") {
+      if (pathname !== "/onboarding/company") {
+        return NextResponse.redirect(new URL("/onboarding/company", request.url));
+      }
+      return supabaseResponse;
+    }
+
+    return NextResponse.redirect(new URL(inactiveLoginPath, request.url));
   }
 
-  const role = profile.role;
+  const role = access.role;
 
   if (pathname === "/login" || pathname === "/") {
-    if (role === "guard") {
-      return NextResponse.redirect(new URL(guardDashboardPath, request.url));
-    }
-    if (role === "manager" || role === "admin") {
-      return NextResponse.redirect(new URL(managerDashboardPath, request.url));
-    }
+    return NextResponse.redirect(new URL(routeForRole(role), request.url));
   }
 
   if (pathname === "/pending") {
-    if (role === "guard") {
-      return NextResponse.redirect(new URL(guardDashboardPath, request.url));
-    }
-    if (role === "manager" || role === "admin") {
-      return NextResponse.redirect(new URL(managerDashboardPath, request.url));
-    }
+    return NextResponse.redirect(new URL(routeForRole(role), request.url));
   }
 
   if (role === "guard" && pathname.startsWith("/admin/")) {
@@ -98,7 +102,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (
-    (role === "admin" || role === "manager") &&
+    role === "manager" &&
     pathname.startsWith("/guard/")
   ) {
     return NextResponse.redirect(new URL(managerDashboardPath, request.url));
