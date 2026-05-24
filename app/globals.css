@@ -57,8 +57,10 @@ body {
 
 .sidebar-rail:hover .sidebar-label,
 .sidebar-rail:focus-within .sidebar-label,
+.sidebar-rail.sidebar-expanded .sidebar-label,
 .sidebar-rail:hover .sidebar-footer,
-.sidebar-rail:focus-within .sidebar-footer {
+.sidebar-rail:focus-within .sidebar-footer,
+.sidebar-rail.sidebar-expanded .sidebar-footer {
   opacity: 1;
   transform: translateX(0);
 }

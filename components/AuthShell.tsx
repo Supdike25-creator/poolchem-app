@@ -15,6 +15,7 @@ import {
   normalizeProfileRole,
   routeForRole,
 } from '@/lib/auth/accountAccess';
+import { getStoredSession } from '@/lib/appAccounts';
 import { createClient } from '@/utils/supabase/client';
 import { SidebarNav } from './SidebarNav';
 
@@ -27,6 +28,7 @@ type Profile = {
 const roleLabels: Record<AppRole, string> = {
   manager: 'Manager / Supervisor',
   guard: 'Guard / Technician',
+  dev: 'Developer',
 };
 
 const clearLegacyAppSession = () => {
@@ -43,12 +45,24 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
   const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState<string>('');
+  const isDevPreview = profile?.role === 'dev' && role !== 'dev';
 
   useEffect(() => {
     let isMounted = true;
 
     const restoreSession = async () => {
       try {
+        const appSession = getStoredSession();
+        if (appSession?.role === 'dev') {
+          setProfile({
+            full_name: appSession.name || 'ChemDeck Dev',
+            email: appSession.email || appSession.username || 'ChemDeckDev',
+            role: 'dev',
+          });
+          setStatus('authenticated');
+          return;
+        }
+
         const supabase = createClient();
         const {
           data: { session },
@@ -133,26 +147,40 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   }, [router, role]);
 
   useEffect(() => {
-    const supabase = createClient();
-    const { data } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') {
-        router.replace('/');
-      }
-    });
+    let data: { subscription?: { unsubscribe?: () => void } } | undefined;
+
+    try {
+      const supabase = createClient();
+      data = supabase.auth.onAuthStateChange((event) => {
+        if (event === 'SIGNED_OUT') {
+          router.replace('/');
+        }
+      }).data;
+    } catch {
+      data = undefined;
+    }
 
     return () => data?.subscription?.unsubscribe?.();
   }, [router]);
 
   const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch {
+      // Dev sessions can run without Supabase auth configured.
+    }
     clearLegacyAppSession();
     router.push('/');
   };
 
   const handleBackToLogin = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch {
+      // Dev sessions can run without Supabase auth configured.
+    }
     clearLegacyAppSession();
     router.push(`/login?role=${role}`);
   };
@@ -176,22 +204,23 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   return (
     <div className="min-h-screen w-full bg-slate-50 pb-24 lg:pb-0">
       <SidebarNav
+        expanded={isDevPreview}
         header={(
           <div className="h-[58px] overflow-hidden">
-            <ChemDeckLogo variant="mark" className="h-10 w-10 group-hover:hidden group-focus-within:hidden" />
-            <div className="sidebar-label hidden min-w-0 group-hover:block group-focus-within:block">
+            <ChemDeckLogo variant="mark" className={`h-10 w-10 ${isDevPreview ? 'hidden' : 'group-hover:hidden group-focus-within:hidden'}`} />
+            <div className={`sidebar-label min-w-0 ${isDevPreview ? 'block' : 'hidden group-hover:block group-focus-within:block'}`}>
               <ChemDeckLogo variant="full" className="w-40" />
               <p className="mt-1 truncate text-sm font-semibold text-slate-950">{role === 'manager' ? 'Management' : 'Guard'}</p>
             </div>
           </div>
         )}
         footer={(
-          <div className="flex h-11 w-10 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2 transition-[width,padding] duration-200 ease-out group-hover:w-full group-hover:p-3 group-focus-within:w-full group-focus-within:p-3">
+          <div className={`flex h-11 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 transition-[width,padding] duration-200 ease-out ${isDevPreview ? 'w-full p-3' : 'w-10 p-2 group-hover:w-full group-hover:p-3 group-focus-within:w-full group-focus-within:p-3'}`}>
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200">
                 <ShieldCheck className="h-4 w-4 text-slate-500" />
               </div>
-              <div className="min-w-0 max-w-0 overflow-hidden opacity-0 transition-[max-width,opacity] duration-200 ease-out group-hover:max-w-[180px] group-hover:opacity-100 group-focus-within:max-w-[180px] group-focus-within:opacity-100">
+              <div className={`min-w-0 overflow-hidden transition-[max-width,opacity] duration-200 ease-out ${isDevPreview ? 'max-w-[180px] opacity-100' : 'max-w-0 opacity-0 group-hover:max-w-[180px] group-hover:opacity-100 group-focus-within:max-w-[180px] group-focus-within:opacity-100'}`}>
                 <p className="whitespace-nowrap text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Role</p>
                 <p className="mt-1 whitespace-nowrap text-sm font-semibold text-slate-950">{roleLabels[role]}</p>
                 <p className="mt-1 text-xs leading-5 text-slate-500">Session access is scoped to this workspace.</p>
@@ -201,7 +230,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
         )}
       />
 
-      <main className="min-h-screen w-full bg-white shadow-[0_18px_50px_rgba(15,23,42,0.07)] lg:ml-16 lg:w-[calc(100%-4rem)]">
+      <main className={`min-h-screen w-full bg-white shadow-[0_18px_50px_rgba(15,23,42,0.07)] ${isDevPreview ? 'lg:ml-64 lg:w-[calc(100%-16rem)]' : 'lg:ml-16 lg:w-[calc(100%-4rem)]'}`}>
         <div className="border-b border-slate-200 bg-white px-5 py-5 lg:px-7">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div>
@@ -231,15 +260,27 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
                     </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleBackToLogin}
-                  data-sound="back"
-                  className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
-                >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to login
-                </button>
+                {isDevPreview ? (
+                  <button
+                    type="button"
+                    onClick={() => router.push('/dev-dashboard')}
+                    data-sound="back"
+                    className="inline-flex h-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-800 shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-100"
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Dev
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleBackToLogin}
+                    data-sound="back"
+                    className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to login
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleLogout}

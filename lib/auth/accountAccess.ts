@@ -1,4 +1,4 @@
-export type AppRole = "manager" | "guard";
+export type AppRole = "manager" | "guard" | "dev";
 
 export type AccountAccessReason =
   | "allowed"
@@ -15,7 +15,8 @@ export type AccountAccessResult = {
 export const inactiveAccountMessage =
   "Your account is not active yet. Please contact your manager or administrator.";
 
-const managerRoles = new Set(["admin", "manager", "supervisor", "owner"]);
+const managerRoles = new Set(["admin", "manager", "supervisor", "owner", "boss"]);
+const guardRoles = new Set(["guard", "worker", "lifeguard", "technician"]);
 const inactiveStatuses = new Set([
   "inactive",
   "disabled",
@@ -32,10 +33,14 @@ const hasOwn = (value: Record<string, unknown>, key: string) =>
 
 export function normalizeProfileRole(role?: string | null): AppRole {
   const normalized = role?.toLowerCase().trim();
-  return normalized && managerRoles.has(normalized) ? "manager" : "guard";
+  if (normalized === "dev") return "dev";
+  if (normalized && managerRoles.has(normalized)) return "manager";
+  if (normalized && guardRoles.has(normalized)) return "guard";
+  return "guard";
 }
 
 export function routeForRole(role: AppRole) {
+  if (role === "dev") return "/dev-dashboard";
   return role === "manager" ? "/management/dashboard" : "/guard";
 }
 

@@ -19,23 +19,29 @@ import {
   startAccountSignup,
   type AppAccount,
 } from '../../lib/appAccounts';
+import { isDevCredentials } from '@/lib/auth/devSession';
 import { createClient } from '@/utils/supabase/client';
 
 const roleLabels: Record<AppRole, string> = {
   manager: 'Manager / Supervisor',
   guard: 'Guard / Technician',
+  dev: 'Developer',
 };
 
 const devAccount: AppAccount = {
   id: 'chemdeck-dev-account',
   name: 'ChemDeck Dev',
-  username: 'chemdeck.dev',
+  username: 'ChemDeckDev',
   session_token: 'chemdeck-dev-session',
-  role: 'manager',
+  role: 'dev',
+  email: 'ChemDeckDev',
   provider: 'manual',
 };
 
-const redirectRoute = (role: AppRole) => (role === 'manager' ? '/management/dashboard' : '/guard');
+const redirectRoute = (role: AppRole) => {
+  if (role === 'dev') return '/dev-dashboard';
+  return role === 'manager' ? '/management/dashboard' : '/guard';
+};
 const pendingAuthKey = 'chemdeck.pendingEmailAuth';
 type AuthAction = 'create' | 'recover';
 
@@ -241,10 +247,10 @@ export default function LoginClient({
     setCreatedAccount(null);
 
     try {
-      if (loginForm.username.trim().toLowerCase() === 'chemdeck.dev' && loginForm.passcode.trim() === '20260508') {
+      if (isDevCredentials(loginForm.username, loginForm.passcode)) {
         await createClient().auth.signOut();
         setAppSession(devAccount);
-        router.replace(redirectRoute(devAccount.role));
+        router.replace('/dev-dashboard');
         return;
       }
 

@@ -1,15 +1,37 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { getAccountAccess, routeForRole } from "@/lib/auth/accountAccess";
+import { isDevRequest } from "@/lib/auth/devSession";
 
 const PUBLIC_PATHS = ["/", "/login", "/auth/callback", "/pending", "/onboarding/company"];
 
 const managerDashboardPath = "/management/dashboard";
 const guardDashboardPath = "/guard";
 const inactiveLoginPath = "/login?error=inactive_account";
+const DEV_ALLOWED_PATHS = [
+  "/dev-dashboard",
+  "/worker-view",
+  "/boss-view",
+  "/guard",
+  "/management",
+  "/dashboard",
+  "/log",
+  "/api/dev",
+];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const hasDevSession = isDevRequest(request);
+
+  if (hasDevSession) {
+    if (pathname === "/login" || pathname === "/pending") {
+      return NextResponse.redirect(new URL("/dev-dashboard", request.url));
+    }
+
+    if (DEV_ALLOWED_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
+      return NextResponse.next({ request });
+    }
+  }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey =

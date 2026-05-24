@@ -213,15 +213,26 @@ export default function LogPage() {
   }, []);
 
   useEffect(() => {
+    let timer: number | undefined;
+
     if (!formData.photo) {
-      setPhotoPreviewUrl('');
-      return;
+      timer = window.setTimeout(() => {
+        setPhotoPreviewUrl('');
+      }, 0);
+      return () => {
+        if (timer) window.clearTimeout(timer);
+      };
     }
 
     const url = URL.createObjectURL(formData.photo);
-    setPhotoPreviewUrl(url);
+    timer = window.setTimeout(() => {
+      setPhotoPreviewUrl(url);
+    }, 0);
 
-    return () => URL.revokeObjectURL(url);
+    return () => {
+      if (timer) window.clearTimeout(timer);
+      URL.revokeObjectURL(url);
+    };
   }, [formData.photo]);
 
   const handleInputChange = (field: keyof FormData, value: string | File | null | boolean) => {

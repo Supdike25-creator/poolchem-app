@@ -1,7 +1,7 @@
 -- Run this once in Supabase SQL Editor to create or reset the ChemDeck dev login.
 -- Login in the app with:
---   Username: chemdeck.dev
---   Passcode: 20260508
+--   Email: ChemDeckDev
+--   Password: DEV
 
 create extension if not exists pgcrypto with schema extensions;
 
@@ -17,10 +17,10 @@ insert into public.app_accounts (
 values (
   'ChemDeck Dev',
   '2000-01-01',
-  'chemdeck.dev',
-  extensions.crypt('20260508', extensions.gen_salt('bf')),
-  'manager',
-  null,
+  'ChemDeckDev',
+  extensions.crypt('DEV', extensions.gen_salt('bf')),
+  'dev',
+  'ChemDeckDev',
   'manual'
 )
 on conflict (username) do update set

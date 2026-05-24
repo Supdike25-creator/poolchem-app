@@ -1,0 +1,162 @@
+import { redirect } from 'next/navigation';
+import { Activity, AlertTriangle, Bug, ClipboardList, Database, Server, Users, Waves } from 'lucide-react';
+import { getServerAppSession } from '@/lib/serverAppSession';
+import { createClient } from '@/utils/supabase/server';
+import { StatCard, StatusBadge } from '@/components/OperationsUI';
+import DevShell from '@/components/dev/DevShell';
+import DevToolPanel from '@/components/dev/DevToolPanel';
+import HardstylePlayer from '@/components/dev/HardstylePlayer';
+
+export const dynamic = 'force-dynamic';
+
+type RecentLog = {
+  id: string;
+  free_chlorine?: number | null;
+  ph?: number | null;
+  created_at?: string | null;
+  pools?: { name?: string | null } | null;
+};
+
+type DevSnapshot = {
+  activeUsers: number;
+  pools: number;
+  recentLogs: RecentLog[];
+  alerts: number;
+  errors: string[];
+  apiHealth: 'healthy' | 'degraded';
+  databaseStatus: 'connected' | 'unavailable';
+  tables: string[];
+};
+
+const emptySnapshot: DevSnapshot = {
+  activeUsers: 0,
+  pools: 0,
+  recentLogs: [],
+  alerts: 0,
+  errors: [],
+  apiHealth: 'degraded',
+  databaseStatus: 'unavailable',
+  tables: ['profiles', 'users', 'app_accounts', 'pools', 'chemical_logs', 'alerts'],
+};
+
+const formatLogTime = (value?: string | null) => {
+  if (!value) return 'No timestamp';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
+};
+
+async function loadSnapshot(): Promise<DevSnapshot> {
+  try {
+    const supabase = await createClient();
+    const [profilesResult, poolsResult, logsResult] = await Promise.all([
+      supabase.from('profiles').select('id', { count: 'exact', head: true }),
+      supabase.from('pools').select('id', { count: 'exact', head: true }),
+      supabase
+        .from('chemical_logs')
+        .select('id, free_chlorine, ph, created_at, pools(name)')
+        .order('created_at', { ascending: false })
+        .limit(5),
+    ]);
+
+    const errors = [profilesResult.error, poolsResult.error, logsResult.error]
+      .filter(Boolean)
+      .map((error) => error?.message ?? 'Unknown Supabase error');
+
+    return {
+      activeUsers: profilesResult.count ?? 0,
+      pools: poolsResult.count ?? 0,
+      recentLogs: (logsResult.data ?? []) as RecentLog[],
+      alerts: errors.length,
+      errors,
+      apiHealth: errors.length > 0 ? 'degraded' : 'healthy',
+      databaseStatus: errors.length > 1 ? 'unavailable' : 'connected',
+      tables: emptySnapshot.tables,
+    };
+  } catch (error) {
+    return {
+      ...emptySnapshot,
+      errors: [(error as Error).message],
+    };
+  }
+}
+
+export default async function DevDashboardPage() {
+  const session = await getServerAppSession();
+
+  if (session?.role !== 'dev') {
+    redirect('/login');
+  }
+
+  const snapshot = await loadSnapshot();
+
+  return (
+    <DevShell>
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Developer Access</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">System Overlay</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+              System-wide status for ChemDeck accounts, pool operations, chemistry logging, API routes, and database connectivity.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <HardstylePlayer />
+            <StatusBadge tone={snapshot.apiHealth === 'healthy' ? 'good' : 'warning'}>
+              API {snapshot.apiHealth}
+            </StatusBadge>
+          </div>
+        </div>
+
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Active users" value={snapshot.activeUsers} icon={<Users className="h-5 w-5" />} tone="info" />
+          <StatCard label="Pools" value={snapshot.pools} icon={<Waves className="h-5 w-5" />} tone="good" />
+          <StatCard label="Recent chem logs" value={snapshot.recentLogs.length} icon={<ClipboardList className="h-5 w-5" />} tone="neutral" />
+          <StatCard label="Alerts" value={snapshot.alerts} icon={<AlertTriangle className="h-5 w-5" />} tone={snapshot.alerts ? 'warning' : 'good'} />
+          <StatCard label="Errors" value={snapshot.errors.length} icon={<Bug className="h-5 w-5" />} tone={snapshot.errors.length ? 'critical' : 'good'} />
+          <StatCard label="API health" value={snapshot.apiHealth} icon={<Server className="h-5 w-5" />} tone={snapshot.apiHealth === 'healthy' ? 'good' : 'warning'} />
+          <StatCard label="Database" value={snapshot.databaseStatus} icon={<Database className="h-5 w-5" />} tone={snapshot.databaseStatus === 'connected' ? 'good' : 'critical'} />
+          <StatCard label="Session" value="dev" icon={<Activity className="h-5 w-5" />} tone="info" />
+        </section>
+
+        <section className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-950">Recent Chem Logs</h2>
+            <div className="mt-4 divide-y divide-slate-200 rounded-md border border-slate-200">
+              {snapshot.recentLogs.length === 0 ? (
+                <p className="px-3 py-6 text-sm text-slate-500">No recent chemistry logs found.</p>
+              ) : (
+                snapshot.recentLogs.map((log) => (
+                  <div key={log.id} className="grid gap-2 px-3 py-3 text-sm sm:grid-cols-[1fr_96px_80px_132px]">
+                    <span className="font-semibold text-slate-900">{log.pools?.name ?? 'Unassigned pool'}</span>
+                    <span className="text-slate-600">FC {log.free_chlorine ?? '-'}</span>
+                    <span className="text-slate-600">pH {log.ph ?? '-'}</span>
+                    <span className="text-slate-500">{formatLogTime(log.created_at)}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-950">Errors</h2>
+            <div className="mt-4 space-y-2">
+              {snapshot.errors.length === 0 ? (
+                <p className="rounded-md border border-green-200 bg-green-50 px-3 py-3 text-sm font-semibold text-green-700">No backend errors detected.</p>
+              ) : (
+                snapshot.errors.map((error) => (
+                  <p key={error} className="rounded-md border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-800">{error}</p>
+                ))
+              )}
+            </div>
+          </div>
+        </section>
+
+        <div className="mt-6">
+          <DevToolPanel tables={snapshot.tables} />
+        </div>
+      </div>
+    </DevShell>
+  );
+}

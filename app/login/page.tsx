@@ -8,6 +8,7 @@ import {
   inactiveAccountMessage,
   routeForRole,
 } from "@/lib/auth/accountAccess";
+import { appSessionCookie, createDevSession, isDevCredentials } from "@/lib/auth/devSession";
 import ChemDeckLogo from "@/components/ChemDeckLogo";
 import { createClient } from "../../lib/supabase/client";
 
@@ -42,13 +43,17 @@ export default function LoginPage() {
       return;
     }
 
-    setError(authErrorMessages[authError] ?? authError);
+    const timer = window.setTimeout(() => {
+      setError(authErrorMessages[authError] ?? authError);
+    }, 0);
 
     if (authError === "inactive_account" || authError === "missing_workspace") {
       supabase?.auth.signOut().catch((signOutError) => {
         console.error("Unable to clear inactive session:", signOutError);
       });
     }
+
+    return () => window.clearTimeout(timer);
   }, [supabase]);
 
   const verifyActiveAccount = async () => {
@@ -95,14 +100,25 @@ export default function LoginPage() {
     setError("");
     setNotice("");
 
-    if (!supabase) {
-      setError(authErrorMessages.auth_not_configured);
-      return;
-    }
-
     setLoading(true);
 
     try {
+      if (isDevCredentials(email, password)) {
+        await supabase?.auth.signOut().catch(() => undefined);
+        const session = createDevSession();
+        window.localStorage.setItem("chemdeck.session", JSON.stringify(session));
+        document.cookie = `${appSessionCookie}=${encodeURIComponent(JSON.stringify(session))}; path=/; max-age=2592000; samesite=lax`;
+        router.replace("/dev-dashboard");
+        router.refresh();
+        return;
+      }
+
+      if (!supabase) {
+        setError(authErrorMessages.auth_not_configured);
+        setLoading(false);
+        return;
+      }
+
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
@@ -254,12 +270,12 @@ export default function LoginPage() {
             </label>
             <input
               id="email"
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               className="h-12 w-full rounded-md border border-white/10 bg-white/[0.08] px-4 text-sm text-white outline-none transition placeholder:text-[#D9E1E8]/45 focus:border-[#3EC6FF]/70 focus:ring-2 focus:ring-[#3EC6FF]/20"
-              disabled={loading || !supabase}
+              disabled={loading}
               autoComplete="email"
               required
             />
@@ -276,7 +292,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
               className="h-12 w-full rounded-md border border-white/10 bg-white/[0.08] px-4 text-sm text-white outline-none transition placeholder:text-[#D9E1E8]/45 focus:border-[#3EC6FF]/70 focus:ring-2 focus:ring-[#3EC6FF]/20"
-              disabled={loading || !supabase}
+              disabled={loading}
               autoComplete="current-password"
               required
             />
@@ -294,7 +310,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading || !supabase}
+            disabled={loading}
             className="flex h-12 w-full items-center justify-center rounded-md bg-[#3EC6FF] px-4 text-sm font-semibold text-[#0A1A2F] transition hover:bg-[#78D8FF] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-[#D9E1E8]/40"
           >
             {loading ? "Signing in..." : "Sign In"}

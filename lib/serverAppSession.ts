@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 
-type AppRole = 'manager' | 'guard';
+type AppRole = 'manager' | 'guard' | 'dev';
 
 export type ServerAppSession = {
   id?: string;
