@@ -6,6 +6,17 @@ import { StatCard, StatusBadge } from '@/components/OperationsUI';
 import DevShell from '@/components/dev/DevShell';
 import DevToolPanel from '@/components/dev/DevToolPanel';
 import HardstylePlayer from '@/components/dev/HardstylePlayer';
+import {
+  defaultFeatureFlags,
+  readDevApiRequests,
+  readDevRawLogs,
+  readDevTables,
+  readFeatureFlags,
+  type DevApiRequest,
+  type DevFeatureFlag,
+  type DevRawLog,
+  type DevTableSummary,
+} from '@/lib/devTools';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +36,10 @@ type DevSnapshot = {
   errors: string[];
   apiHealth: 'healthy' | 'degraded';
   databaseStatus: 'connected' | 'unavailable';
-  tables: string[];
+  tables: DevTableSummary[];
+  flags: DevFeatureFlag[];
+  rawLogs: DevRawLog[];
+  apiRequests: DevApiRequest[];
 };
 
 const emptySnapshot: DevSnapshot = {
@@ -36,7 +50,10 @@ const emptySnapshot: DevSnapshot = {
   errors: [],
   apiHealth: 'degraded',
   databaseStatus: 'unavailable',
-  tables: ['profiles', 'users', 'app_accounts', 'pools', 'chemical_logs', 'alerts'],
+  tables: [],
+  flags: defaultFeatureFlags,
+  rawLogs: [],
+  apiRequests: [],
 };
 
 const formatLogTime = (value?: string | null) => {
@@ -49,7 +66,7 @@ const formatLogTime = (value?: string | null) => {
 async function loadSnapshot(): Promise<DevSnapshot> {
   try {
     const supabase = await createClient();
-    const [profilesResult, poolsResult, logsResult] = await Promise.all([
+    const [profilesResult, poolsResult, logsResult, alertsResult, flags, rawLogs, apiRequests, tables] = await Promise.all([
       supabase.from('profiles').select('id', { count: 'exact', head: true }),
       supabase.from('pools').select('id', { count: 'exact', head: true }),
       supabase
@@ -57,9 +74,14 @@ async function loadSnapshot(): Promise<DevSnapshot> {
         .select('id, free_chlorine, ph, created_at, pools(name)')
         .order('created_at', { ascending: false })
         .limit(5),
+      supabase.from('dev_alerts').select('id', { count: 'exact', head: true }),
+      readFeatureFlags(),
+      readDevRawLogs(),
+      readDevApiRequests(),
+      readDevTables(),
     ]);
 
-    const errors = [profilesResult.error, poolsResult.error, logsResult.error]
+    const errors = [profilesResult.error, poolsResult.error, logsResult.error, alertsResult.error]
       .filter(Boolean)
       .map((error) => error?.message ?? 'Unknown Supabase error');
 
@@ -67,11 +89,14 @@ async function loadSnapshot(): Promise<DevSnapshot> {
       activeUsers: profilesResult.count ?? 0,
       pools: poolsResult.count ?? 0,
       recentLogs: (logsResult.data ?? []) as RecentLog[],
-      alerts: errors.length,
+      alerts: alertsResult.count ?? 0,
       errors,
       apiHealth: errors.length > 0 ? 'degraded' : 'healthy',
       databaseStatus: errors.length > 1 ? 'unavailable' : 'connected',
-      tables: emptySnapshot.tables,
+      tables,
+      flags,
+      rawLogs,
+      apiRequests,
     };
   } catch (error) {
     return {
@@ -154,7 +179,12 @@ export default async function DevDashboardPage() {
         </section>
 
         <div className="mt-6">
-          <DevToolPanel tables={snapshot.tables} />
+          <DevToolPanel
+            tables={snapshot.tables}
+            initialFlags={snapshot.flags}
+            initialLogs={snapshot.rawLogs}
+            initialRequests={snapshot.apiRequests}
+          />
         </div>
       </div>
     </DevShell>

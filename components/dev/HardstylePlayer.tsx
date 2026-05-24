@@ -27,8 +27,8 @@ const createKick = (context: AudioContext, destination: AudioNode, time: number)
   osc.frequency.exponentialRampToValueAtTime(38, time + 0.34);
 
   gain.gain.setValueAtTime(0.0001, time);
-  gain.gain.exponentialRampToValueAtTime(0.95, time + 0.008);
-  gain.gain.exponentialRampToValueAtTime(0.18, time + 0.22);
+  gain.gain.exponentialRampToValueAtTime(1, time + 0.008);
+  gain.gain.exponentialRampToValueAtTime(0.32, time + 0.22);
   gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.42);
 
   osc.connect(drive);
@@ -49,7 +49,7 @@ const createLead = (context: AudioContext, destination: AudioNode, time: number,
   filter.frequency.setValueAtTime(1200, time);
   filter.Q.setValueAtTime(6, time);
   gain.gain.setValueAtTime(0.0001, time);
-  gain.gain.exponentialRampToValueAtTime(0.16, time + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.34, time + 0.01);
   gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.18);
 
   osc.connect(filter);
@@ -88,7 +88,7 @@ export default function HardstylePlayer() {
     const delay = context.createDelay();
     const feedback = context.createGain();
 
-    master.gain.value = 0.18;
+    master.gain.value = 1;
     delay.delayTime.value = 0.16;
     feedback.gain.value = 0.18;
     delay.connect(feedback);
@@ -118,15 +118,27 @@ export default function HardstylePlayer() {
   };
 
   return (
-    <button
-      type="button"
-      onClick={start}
-      className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-700 bg-slate-950 px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
-      aria-pressed={playing}
-    >
-      {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-      Hardstyle
-      <Volume2 className="h-4 w-4 text-slate-300" />
-    </button>
+    <>
+      {playing ? (
+        <div className="pointer-events-none fixed inset-0 z-[70] overflow-hidden mix-blend-screen" aria-hidden="true">
+          <div className="hardstyle-strobe absolute inset-0" />
+          <div className="hardstyle-beam hardstyle-beam-a" />
+          <div className="hardstyle-beam hardstyle-beam-b" />
+          <div className="hardstyle-beam hardstyle-beam-c" />
+          <div className="hardstyle-beam hardstyle-beam-d" />
+          <div className="hardstyle-dots" />
+        </div>
+      ) : null}
+      <button
+        type="button"
+        onClick={start}
+        className="relative z-[80] inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-700 bg-slate-950 px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+        aria-pressed={playing}
+      >
+        {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+        Hardstyle
+        <Volume2 className="h-4 w-4 text-slate-300" />
+      </button>
+    </>
   );
 }

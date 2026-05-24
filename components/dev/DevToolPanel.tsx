@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { AlertTriangle, Database, FlaskConical, ListTree, Radio, RotateCcw, ShieldCheck, ToggleLeft, Trash2 } from 'lucide-react';
+import type { DevApiRequest, DevFeatureFlag, DevRawLog, DevTableSummary } from '@/lib/devTools';
 
 type ApiResult = {
   ok?: boolean;
@@ -9,31 +10,50 @@ type ApiResult = {
   details?: unknown;
 };
 
-const featureFlagDefaults = [
-  { key: 'newLogFlow', label: 'New log flow', enabled: true },
-  { key: 'managerAlerts', label: 'Manager alerts', enabled: true },
-  { key: 'strictChemRanges', label: 'Strict chem ranges', enabled: false },
-  { key: 'photoReview', label: 'Photo review', enabled: true },
-];
-
-const rawLogs = [
-  '[dev] auth route mounted for ChemDeckDev',
-  '[api] /api/dev/health returned healthy',
-  '[db] profiles role policy accepts dev',
-  '[alerts] simulated ORP drift event queued',
-];
-
-const apiRequests = [
-  { method: 'GET', path: '/api/dev/health', status: 200 },
-  { method: 'POST', path: '/api/dev/simulate-alert', status: 202 },
-  { method: 'POST', path: '/api/dev/test-chem-log', status: 201 },
-  { method: 'POST', path: '/api/dev/clear-test-data', status: 200 },
-];
-
-export default function DevToolPanel({ tables }: { tables: string[] }) {
-  const [flags, setFlags] = useState(featureFlagDefaults);
+export default function DevToolPanel({
+  tables,
+  initialFlags,
+  initialLogs,
+  initialRequests,
+}: {
+  tables: DevTableSummary[];
+  initialFlags: DevFeatureFlag[];
+  initialLogs: DevRawLog[];
+  initialRequests: DevApiRequest[];
+}) {
+  const [flags, setFlags] = useState(initialFlags);
+  const [rawLogs, setRawLogs] = useState(initialLogs);
+  const [apiRequests, setApiRequests] = useState(initialRequests);
   const [result, setResult] = useState<ApiResult>({ message: 'Tools ready.' });
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
+
+  const refreshActivity = async () => {
+    const response = await fetch('/api/dev/activity');
+    const data = await response.json();
+    if (data.flags) setFlags(data.flags);
+    if (data.logs) setRawLogs(data.logs);
+    if (data.requests) setApiRequests(data.requests);
+  };
+
+  const toggleFlag = async (flag: DevFeatureFlag) => {
+    const nextEnabled = !flag.enabled;
+    setFlags((current) => current.map((item) => item.key === flag.key ? { ...item, enabled: nextEnabled } : item));
+
+    try {
+      const response = await fetch('/api/dev/feature-flags', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ key: flag.key, enabled: nextEnabled }),
+      });
+      const data = (await response.json()) as ApiResult & { flags?: DevFeatureFlag[] };
+      setResult(data);
+      if (data.flags) setFlags(data.flags);
+      await refreshActivity();
+    } catch (error) {
+      setResult({ ok: false, message: (error as Error).message });
+      setFlags((current) => current.map((item) => item.key === flag.key ? { ...item, enabled: flag.enabled } : item));
+    }
+  };
 
   const runTool = async (action: string, endpoint: string) => {
     setLoadingAction(action);
@@ -43,6 +63,7 @@ export default function DevToolPanel({ tables }: { tables: string[] }) {
       const response = await fetch(endpoint, { method: endpoint.endsWith('/health') ? 'GET' : 'POST' });
       const data = (await response.json()) as ApiResult;
       setResult(data);
+      await refreshActivity();
     } catch (error) {
       setResult({ ok: false, message: (error as Error).message });
     } finally {
@@ -62,9 +83,7 @@ export default function DevToolPanel({ tables }: { tables: string[] }) {
             <button
               key={flag.key}
               type="button"
-              onClick={() => {
-                setFlags((current) => current.map((item) => item.key === flag.key ? { ...item, enabled: !item.enabled } : item));
-              }}
+              onClick={() => toggleFlag(flag)}
               className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-left transition hover:border-blue-300 hover:bg-white"
             >
               <span className="text-sm font-semibold text-slate-800">{flag.label}</span>
@@ -117,9 +136,15 @@ export default function DevToolPanel({ tables }: { tables: string[] }) {
           <h2 className="text-lg font-semibold text-slate-950">Raw Logs</h2>
         </div>
         <div className="mt-4 space-y-2">
-          {rawLogs.map((line) => (
-            <p key={line} className="rounded-md bg-slate-950 px-3 py-2 font-mono text-xs text-slate-200">{line}</p>
-          ))}
+          {rawLogs.length === 0 ? (
+            <p className="rounded-md bg-slate-950 px-3 py-2 font-mono text-xs text-slate-200">[dev] No raw log rows yet.</p>
+          ) : (
+            rawLogs.map((line) => (
+              <p key={line.id ?? line.message} className="rounded-md bg-slate-950 px-3 py-2 font-mono text-xs text-slate-200">
+                [{line.level}] {line.message}
+              </p>
+            ))
+          )}
         </div>
       </div>
 
@@ -129,11 +154,13 @@ export default function DevToolPanel({ tables }: { tables: string[] }) {
           <h2 className="text-lg font-semibold text-slate-950">API Requests</h2>
         </div>
         <div className="mt-4 divide-y divide-slate-200 rounded-md border border-slate-200">
-          {apiRequests.map((request) => (
-            <div key={`${request.method}-${request.path}`} className="grid grid-cols-[64px_1fr_56px] gap-3 px-3 py-2 text-sm">
+          {apiRequests.length === 0 ? (
+            <p className="px-3 py-4 text-sm text-slate-500">No API requests logged yet.</p>
+          ) : apiRequests.map((request) => (
+            <div key={request.id ?? `${request.method}-${request.path}-${request.created_at}`} className="grid grid-cols-[64px_1fr_56px] gap-3 px-3 py-2 text-sm">
               <span className="font-mono font-semibold text-slate-500">{request.method}</span>
               <span className="min-w-0 truncate font-mono text-slate-800">{request.path}</span>
-              <span className="text-right font-semibold text-green-700">{request.status}</span>
+              <span className={`text-right font-semibold ${request.status >= 400 ? 'text-red-700' : 'text-green-700'}`}>{request.status}</span>
             </div>
           ))}
         </div>
@@ -146,8 +173,8 @@ export default function DevToolPanel({ tables }: { tables: string[] }) {
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {tables.map((table) => (
-            <span key={table} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-700">
-              {table}
+            <span key={table.name} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-700">
+              {table.name}: {table.count ?? table.status}
             </span>
           ))}
         </div>

@@ -204,33 +204,32 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   return (
     <div className="min-h-screen w-full bg-slate-50 pb-24 lg:pb-0">
       <SidebarNav
-        expanded={isDevPreview}
         header={(
-          <div className="h-[58px] overflow-hidden">
-            <ChemDeckLogo variant="mark" className={`h-10 w-10 ${isDevPreview ? 'hidden' : 'group-hover:hidden group-focus-within:hidden'}`} />
-            <div className={`sidebar-label min-w-0 ${isDevPreview ? 'block' : 'hidden group-hover:block group-focus-within:block'}`}>
+          <div className="min-h-[74px] overflow-visible">
+            <ChemDeckLogo variant="mark" className="h-10 w-10 group-hover:hidden group-focus-within:hidden" />
+            <div className="sidebar-label hidden min-w-0 group-hover:block group-focus-within:block">
               <ChemDeckLogo variant="full" className="w-40" />
               <p className="mt-1 truncate text-sm font-semibold text-slate-950">{role === 'manager' ? 'Management' : 'Guard'}</p>
             </div>
           </div>
         )}
         footer={(
-          <div className={`flex h-11 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 transition-[width,padding] duration-200 ease-out ${isDevPreview ? 'w-full p-3' : 'w-10 p-2 group-hover:w-full group-hover:p-3 group-focus-within:w-full group-focus-within:p-3'}`}>
+          <div className="flex min-h-11 w-10 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2 transition-[width,padding] duration-200 ease-out group-hover:w-full group-hover:p-3 group-focus-within:w-full group-focus-within:p-3">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200">
                 <ShieldCheck className="h-4 w-4 text-slate-500" />
               </div>
-              <div className={`min-w-0 overflow-hidden transition-[max-width,opacity] duration-200 ease-out ${isDevPreview ? 'max-w-[180px] opacity-100' : 'max-w-0 opacity-0 group-hover:max-w-[180px] group-hover:opacity-100 group-focus-within:max-w-[180px] group-focus-within:opacity-100'}`}>
+              <div className="min-w-0 max-w-0 overflow-hidden opacity-0 transition-[max-width,opacity] duration-200 ease-out group-hover:max-w-[180px] group-hover:opacity-100 group-focus-within:max-w-[180px] group-focus-within:opacity-100">
                 <p className="whitespace-nowrap text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Role</p>
                 <p className="mt-1 whitespace-nowrap text-sm font-semibold text-slate-950">{roleLabels[role]}</p>
-                <p className="mt-1 text-xs leading-5 text-slate-500">Session access is scoped to this workspace.</p>
+                <p className="mt-1 whitespace-normal text-xs leading-5 text-slate-500">Session access is scoped to this workspace.</p>
               </div>
             </div>
           </div>
         )}
       />
 
-      <main className={`min-h-screen w-full bg-white shadow-[0_18px_50px_rgba(15,23,42,0.07)] ${isDevPreview ? 'lg:ml-64 lg:w-[calc(100%-16rem)]' : 'lg:ml-16 lg:w-[calc(100%-4rem)]'}`}>
+      <main className="min-h-screen w-full bg-white shadow-[0_18px_50px_rgba(15,23,42,0.07)] lg:ml-16 lg:w-[calc(100%-4rem)]">
         <div className="border-b border-slate-200 bg-white px-5 py-5 lg:px-7">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div>

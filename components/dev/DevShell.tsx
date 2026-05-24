@@ -1,11 +1,10 @@
 import Link from 'next/link';
-import { Code2, LayoutDashboard, UserRoundCog, Waves } from 'lucide-react';
+import { Code2, UserRoundCog, Waves } from 'lucide-react';
 import ChemDeckLogo from '@/components/ChemDeckLogo';
 
 const navItems = [
   { label: 'Worker POV', href: '/worker-view', icon: Waves },
   { label: 'Boss POV', href: '/boss-view', icon: UserRoundCog },
-  { label: 'Back to Dev', href: '/dev-dashboard', icon: LayoutDashboard },
 ];
 
 export default function DevShell({ children }: { children: React.ReactNode }) {
