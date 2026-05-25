@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   ClipboardList,
   ClipboardPlus,
+  Gauge,
   LayoutDashboard,
   Megaphone,
   Settings,
@@ -26,6 +27,15 @@ export const mainNavItems: SidebarNavItem[] = [
   { label: 'Pools', href: '/management/pools', icon: Waves, match: ['/management/pools'] },
   { label: 'Announcements', href: '/management/announcements', icon: Megaphone, match: ['/management/announcements'] },
   { label: 'Settings', href: '/management/settings', icon: Settings, match: ['/management/settings', '/dashboard/settings'] },
+];
+
+export const buildDevPreviewNavItems = (companyId?: string | null): SidebarNavItem[] => [
+  {
+    label: 'Dev Dashboard',
+    href: companyId ? `/dev-dashboard?companyId=${encodeURIComponent(companyId)}` : '/dev-dashboard',
+    icon: Gauge,
+    match: ['/dev-dashboard', '/dev-admin'],
+  },
 ];
 
 const isActiveItem = (pathname: string, item: SidebarNavItem) => {
@@ -68,11 +78,13 @@ export function SidebarNav({
   footer,
   className = '',
   expanded = false,
+  items = mainNavItems,
 }: {
   header?: ReactNode;
   footer?: ReactNode;
   className?: string;
   expanded?: boolean;
+  items?: SidebarNavItem[];
 }) {
   return (
     <>
@@ -82,7 +94,7 @@ export function SidebarNav({
         <div className="flex h-full w-full flex-col overflow-hidden p-3">
           {header ? <div className="mb-5">{header}</div> : null}
           <nav className="space-y-1" aria-label="Primary navigation">
-            {mainNavItems.map((item) => (
+            {items.map((item) => (
               <NavLink key={item.href} item={item} />
             ))}
           </nav>
@@ -95,7 +107,7 @@ export function SidebarNav({
         aria-label="Primary mobile navigation"
       >
         <div className="flex items-center gap-1">
-          {mainNavItems.map((item) => (
+          {items.map((item) => (
             <NavLink key={item.href} item={item} compact />
           ))}
         </div>

@@ -442,6 +442,13 @@ declare
   current_company_id uuid;
   current_role text;
 begin
+  if auth.uid() is null then
+    if new.company_id is null then
+      raise exception 'Pool inserts require company_id when no auth session is present';
+    end if;
+    return new;
+  end if;
+
   select company_id, lower(role)
   into current_company_id, current_role
   from public.profiles

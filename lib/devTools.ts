@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isDevRequest } from '@/lib/auth/devSession';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isUuid } from '@/lib/devCompanyScope';
 
 export type DevFeatureFlag = {
   key: string;
@@ -57,15 +58,44 @@ export const devTableNames = [
   'error_logs',
 ];
 
-export const jsonDevForbidden = () =>
-  NextResponse.json({ ok: false, message: 'Dev session required.' }, { status: 403 });
+export const optionalDevTableNames = new Set(['error_logs']);
 
-export const assertDevRequest = (request: NextRequest) => {
-  if (!isDevRequest(request)) {
-    return jsonDevForbidden();
+export const resolveDevCompanyId = async (
+  supabase: ReturnType<typeof createAdminClient>,
+  raw?: string | null,
+): Promise<string | null> => {
+  const value = raw?.trim();
+  if (!value) return null;
+  if (isUuid(value)) return value;
+
+  const { data, error } = await supabase
+    .from('companies')
+    .select('id')
+    .eq('company_code', value.toUpperCase())
+    .maybeSingle();
+
+  if (error || !data?.id) return null;
+  return data.id;
+};
+
+const readRawDevCompanyId = async (request: NextRequest) => {
+  const fromQuery = request.nextUrl.searchParams.get('companyId')?.trim();
+  if (fromQuery) return fromQuery;
+
+  if (request.method === 'GET') {
+    return null;
   }
 
-  return null;
+  try {
+    const body = await request.clone().json() as {
+      companyId?: string | null;
+      selected_company_id?: string | null;
+    } | null;
+
+    return body?.companyId?.trim() || body?.selected_company_id?.trim() || null;
+  } catch {
+    return null;
+  }
 };
 
 export const getAdminOrError = () => {
@@ -77,12 +107,24 @@ export const getAdminOrError = () => {
 };
 
 export const getDevCompanyId = async (request: NextRequest) => {
-  if (request.method === 'GET') {
-    return request.nextUrl.searchParams.get('companyId')?.trim() || null;
+  const raw = await readRawDevCompanyId(request);
+  if (!raw) return null;
+
+  const { supabase } = getAdminOrError();
+  if (!supabase) return isUuid(raw) ? raw : null;
+
+  return resolveDevCompanyId(supabase, raw);
+};
+
+export const jsonDevForbidden = () =>
+  NextResponse.json({ ok: false, message: 'Dev session required.' }, { status: 403 });
+
+export const assertDevRequest = (request: NextRequest) => {
+  if (!isDevRequest(request)) {
+    return jsonDevForbidden();
   }
 
-  const body = await request.clone().json().catch(() => null) as { companyId?: string | null; selected_company_id?: string | null } | null;
-  return body?.companyId?.trim() || body?.selected_company_id?.trim() || request.nextUrl.searchParams.get('companyId')?.trim() || null;
+  return null;
 };
 
 export const logDevRequest = async (input: {
@@ -173,11 +215,20 @@ export const readDevTables = async (): Promise<DevTableSummary[]> => {
 
   const results = await Promise.all(
     devTableNames.map(async (name) => {
-      const { count, error } = await supabase.from(name).select('*', { count: 'exact', head: true });
+      const probe = await supabase.from(name).select('*').limit(1);
+      if (probe.error) {
+        return {
+          name,
+          count: null,
+          status: probe.error.code === 'PGRST205' ? 'missing' : 'error',
+        } satisfies DevTableSummary;
+      }
+
+      const { count } = await supabase.from(name).select('*', { count: 'exact', head: true });
       return {
         name,
         count: count ?? null,
-        status: error ? 'error' : 'ok',
+        status: 'ok',
       } satisfies DevTableSummary;
     }),
   );

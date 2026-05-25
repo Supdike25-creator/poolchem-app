@@ -1,7 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   LogOut,
@@ -17,7 +17,7 @@ import {
 } from '@/lib/auth/accountAccess';
 import { getStoredSession } from '@/lib/appAccounts';
 import { createClient } from '@/utils/supabase/client';
-import { SidebarNav } from './SidebarNav';
+import { SidebarNav, buildDevPreviewNavItems } from './SidebarNav';
 
 type Profile = {
   full_name?: string | null;
@@ -42,10 +42,15 @@ const clearLegacyAppSession = () => {
 
 export default function AuthShell({ role, children }: { role: AppRole; children: React.ReactNode }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
   const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState<string>('');
   const isDevPreview = profile?.role === 'dev' && role !== 'dev';
+  const devNavItems = useMemo(
+    () => buildDevPreviewNavItems(searchParams.get('companyId')),
+    [searchParams],
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -217,6 +222,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   return (
     <div className="min-h-screen w-full bg-slate-50 pb-24 lg:pb-0">
       <SidebarNav
+        items={isDevPreview ? devNavItems : undefined}
         header={(
           <div className="min-h-[74px] overflow-visible">
             <ChemDeckLogo variant="mark" className="h-10 w-10 group-hover:hidden group-focus-within:hidden" />
@@ -226,7 +232,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
             </div>
           </div>
         )}
-        footer={(
+        footer={isDevPreview ? undefined : (
           <div className="flex min-h-11 w-10 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2 transition-[width,padding] duration-200 ease-out group-hover:w-full group-hover:p-3 group-focus-within:w-full group-focus-within:p-3">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200">
@@ -275,7 +281,10 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
                 {isDevPreview ? (
                   <button
                     type="button"
-                    onClick={() => router.push('/dev-dashboard')}
+                    onClick={() => {
+                      const companyId = searchParams.get('companyId');
+                      router.push(companyId ? `/dev-dashboard?companyId=${encodeURIComponent(companyId)}` : '/dev-dashboard');
+                    }}
                     data-sound="back"
                     className="inline-flex h-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-800 shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-100"
                   >

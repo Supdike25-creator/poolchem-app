@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
+import { getStoredSession } from '@/lib/appAccounts';
 import BackButton from '../../../components/BackButton';
 
 interface Pool {
@@ -16,6 +17,8 @@ interface Pool {
   target_ph_max?: number | null;
   default_chlorine_strength?: number | null;
 }
+
+export type GuardPool = Pool;
 
 const getDefaultPoolVolume = () => {
   if (typeof window === 'undefined') {
@@ -51,11 +54,15 @@ const calculateChlorineDose = (pool: Pool | null, currentChlorine: number, defau
 const getStatusClass = (value: boolean) =>
   value ? 'text-green-700 bg-green-50 border-green-200' : 'text-slate-700 bg-slate-50 border-slate-200';
 
-export default function GuardLogClient({ searchParams }: { searchParams: URLSearchParams }) {
+export default function GuardLogClient({ initialPools = [] }: { initialPools?: Pool[] }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const companyId = searchParams.get('companyId');
+  const poolIdParam = searchParams.get('poolId');
+  const guardHomeHref = companyId ? `/worker-view?companyId=${encodeURIComponent(companyId)}` : '/guard';
 
-  const [pools, setPools] = useState<Pool[]>([]);
-  const [selectedPoolId, setSelectedPoolId] = useState<string>('');
+  const [pools, setPools] = useState<Pool[]>(initialPools);
+  const [selectedPoolId, setSelectedPoolId] = useState<string>(() => poolIdParam || initialPools[0]?.id || '');
   const [chlorine, setChlorine] = useState('2.0');
   const [ph, setPh] = useState('7.4');
   const [notes, setNotes] = useState('');
@@ -66,24 +73,25 @@ export default function GuardLogClient({ searchParams }: { searchParams: URLSear
 
   useEffect(() => {
     const loadPools = async () => {
-      const companyId = searchParams.get('companyId');
       const query = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
-      const response = await fetch(`/api/company-pools${query}`, { cache: 'no-store' });
+      const response = await fetch(`/api/company-pools${query}`, { cache: 'no-store', credentials: 'same-origin' });
       const result = await response.json().catch(() => null);
 
       if (!response.ok || !result?.ok) {
-        setError(result?.message || 'Unable to load pools.');
+        if (initialPools.length === 0) {
+          setError(result?.message || 'Unable to load pools.');
+        }
         return;
       }
 
       const loadedPools = result.pools ?? [];
       setPools(loadedPools);
-      const initialPoolId = searchParams.get('poolId') || loadedPools[0]?.id || '';
-      setSelectedPoolId(initialPoolId);
+      setSelectedPoolId((current) => current || poolIdParam || loadedPools[0]?.id || '');
+      setError('');
     };
 
-    loadPools();
-  }, [searchParams]);
+    void loadPools();
+  }, [companyId, poolIdParam, initialPools.length]);
 
   const selectedPool = useMemo(
     () => pools.find((pool) => pool.id === selectedPoolId) ?? null,
@@ -129,6 +137,40 @@ export default function GuardLogClient({ searchParams }: { searchParams: URLSear
       return;
     }
 
+    const devSession = getStoredSession();
+    if (devSession?.role === 'dev') {
+      const response = await fetch('/api/dev/guard-log', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          pool_id: selectedPoolId,
+          companyId,
+          free_chlorine: Number(chlorine),
+          ph: Number(ph),
+          notes,
+        }),
+      });
+      const raw = await response.text();
+      let result: { ok?: boolean; message?: string } | null = null;
+      try {
+        result = raw ? JSON.parse(raw) : null;
+      } catch {
+        setSaving(false);
+        setError(response.ok ? 'Unexpected server response.' : `Unable to submit chemistry log (${response.status}).`);
+        return;
+      }
+      setSaving(false);
+
+      if (!response.ok || !result?.ok) {
+        setError(result?.message || 'Unable to submit chemistry log.');
+        return;
+      }
+
+      router.push(`/guard/review?poolId=${selectedPoolId}&chlorine=${chlorine}&ph=${ph}${companyId ? `&companyId=${encodeURIComponent(companyId)}` : ''}`);
+      return;
+    }
+
     const supabase = createClient();
     const { data: { session } } = await supabase.auth.getSession();
 
@@ -155,7 +197,6 @@ export default function GuardLogClient({ searchParams }: { searchParams: URLSear
       return;
     }
 
-    const companyId = searchParams.get('companyId');
     router.push(`/guard/review?poolId=${selectedPoolId}&chlorine=${chlorine}&ph=${ph}${companyId ? `&companyId=${encodeURIComponent(companyId)}` : ''}`);
   };
 
@@ -168,10 +209,10 @@ export default function GuardLogClient({ searchParams }: { searchParams: URLSear
             <h1 className="text-2xl font-semibold text-slate-900">Chemical Log</h1>
             <p className="mt-2 text-sm text-slate-600 max-w-2xl">Submit the latest chemistry values for your assigned pool.</p>
           </div>
-          <BackButton fallbackHref="/guard" label="Back" />
+          <BackButton fallbackHref={guardHomeHref} label="Back" />
           <button
             type="button"
-            onClick={() => router.push('/guard')}
+            onClick={() => router.push(guardHomeHref)}
             data-sound="back"
             className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
@@ -187,7 +228,7 @@ export default function GuardLogClient({ searchParams }: { searchParams: URLSear
               onChange={(event) => setSelectedPoolId(event.target.value)}
               className="mt-2 block w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:ring-blue-500"
             >
-              <option value="">Choose a pool</option>
+              <option value="">{pools.length === 0 ? 'No pools found for this company' : 'Choose a pool'}</option>
               {pools.map((pool) => (
                 <option key={pool.id} value={pool.id}>
                   {pool.name}
@@ -286,7 +327,7 @@ export default function GuardLogClient({ searchParams }: { searchParams: URLSear
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
-              onClick={() => router.push('/guard')}
+              onClick={() => router.push(guardHomeHref)}
               data-sound="back"
               className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >

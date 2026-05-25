@@ -1,3 +1,5 @@
+import Image from 'next/image';
+
 type ChemDeckLogoProps = {
   variant?: "full" | "mark";
   scheme?: "light" | "dark";
@@ -14,14 +16,19 @@ export default function ChemDeckLogo({
   const src = variant === "full"
     ? scheme === "dark" ? "/chemdeck-logo-full-dark.svg" : "/chemdeck-logo-full.svg"
     : scheme === "dark" ? "/chemdeck-mark-dark.svg" : "/chemdeck-mark.svg";
-  const baseSize = variant === "full" ? "h-auto w-44 max-w-full" : "h-10 w-10";
+  const width = variant === "full" ? 176 : 40;
+  const height = variant === "full" ? 40 : 40;
 
   return (
-    <img
+    <Image
       src={src}
       alt={alt}
-      className={`${baseSize} shrink-0 object-contain ${className}`}
+      width={width}
+      height={height}
+      className={`${variant === "full" ? "h-auto w-44 max-w-full" : "h-10 w-10"} shrink-0 object-contain ${className}`}
+      style={{ width: variant === "full" ? "auto" : undefined, height: "auto" }}
       draggable={false}
+      priority={variant === "full"}
     />
   );
 }

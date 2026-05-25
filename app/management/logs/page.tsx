@@ -19,7 +19,6 @@ interface ChemicalLogRow {
   dosing_chemical?: string | null;
   dosing_recommendation?: string | null;
   notes?: string | null;
-  logged_at?: string | null;
   created_at: string;
 }
 
@@ -49,7 +48,7 @@ const getHourLabel = (hour: number) => {
   return date.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
 };
 
-const getLogTime = (log: ChemicalLogRow) => new Date(log.logged_at || log.created_at);
+const getLogTime = (log: ChemicalLogRow) => new Date(log.created_at);
 
 const getLogStatus = (log: ChemicalLogRow) => {
   const chlorine = log.free_chlorine;
@@ -119,7 +118,7 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
   const { data: logs, error } = poolIds.length > 0
     ? await supabase
       .from('chemical_logs')
-      .select('id,pool_id,submitted_by,free_chlorine,ph,dosing_amount,dosing_unit,dosing_chemical,dosing_recommendation,notes,logged_at,created_at')
+      .select('id,pool_id,submitted_by,free_chlorine,ph,dosing_amount,dosing_unit,dosing_chemical,dosing_recommendation,notes,created_at')
       .in('pool_id', poolIds)
       .gte('created_at', dayStart.toISOString())
       .lt('created_at', dayEnd.toISOString())

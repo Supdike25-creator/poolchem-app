@@ -30,6 +30,21 @@ export type AdminPool = {
   pool_type: string | null;
 };
 
+export type AdminPoolDetail = {
+  id: string;
+  name: string;
+  company_id: string | null;
+  company_name: string | null;
+  pool_type: string | null;
+  volume_gallons: number | null;
+  target_chlorine_min: number | null;
+  target_chlorine_max: number | null;
+  target_ph_min: number | null;
+  target_ph_max: number | null;
+  default_chlorine_strength: number | null;
+  notes: string | null;
+};
+
 export const requireDev = async () => {
   const session = await getServerAppSession();
   if (session?.role !== 'dev') {
@@ -93,4 +108,40 @@ export const loadPools = async (): Promise<AdminPool[]> => {
     location: pool.notes,
     pool_type: pool.pool_type,
   }));
+};
+
+export const loadPool = async (poolId: string): Promise<AdminPoolDetail | null> => {
+  const supabase = createAdminClient();
+  const { data: pool, error } = await supabase
+    .from('pools')
+    .select('id,name,company_id,pool_type,volume_gallons,target_chlorine_min,target_chlorine_max,target_ph_min,target_ph_max,default_chlorine_strength,notes')
+    .eq('id', poolId)
+    .maybeSingle();
+
+  if (error || !pool) return null;
+
+  let companyName: string | null = null;
+  if (pool.company_id) {
+    const { data: company } = await supabase
+      .from('companies')
+      .select('company_name')
+      .eq('id', pool.company_id)
+      .maybeSingle();
+    companyName = company?.company_name ?? null;
+  }
+
+  return {
+    id: pool.id,
+    name: pool.name,
+    company_id: pool.company_id,
+    company_name: companyName,
+    pool_type: pool.pool_type,
+    volume_gallons: pool.volume_gallons,
+    target_chlorine_min: pool.target_chlorine_min,
+    target_chlorine_max: pool.target_chlorine_max,
+    target_ph_min: pool.target_ph_min,
+    target_ph_max: pool.target_ph_max,
+    default_chlorine_strength: pool.default_chlorine_strength,
+    notes: pool.notes,
+  };
 };

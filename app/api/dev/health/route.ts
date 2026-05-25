@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { assertDevRequest, getDevCompanyId, getAdminOrError, logDevMessage, logDevRequest, readDevTables } from '@/lib/devTools';
+import { assertDevRequest, getDevCompanyId, getAdminOrError, logDevMessage, logDevRequest, optionalDevTableNames, readDevTables } from '@/lib/devTools';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +23,10 @@ export async function GET(request: NextRequest) {
   ]);
   const tables = await readDevTables();
   const routeErrors = [usersCheck.error, poolsCheck.error, logsCheck.error].filter(Boolean);
-  const brokenTables = tables.filter((table) => table.status !== 'ok');
+  const brokenTables = tables.filter(
+    (table) =>
+      table.status === 'error' || (table.status === 'missing' && !optionalDevTableNames.has(table.name)),
+  );
   const status = brokenTables.length || routeErrors.length ? 207 : 200;
 
   await logDevRequest({ method: 'GET', path: '/api/dev/health', status });

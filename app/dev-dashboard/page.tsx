@@ -14,6 +14,7 @@ import {
   readDevRawLogs,
   readDevTables,
   readFeatureFlags,
+  resolveDevCompanyId,
   type DevApiRequest,
   type DevFeatureFlag,
   type DevRawLog,
@@ -107,7 +108,7 @@ async function loadSnapshot(selectedCompanyId?: string): Promise<DevSnapshot> {
       readDevTables(),
     ]);
 
-    const errors = [usersResult.error, poolsForScope.error, logsResult.error, alertsResult.error]
+    const queryErrors = [usersResult.error, poolsForScope.error, logsResult.error, alertsResult.error]
       .filter(Boolean)
       .map((error) => error?.message ?? 'Unknown Supabase error');
     const errorLogMessages = errorLogsResult.error
@@ -121,9 +122,9 @@ async function loadSnapshot(selectedCompanyId?: string): Promise<DevSnapshot> {
       pools: poolsForScope.count ?? 0,
       recentLogs: (logsResult.data ?? []) as RecentLog[],
       alerts: alertsResult.count ?? 0,
-      errors: [...errors, ...errorLogMessages],
-      apiHealth: errors.length > 0 ? 'degraded' : 'healthy',
-      databaseStatus: errors.length > 1 ? 'unavailable' : 'connected',
+      errors: [...queryErrors, ...errorLogMessages],
+      apiHealth: queryErrors.length > 0 ? 'degraded' : 'healthy',
+      databaseStatus: queryErrors.length > 1 ? 'unavailable' : 'connected',
       tables,
       flags,
       rawLogs,
@@ -149,7 +150,18 @@ export default async function DevDashboardPage({
   }
 
   const params = await searchParams;
-  const selectedCompanyId = params?.companyId ?? '';
+  const rawCompanyId = params?.companyId?.trim() ?? '';
+  const supabase = createAdminClient();
+  const selectedCompanyId = rawCompanyId ? (await resolveDevCompanyId(supabase, rawCompanyId)) ?? '' : '';
+
+  if (rawCompanyId && selectedCompanyId && rawCompanyId !== selectedCompanyId) {
+    redirect(`/dev-dashboard?companyId=${encodeURIComponent(selectedCompanyId)}`);
+  }
+
+  if (rawCompanyId && !selectedCompanyId) {
+    redirect('/dev-dashboard');
+  }
+
   const [snapshot, companies] = await Promise.all([
     loadSnapshot(selectedCompanyId),
     readDevCompanies(),

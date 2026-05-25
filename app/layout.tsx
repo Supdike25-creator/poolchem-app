@@ -31,6 +31,7 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${dmSans.variable} h-full antialiased`}
+      data-scroll-behavior="smooth"
     >
       <body className={`${dmSans.className} min-h-full w-full flex flex-col bg-slate-50 text-slate-950`}>
         <ThemeManager />

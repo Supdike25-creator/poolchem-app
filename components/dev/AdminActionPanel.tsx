@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import type { AdminCompany } from '@/lib/devAdmin';
 
@@ -8,6 +9,18 @@ type Result = {
   message?: string;
   details?: unknown;
 };
+
+const RELOAD_ACTIONS = new Set([
+  'add-pool',
+  'delete-pool',
+  'delete-company',
+  'change-role',
+  'move-company',
+  'toggle-active',
+  'change-code',
+  'rename-company',
+  'create-company',
+]);
 
 export default function AdminActionPanel({
   scope,
@@ -29,9 +42,31 @@ export default function AdminActionPanel({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ scope, action, id, ...payload }),
       });
-      const data = await response.json();
+      const raw = await response.text();
+      let data: Result = {};
+      try {
+        data = raw ? (JSON.parse(raw) as Result) : {};
+      } catch {
+        setResult({
+          ok: false,
+          message: response.ok
+            ? 'Unexpected server response.'
+            : `Request failed (${response.status}). Check server logs.`,
+        });
+        return;
+      }
+      if (!response.ok && !data.message) {
+        data = { ok: false, message: `Request failed (${response.status}).` };
+      }
       setResult(data);
-      if (data.ok) window.setTimeout(() => window.location.reload(), 500);
+      const details = data.details as { href?: string } | undefined;
+      if (data.ok && details?.href) {
+        window.location.assign(details.href);
+        return;
+      }
+      if (data.ok && RELOAD_ACTIONS.has(action)) {
+        window.setTimeout(() => window.location.reload(), 500);
+      }
     } catch (error) {
       setResult({ ok: false, message: (error as Error).message });
     } finally {
@@ -71,7 +106,14 @@ export default function AdminActionPanel({
         <button className="h-9 rounded-md border border-slate-200 px-2 text-xs font-semibold" disabled={busy === 'impersonate'} onClick={() => run('impersonate')}>
           Impersonate
         </button>
-        {result.message ? <span className="text-xs font-semibold text-slate-500">{result.message}</span> : null}
+        {result.message ? (
+          <div className="w-full space-y-2">
+            <span className="text-xs font-semibold text-slate-500">{result.message}</span>
+            {result.details ? (
+              <pre className="max-h-48 overflow-auto rounded-md bg-slate-950 p-3 text-xs text-slate-100">{JSON.stringify(result.details, null, 2)}</pre>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -94,18 +136,39 @@ export default function AdminActionPanel({
         <button className="h-9 rounded-md border border-slate-200 px-2 text-xs font-semibold" onClick={() => run('view-users')}>
           View users
         </button>
-        {result.message ? <span className="text-xs font-semibold text-slate-500">{result.message}</span> : null}
+        {result.message ? (
+          <div className="w-full space-y-2">
+            <span className="text-xs font-semibold text-slate-500">{result.message}</span>
+            {result.details ? (
+              <pre className="max-h-48 overflow-auto rounded-md bg-slate-950 p-3 text-xs text-slate-100">{JSON.stringify(result.details, null, 2)}</pre>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     );
   }
 
   if (scope === 'pool') {
     return (
-      <div className="flex flex-wrap gap-2">
-        <button className="h-9 rounded-md border border-slate-200 px-2 text-xs font-semibold" onClick={() => run('edit-pool')}>Edit</button>
+      <div className="flex flex-wrap items-start gap-2">
+        {id ? (
+          <Link
+            href={`/dev-admin/pools/${id}/edit`}
+            className="inline-flex h-9 items-center rounded-md border border-slate-200 px-2 text-xs font-semibold"
+          >
+            Edit
+          </Link>
+        ) : null}
         <button className="h-9 rounded-md border border-red-200 px-2 text-xs font-semibold text-red-700" onClick={() => run('delete-pool')}>Delete</button>
         <button className="h-9 rounded-md border border-slate-200 px-2 text-xs font-semibold" onClick={() => run('view-logs')}>View logs</button>
-        {result.message ? <span className="text-xs font-semibold text-slate-500">{result.message}</span> : null}
+        {result.message ? (
+          <div className="w-full space-y-2">
+            <span className="text-xs font-semibold text-slate-500">{result.message}</span>
+            {result.details ? (
+              <pre className="max-h-48 overflow-auto rounded-md bg-slate-950 p-3 text-xs text-slate-100">{JSON.stringify(result.details, null, 2)}</pre>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     );
   }

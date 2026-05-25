@@ -2,6 +2,7 @@ import Link from 'next/link';
 import BackButton from '../../../components/BackButton';
 import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { resolveCompanyScopeId } from '@/lib/resolveCompanyScopeId';
 import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
 
 interface ChemicalLogRow {
@@ -11,7 +12,6 @@ interface ChemicalLogRow {
   free_chlorine?: number | null;
   ph?: number | null;
   notes?: string | null;
-  logged_at?: string | null;
   created_at: string;
 }
 
@@ -23,7 +23,7 @@ interface ProfileSummary {
 
 export const dynamic = 'force-dynamic';
 
-const getLogTime = (log: ChemicalLogRow) => new Date(log.logged_at || log.created_at);
+const getLogTime = (log: ChemicalLogRow) => new Date(log.created_at);
 
 const getStatus = (log: ChemicalLogRow) => {
   if (typeof log.free_chlorine !== 'number' || typeof log.ph !== 'number') {
@@ -42,7 +42,7 @@ const formatTime = (value: Date) => value.toLocaleTimeString('en-US', { hour: 'n
 export default async function GuardReviewPage({ searchParams }: { searchParams: Promise<{ sheet?: string; poolId?: string; chlorine?: string; ph?: string; companyId?: string }> }) {
   const params = await searchParams;
   const isFullSheet = params?.sheet === 'full';
-  const devCompanyId = params?.companyId;
+  const devCompanyId = await resolveCompanyScopeId(params?.companyId);
   const supabase = devCompanyId ? createAdminClient() : await createClient();
 
   const poolsQuery = supabase
@@ -68,7 +68,7 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
 
   const query = supabase
     .from('chemical_logs')
-    .select('id,pool_id,submitted_by,free_chlorine,ph,notes,logged_at,created_at')
+    .select('id,pool_id,submitted_by,free_chlorine,ph,notes,created_at')
     .gte('created_at', (isFullSheet ? dayStart : rangeStart).toISOString())
     .lt('created_at', (isFullSheet ? dayEnd : rangeEnd).toISOString())
     .order('created_at', { ascending: false });

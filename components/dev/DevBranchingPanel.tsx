@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Building2, Edit3, Plus, Shield, Waves } from 'lucide-react';
 import { useDevCompany } from '@/components/dev/DevCompanyContext';
@@ -19,21 +19,33 @@ export default function DevBranchingPanel({
   initialCompanyId?: string;
 }) {
   const router = useRouter();
-  const { selectedCompanyId, setSelectedCompanyId } = useDevCompany();
+  const { selectedCompanyId, setSelectedCompanyId, hydrated } = useDevCompany();
   const [perspective, setPerspective] = useState<'boss' | 'lifeguard' | ''>('');
   const [companyName, setCompanyName] = useState('');
   const [companyCode, setCompanyCode] = useState('');
-  const [renameValue, setRenameValue] = useState('');
-  const [codeValue, setCodeValue] = useState('');
+  const renameRef = useRef<HTMLInputElement>(null);
+  const codeRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [savingAction, setSavingAction] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (initialCompanyId) setSelectedCompanyId(initialCompanyId);
-  }, [initialCompanyId, setSelectedCompanyId]);
+  const activeCompanyId = initialCompanyId || (hydrated ? selectedCompanyId : '');
 
-  const activeCompanyId = selectedCompanyId || initialCompanyId || '';
+  useEffect(() => {
+    if (!hydrated) return;
+
+    if (initialCompanyId) {
+      if (selectedCompanyId !== initialCompanyId) {
+        setSelectedCompanyId(initialCompanyId);
+      }
+      return;
+    }
+
+    if (selectedCompanyId) {
+      router.replace(`/dev-dashboard?companyId=${encodeURIComponent(selectedCompanyId)}`, { scroll: false });
+    }
+  }, [hydrated, initialCompanyId, selectedCompanyId, router, setSelectedCompanyId]);
+
   const selectedCompany = useMemo(
     () => companies.find((company) => company.id === activeCompanyId) ?? null,
     [activeCompanyId, companies],
@@ -58,7 +70,13 @@ export default function DevBranchingPanel({
           ...payload,
         }),
       });
-      const data = await response.json().catch(() => null);
+      const raw = await response.text();
+      let data: { ok?: boolean; message?: string; details?: { id?: string } } | null = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        throw new Error(response.ok ? 'Unexpected server response.' : `Request failed (${response.status}).`);
+      }
 
       if (!response.ok || data?.ok === false) {
         throw new Error(data?.message || 'Company action failed.');
@@ -113,8 +131,6 @@ export default function DevBranchingPanel({
                   type="button"
                   onClick={() => {
                     setSelectedCompanyId(company.id);
-                    setRenameValue(company.company_name);
-                    setCodeValue(company.company_code ?? '');
                     setPerspective('');
                     router.replace(`/dev-dashboard?companyId=${encodeURIComponent(company.id)}`, { scroll: false });
                   }}
@@ -168,16 +184,17 @@ export default function DevBranchingPanel({
           </div>
           <div className="grid gap-2 md:grid-cols-[1fr_auto]">
             <input
-              value={renameValue}
-              onChange={(event) => setRenameValue(event.target.value)}
-              placeholder={selectedCompany?.company_name || 'Rename selected company'}
+              key={`rename-${activeCompanyId}`}
+              ref={renameRef}
+              defaultValue={selectedCompany?.company_name ?? ''}
+              placeholder="Rename selected company"
               disabled={!selectedCompany}
               className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
             />
             <button
               type="button"
-              disabled={!selectedCompany || savingAction === 'rename-company' || !renameValue.trim()}
-              onClick={() => runCompanyAction('rename-company', { company_name: renameValue })}
+              disabled={!selectedCompany || savingAction === 'rename-company'}
+              onClick={() => runCompanyAction('rename-company', { company_name: renameRef.current?.value ?? '' })}
               className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
             >
               {savingAction === 'rename-company' ? 'Renaming' : 'Rename'}
@@ -185,16 +202,17 @@ export default function DevBranchingPanel({
           </div>
           <div className="grid gap-2 md:grid-cols-[1fr_auto]">
             <input
-              value={codeValue}
-              onChange={(event) => setCodeValue(event.target.value.toUpperCase())}
-              placeholder={selectedCompany?.company_code || 'Change selected company code'}
+              key={`code-${activeCompanyId}`}
+              ref={codeRef}
+              defaultValue={selectedCompany?.company_code ?? ''}
+              placeholder="Change selected company code"
               disabled={!selectedCompany}
-              className="h-10 rounded-md border border-slate-200 bg-white px-3 font-mono text-sm text-slate-950 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+              className="h-10 rounded-md border border-slate-200 bg-white px-3 font-mono text-sm text-slate-950 uppercase outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
             />
             <button
               type="button"
-              disabled={!selectedCompany || savingAction === 'change-code' || !codeValue.trim()}
-              onClick={() => runCompanyAction('change-code', { company_code: codeValue })}
+              disabled={!selectedCompany || savingAction === 'change-code'}
+              onClick={() => runCompanyAction('change-code', { company_code: (codeRef.current?.value ?? '').toUpperCase() })}
               className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
             >
               {savingAction === 'change-code' ? 'Saving' : 'Change code'}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isDevRequest } from "@/lib/auth/devSession";
+import { resolveDevCompanyId } from "@/lib/devTools";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -23,18 +24,23 @@ const poolColumns = [
 ].join(",");
 
 export async function GET(request: NextRequest) {
-  const devCompanyId = isDevRequest(request) ? request.nextUrl.searchParams.get("companyId") : null;
+  const rawDevCompanyId = isDevRequest(request) ? request.nextUrl.searchParams.get("companyId") : null;
   const supabase = await createClient();
   const {
     data: { user },
     error: userError,
   } = await supabase.auth.getUser();
 
+  const adminClient = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : null;
+  const devCompanyId = rawDevCompanyId && adminClient
+    ? await resolveDevCompanyId(adminClient, rawDevCompanyId)
+    : rawDevCompanyId;
+
   if ((userError || !user) && !devCompanyId) {
     return NextResponse.json({ ok: false, message: "Unauthorized" }, { status: 401 });
   }
 
-  const db = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase;
+  const db = adminClient ?? supabase;
   let companyId = devCompanyId;
 
   if (!companyId && user) {
