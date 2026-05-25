@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
     role?: string;
     company_id?: string;
     company_code?: string;
+    company_name?: string;
   } | null;
 
   if (!body?.scope || !body.action) {
@@ -65,7 +66,47 @@ export async function POST(request: NextRequest) {
   }
 
   if (body.scope === 'company') {
-    if (!body.id) return NextResponse.json({ ok: false, message: 'Missing company id.' }, { status: 400 });
+    if (body.action === 'create-company') {
+      const companyName = body.company_name?.trim();
+      const requestedCode = body.company_code?.trim().toUpperCase();
+
+      if (!companyName) {
+        return NextResponse.json({ ok: false, message: 'Enter a company name.' }, { status: 400 });
+      }
+
+      const makeCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
+      let code = requestedCode || makeCode();
+      let insertedCompany: { id: string; company_name: string; company_code: string } | null = null;
+      let lastError: { message: string; code?: string } | null = null;
+
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const { data, error } = await supabase
+          .from('companies')
+          .insert({ company_name: companyName, company_code: code })
+          .select('id,company_name,company_code')
+          .single();
+
+        if (!error && data) {
+          insertedCompany = data;
+          break;
+        }
+
+        lastError = error;
+        if (requestedCode || error?.code !== '23505') break;
+        code = makeCode();
+      }
+
+      if (!insertedCompany) {
+        const message = lastError?.code === '23505' ? 'That company code is already in use.' : lastError?.message || 'Company could not be created.';
+        return NextResponse.json({ ok: false, message }, { status: 400 });
+      }
+
+      response = { ok: true, message: 'Company created.', details: insertedCompany };
+    }
+
+    if (body.action !== 'create-company' && !body.id) {
+      return NextResponse.json({ ok: false, message: 'Missing company id.' }, { status: 400 });
+    }
 
     if (body.action === 'add-pool') {
       const { error } = await supabase.from('pools').insert({ name: 'New Pool', company_id: body.id, pool_type: 'Pool' });
@@ -73,8 +114,25 @@ export async function POST(request: NextRequest) {
       response = { ok: true, message: 'Pool added to company.' };
     }
 
+    if (body.action === 'rename-company') {
+      const companyName = body.company_name?.trim();
+      if (!companyName) {
+        return NextResponse.json({ ok: false, message: 'Enter a company name.' }, { status: 400 });
+      }
+      const { error } = await supabase.from('companies').update({ company_name: companyName }).eq('id', body.id);
+      if (error) throw error;
+      response = { ok: true, message: 'Company renamed.' };
+    }
+
     if (body.action === 'change-code') {
-      const { error } = await supabase.from('companies').update({ company_code: body.company_code }).eq('id', body.id);
+      const code = body.company_code?.trim().toUpperCase();
+      if (!code) {
+        return NextResponse.json({ ok: false, message: 'Enter a company code.' }, { status: 400 });
+      }
+      const { error } = await supabase.from('companies').update({ company_code: code }).eq('id', body.id);
+      if (error?.code === '23505') {
+        return NextResponse.json({ ok: false, message: 'That company code is already in use.' }, { status: 400 });
+      }
       if (error) throw error;
       response = { ok: true, message: 'Company code updated.' };
     }
