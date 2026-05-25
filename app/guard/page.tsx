@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { loadGuardPools } from '@/lib/guardPools';
 import { temporaryLoginBypass } from '../../lib/temporaryLoginBypass';
 import BackButton from '../../components/BackButton';
+import GuardHomeExtras from '../../components/GuardHomeExtras';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,6 +74,8 @@ export default async function GuardHomePage({ devCompanyId }: { devCompanyId?: s
           </div>
           <BackButton fallbackHref="/" label="Back" />
         </div>
+
+        <GuardHomeExtras />
 
         <div className="grid gap-4 sm:grid-cols-2 mb-6">
           <Link

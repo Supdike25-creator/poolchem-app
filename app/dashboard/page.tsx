@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { AlertCircle, Camera, CheckCircle2, ClipboardCheck, Clock3, Eye, Info, Plus, Waves } from 'lucide-react';
+import { AlertCircle, Camera, CheckCircle2, ClipboardCheck, Clock3, Eye, FileSpreadsheet, Info, Plus, Users, Waves } from 'lucide-react';
 import { EmptyState, StatCard, StatusBadge, buttonClass, type StatusTone } from '../../components/OperationsUI';
 import { loadCompanyAlerts, syncMissedTestAlerts } from '@/lib/alerts';
 import { mergeCompanySettings } from '@/lib/companySettings';
@@ -415,6 +415,21 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
           </div>
         </div>
 
+        <div className="mb-6 flex flex-wrap gap-2">
+          <Link href="/management/team" className={buttonClass.secondary}>
+            <Users className="mr-2 h-4 w-4" />
+            Team
+          </Link>
+          <Link href="/management/compliance" className={buttonClass.secondary}>
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            Compliance
+          </Link>
+          <Link href="/management/alerts" className={buttonClass.secondary}>
+            <AlertCircle className="mr-2 h-4 w-4" />
+            Alerts{unreadAlertCount > 0 ? ` (${unreadAlertCount})` : ''}
+          </Link>
+        </div>
+
         <div className={`mb-6 rounded-xl border p-4 ${urgentPools.length > 0 ? 'border-red-200 bg-red-50 text-red-800' : 'border-green-200 bg-green-50 text-green-800'}`}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
@@ -483,7 +498,9 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
             </div>
             <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
               <span className="rounded-md bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white">Card View</span>
-              <span className="px-3 py-1.5 text-xs font-semibold text-slate-500">Table View</span>
+              <Link href="/management/logs" className="rounded-md px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-900">
+                Table View
+              </Link>
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

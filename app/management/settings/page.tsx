@@ -136,6 +136,8 @@ export default function ManagementSettingsPage() {
   const [companyDetails, setCompanyDetails] = useState<CompanyDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [copyMessage, setCopyMessage] = useState('');
+  const [inviteLink, setInviteLink] = useState('');
+  const [inviteCopyMessage, setInviteCopyMessage] = useState('');
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -170,6 +172,12 @@ export default function ManagementSettingsPage() {
         });
         localStorage.setItem('chemdeck-settings', JSON.stringify(settingsResult.settings));
         notifySettingsChanged();
+      }
+
+      const inviteResponse = await fetch('/api/team-invite', { cache: 'no-store' });
+      const inviteResult = await inviteResponse.json().catch(() => null);
+      if (inviteResponse.ok && inviteResult?.ok) {
+        setInviteLink(inviteResult.signup_link || '');
       }
 
       setLoading(false);
@@ -214,6 +222,18 @@ export default function ManagementSettingsPage() {
       window.setTimeout(() => setCopyMessage(''), 1600);
     } catch {
       setCopyMessage('Copy failed');
+    }
+  };
+
+  const copyInviteLink = async () => {
+    if (!inviteLink) return;
+
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setInviteCopyMessage('Invite link copied');
+      window.setTimeout(() => setInviteCopyMessage(''), 1600);
+    } catch {
+      setInviteCopyMessage('Copy failed');
     }
   };
 
@@ -556,6 +576,27 @@ export default function ManagementSettingsPage() {
                     {copyMessage || 'Copy code'}
                   </button>
                 </div>
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-slate-600">Share a signup link so guards can join with your code pre-filled.</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void copyInviteLink()}
+                      disabled={!inviteLink}
+                      className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-800 shadow-sm hover:bg-blue-100 disabled:cursor-not-allowed disabled:text-slate-400"
+                    >
+                      <Clipboard className="h-4 w-4" />
+                      {inviteCopyMessage || 'Copy invite link'}
+                    </button>
+                    <Link
+                      href="/management/team"
+                      className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                    >
+                      <Users className="h-4 w-4" />
+                      Manage team
+                    </Link>
+                  </div>
+                </div>
               </div>
             ) : null}
 
@@ -564,13 +605,11 @@ export default function ManagementSettingsPage() {
                 <Users className="h-4 w-4 text-slate-500" />
                 <span>Current role: {isBoss ? 'Manager / Supervisor' : 'Guard / Technician'}</span>
               </div>
-              <button
-                type="button"
-                disabled
-                className="mt-3 inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-400"
-              >
-                Change company coming soon
-              </button>
+              <p className="mt-3 text-sm text-slate-600">
+                {isBoss
+                  ? 'Invite guards from the Team page and approve pending members there.'
+                  : 'Contact your manager if you need to switch companies.'}
+              </p>
             </div>
           </div>
         </div>

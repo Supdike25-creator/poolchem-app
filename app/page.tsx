@@ -317,8 +317,11 @@ export default function Home() {
           <p className="mx-auto mt-4 mb-4 max-w-xl text-center text-slate-500">
             Plans for every size operation - from a single facility to a large multi-site company.
           </p>
-          <div className="mb-16 inline-block rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700">
-            🚧 Pricing coming soon - contact us for early access
+          <div className="mb-16 inline-block rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
+            Early access is open —{' '}
+            <a href="mailto:hello@chemdeck.com?subject=ChemDeck%20early%20access" className="font-semibold underline">
+              contact us to get started
+            </a>
           </div>
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">

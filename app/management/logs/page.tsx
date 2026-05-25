@@ -1,12 +1,13 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { Suspense } from 'react';
 import LogDateSlider from '../../../components/LogDateSlider';
 import ManagementLogFilters from '../../../components/ManagementLogFilters';
 import { getServerAppSession } from '../../../lib/serverAppSession';
 import { createClient } from '@/utils/supabase/server';
 import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
-import { EmptyState, PageHeader, SectionCard, StatCard, StatusBadge, type StatusTone } from '../../../components/OperationsUI';
-import { ClipboardList, Clock3, Filter, Rows3, Waves } from 'lucide-react';
+import { EmptyState, PageHeader, SectionCard, StatCard, StatusBadge, buttonClass, type StatusTone } from '../../../components/OperationsUI';
+import { ClipboardList, Clock3, Filter, FileSpreadsheet, Rows3, Waves } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -177,6 +178,17 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
           title="Daily Log Sheet"
           description="Audit pool chemistry submissions by date, time slot, status, and staff member."
           icon={<ClipboardList className="h-4 w-4" />}
+          actions={(
+            <>
+              <Link href="/management/compliance" className={buttonClass.secondary}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Compliance report
+              </Link>
+              <Link href="/management/team" className={buttonClass.secondary}>
+                Team invites
+              </Link>
+            </>
+          )}
         />
         {temporaryLoginBypass && error ? (
           <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">

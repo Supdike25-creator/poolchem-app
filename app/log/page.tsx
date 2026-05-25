@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import BackButton from '../../components/BackButton';
+import OfflineLogSync from '../../components/OfflineLogSync';
 import {
   defaultCompanySettings,
   getPhotoRequirementMessage,
@@ -957,6 +958,7 @@ export default function LogPage() {
         <div className="mb-4">
           <BackButton fallbackHref="/dashboard" label="Back" />
         </div>
+        <OfflineLogSync />
         {renderStepIndicator()}
 
         <div className="bg-white rounded-xl shadow-lg p-5 mb-6">
