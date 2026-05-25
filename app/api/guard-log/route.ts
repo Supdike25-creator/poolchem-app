@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { mergeCompanySettings, getPhotoRequirementMessage } from '@/lib/companySettings';
+import { createAlertsForLog } from '@/lib/alerts';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,6 +71,10 @@ export async function POST(request: NextRequest) {
     ph?: number;
     notes?: string | null;
     photo_url?: string | null;
+    dosing_amount?: number | null;
+    dosing_unit?: string | null;
+    dosing_chemical?: string | null;
+    dosing_recommendation?: string | null;
   } | null;
 
   const poolId = body?.pool_id?.trim();
@@ -87,6 +92,7 @@ export async function POST(request: NextRequest) {
   const validation = await validatePhotoRules(accountDb, companyId, poolId, freeChlorine, ph, body?.photo_url?.trim() || null);
   if ('error' in validation) return validation.error;
 
+  const photoUrl = body?.photo_url?.trim() || null;
   const { data: log, error: logError } = await accountDb
     .from('chemical_logs')
     .insert({
@@ -95,7 +101,11 @@ export async function POST(request: NextRequest) {
       free_chlorine: freeChlorine,
       ph,
       notes: body?.notes?.trim() || null,
-      photo_url: body?.photo_url?.trim() || null,
+      photo_url: photoUrl,
+      dosing_amount: body?.dosing_amount ?? null,
+      dosing_unit: body?.dosing_unit?.trim() || null,
+      dosing_chemical: body?.dosing_chemical?.trim() || null,
+      dosing_recommendation: body?.dosing_recommendation?.trim() || null,
     })
     .select('id, created_at')
     .single();
@@ -104,10 +114,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, message: logError.message }, { status: 500 });
   }
 
+  const alerts = await maybeCreateAlerts(accountDb, {
+    companyId,
+    pool: validation.pool,
+    logId: log.id,
+    freeChlorine,
+    ph,
+    photoUrl,
+  });
+
   return NextResponse.json({
     ok: true,
     message: 'Chemistry log submitted.',
     log,
+    alerts_created: alerts.length,
   }, { status: 201 });
 }
 
@@ -122,6 +142,10 @@ export async function PATCH(request: NextRequest) {
     ph?: number;
     notes?: string | null;
     photo_url?: string | null;
+    dosing_amount?: number | null;
+    dosing_unit?: string | null;
+    dosing_chemical?: string | null;
+    dosing_recommendation?: string | null;
   } | null;
 
   const logId = body?.log_id?.trim();
@@ -168,6 +192,10 @@ export async function PATCH(request: NextRequest) {
       ph,
       notes: body?.notes?.trim() || null,
       photo_url: photoUrl,
+      dosing_amount: body?.dosing_amount ?? null,
+      dosing_unit: body?.dosing_unit?.trim() || null,
+      dosing_chemical: body?.dosing_chemical?.trim() || null,
+      dosing_recommendation: body?.dosing_recommendation?.trim() || null,
     })
     .eq('id', logId)
     .select('id, created_at')
@@ -177,7 +205,16 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ ok: false, message: updateError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, message: 'Chemistry log updated.', log });
+  const alerts = await maybeCreateAlerts(accountDb, {
+    companyId,
+    pool: validation.pool,
+    logId: log.id,
+    freeChlorine,
+    ph,
+    photoUrl,
+  });
+
+  return NextResponse.json({ ok: true, message: 'Chemistry log updated.', log, alerts_created: alerts.length });
 }
 
 async function validatePhotoRules(
@@ -190,7 +227,7 @@ async function validatePhotoRules(
 ) {
   const { data: pool, error: poolError } = await accountDb
     .from('pools')
-    .select('id, company_id, pool_type, target_chlorine_min, target_chlorine_max, target_ph_min, target_ph_max')
+    .select('id, name, company_id, pool_type, target_chlorine_min, target_chlorine_max, target_ph_min, target_ph_max')
     .eq('id', poolId)
     .maybeSingle();
 
@@ -224,4 +261,50 @@ async function validatePhotoRules(
   }
 
   return { pool };
+}
+
+async function maybeCreateAlerts(
+  accountDb: ReturnType<typeof createAdminClient>,
+  input: {
+    companyId: string;
+    pool: {
+      id: string;
+      name?: string | null;
+      target_chlorine_min?: number | null;
+      target_chlorine_max?: number | null;
+      target_ph_min?: number | null;
+      target_ph_max?: number | null;
+    };
+    logId: string;
+    freeChlorine: number;
+    ph: number;
+    photoUrl: string | null;
+  },
+) {
+  const { data: company } = await accountDb
+    .from('companies')
+    .select('settings')
+    .eq('id', input.companyId)
+    .maybeSingle();
+
+  const settings = mergeCompanySettings(company?.settings);
+
+  try {
+    return await createAlertsForLog(accountDb, {
+      companyId: input.companyId,
+      poolId: input.pool.id,
+      poolName: input.pool.name || 'Pool',
+      logId: input.logId,
+      freeChlorine: input.freeChlorine,
+      ph: input.ph,
+      photoUrl: input.photoUrl,
+      chlorineMin: input.pool.target_chlorine_min,
+      chlorineMax: input.pool.target_chlorine_max,
+      phMin: input.pool.target_ph_min,
+      phMax: input.pool.target_ph_max,
+      settings,
+    });
+  } catch {
+    return [];
+  }
 }

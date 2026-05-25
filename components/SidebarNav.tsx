@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  Bell,
   ClipboardList,
   ClipboardPlus,
+  FileSpreadsheet,
   Gauge,
   LayoutDashboard,
   Megaphone,
@@ -25,6 +27,8 @@ export const mainNavItems: SidebarNavItem[] = [
   { label: 'Overview', href: '/management/dashboard', icon: LayoutDashboard, match: ['/dashboard', '/management/dashboard'] },
   { label: 'Submit Log', href: '/log', icon: ClipboardPlus, match: ['/log', '/guard/log'] },
   { label: 'Review Logs', href: '/management/logs', icon: ClipboardList, match: ['/management/logs', '/guard/review'] },
+  { label: 'Alerts', href: '/management/alerts', icon: Bell, match: ['/management/alerts'] },
+  { label: 'Compliance', href: '/management/compliance', icon: FileSpreadsheet, match: ['/management/compliance'] },
   { label: 'Pools', href: '/management/pools', icon: Waves, match: ['/management/pools'] },
   { label: 'Team', href: '/management/team', icon: Users, match: ['/management/team'] },
   { label: 'Announcements', href: '/management/announcements', icon: Megaphone, match: ['/management/announcements'] },

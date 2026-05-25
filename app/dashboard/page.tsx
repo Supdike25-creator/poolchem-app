@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { AlertCircle, Camera, CheckCircle2, ClipboardCheck, Clock3, Eye, Info, Plus, Waves } from 'lucide-react';
 import { EmptyState, StatCard, StatusBadge, buttonClass, type StatusTone } from '../../components/OperationsUI';
+import { loadCompanyAlerts } from '@/lib/alerts';
 
 export const dynamic = 'force-dynamic';
 
@@ -169,9 +170,39 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
   let errorMessage = '';
   let hasNoPools = false;
   let submitterMap = new Map<string, string>();
+  let unreadAlertCount = 0;
+  let dbAlertActions: Array<{ tone: StatusTone; title: string; detail: string }> = [];
 
   try {
     const supabase = devCompanyId ? createAdminClient() : await createClient();
+    let companyId = devCompanyId ?? null;
+
+    if (!companyId) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data: account } = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', user.id)
+          .maybeSingle();
+        companyId = account?.company_id ?? null;
+      }
+    }
+
+    if (companyId) {
+      const dbAlerts = await loadCompanyAlerts(supabase, companyId, 8);
+      unreadAlertCount = dbAlerts.filter((alert) => !alert.read_at).length;
+      dbAlertActions = dbAlerts
+        .filter((alert) => !alert.read_at)
+        .slice(0, 3)
+        .map((alert) => ({
+          tone: alert.severity === 'critical' ? ('critical' as StatusTone) : ('warning' as StatusTone),
+          title: alert.title,
+          detail: alert.message,
+        }));
+    }
 
     // Fetch all pools
     const poolsQuery = supabase
@@ -283,6 +314,7 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
 
   const urgentPools = poolsWithStatus.filter((pool) => ['overdue', 'high_chlorine', 'low_chlorine', 'ph_low', 'ph_high'].includes(pool.status));
   const priorityActions = [
+    ...dbAlertActions,
     ...poolsWithStatus
       .filter((pool) => pool.status === 'overdue')
       .map((pool) => ({ tone: 'overdue' as StatusTone, title: `${pool.name} is overdue`, detail: 'Submit a chemical test or assign a guard.' })),
@@ -380,9 +412,9 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
                 </p>
               </div>
             </div>
-            {urgentPools.length > 0 ? (
-              <Link href="#priority-actions" className="inline-flex h-9 items-center justify-center rounded-lg bg-white px-3 text-sm font-semibold text-red-700 shadow-sm ring-1 ring-red-200 hover:bg-red-50">
-                View Alerts
+            {urgentPools.length > 0 || unreadAlertCount > 0 ? (
+              <Link href="/management/alerts" className="inline-flex h-9 items-center justify-center rounded-lg bg-white px-3 text-sm font-semibold text-red-700 shadow-sm ring-1 ring-red-200 hover:bg-red-50">
+                View Alerts{unreadAlertCount > 0 ? ` (${unreadAlertCount})` : ''}
               </Link>
             ) : null}
           </div>

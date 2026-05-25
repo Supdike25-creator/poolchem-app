@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { useRouter } from 'next/navigation';
 import BackButton from '../../components/BackButton';
 import {
   AlertTriangle,
@@ -126,6 +126,7 @@ const getPhStatus = (ph: number): { status: string; color: string; tone: 'danger
 };
 
 export default function LogPage() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState<Step>('pool');
   const [formData, setFormData] = useState<FormData>({
     poolId: '',
@@ -143,6 +144,19 @@ export default function LogPage() {
   const [photoKey, setPhotoKey] = useState(0);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState('');
   const [defaultPoolVolume, setDefaultPoolVolume] = useState(getDefaultPoolVolume);
+
+  useEffect(() => {
+    const redirectGuards = async () => {
+      const response = await fetch('/api/current-account', { cache: 'no-store', credentials: 'same-origin' });
+      const result = await response.json().catch(() => null);
+      const role = String(result?.account?.role ?? '').toLowerCase();
+      if (['guard', 'worker', 'lifeguard', 'technician'].includes(role)) {
+        router.replace('/guard/log');
+      }
+    };
+
+    void redirectGuards();
+  }, [router]);
 
   useEffect(() => {
     const loadPools = async () => {
@@ -245,30 +259,49 @@ export default function LogPage() {
     }
   };
 
+  const uploadPhotoIfNeeded = async (poolId: string) => {
+    if (!formData.photo) return null;
+
+    const payload = new FormData();
+    payload.append('file', formData.photo);
+    payload.append('pool_id', poolId);
+
+    const response = await fetch('/api/upload-log-photo', {
+      method: 'POST',
+      body: payload,
+      credentials: 'same-origin',
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) {
+      throw new Error(result?.message || 'Unable to upload photo.');
+    }
+
+    return result.photo_url as string;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError('');
     setIsSubmitting(true);
 
     try {
-      const supabase = createClient();
-
-      // Get current user
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        setSubmitError('Unauthorized');
+      if (!formData.poolId) {
+        setSubmitError('Select a pool before submitting.');
         setIsSubmitting(false);
         return;
       }
 
-      const { error } = await supabase.from('chemical_logs').insert([
-        {
+      const photoUrl = await uploadPhotoIfNeeded(formData.poolId);
+      const response = await fetch('/api/guard-log', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
           pool_id: formData.poolId,
-          submitted_by: session.user.id,
           free_chlorine: Number(formData.freeChlorine),
           ph: Number(formData.ph),
           notes: formData.notes,
-          photo_url: null,
+          photo_url: photoUrl,
           dosing_amount: dosingResult.needsChlorine ? Number(dosingResult.doseOunces.toFixed(2)) : null,
           dosing_unit: dosingResult.needsChlorine ? 'oz' : null,
           dosing_chemical: selectedPool?.default_chlorine_type || 'chlorine',
@@ -277,12 +310,12 @@ export default function LogPage() {
             : dosingResult.needsChlorine
             ? `Add ${dosingResult.doseOunces.toFixed(1)} oz ${selectedPool?.default_chlorine_type || 'chlorine'}`
             : 'No chlorine needed',
-        }
-      ]);
+        }),
+      });
+      const result = await response.json().catch(() => null);
 
-      if (error) {
-        const message = typeof error.message === 'string' ? error.message : String(error);
-        setSubmitError(`Unable to submit chemical log: ${message}`);
+      if (!response.ok || !result?.ok) {
+        setSubmitError(result?.message || 'Unable to submit chemical log.');
       } else {
         setSubmitMessage('Chemical log submitted successfully!');
         setFormData({
