@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeProfileRole, routeForRole } from "@/lib/auth/accountAccess";
 import { isDevRequest } from "@/lib/auth/devSession";
 
-const PUBLIC_PATHS = ["/login", "/create-account", "/signup", "/api/create-account", "/auth/callback"];
+const PUBLIC_PATHS = ["/", "/login", "/create-account", "/signup", "/api/create-account", "/auth/callback"];
 const ROLE_SETUP_PATHS = ["/choose-role", "/api/choose-role"];
 
 const managerDashboardPath = "/management/dashboard";

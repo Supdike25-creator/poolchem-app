@@ -2,7 +2,7 @@
   "name": "ChemDeck",
   "short_name": "ChemDeck",
   "description": "Pool chemistry logging for guards and managers",
-  "start_url": "/login",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
