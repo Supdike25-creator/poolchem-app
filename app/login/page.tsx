@@ -237,8 +237,8 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen w-full items-center justify-center bg-white px-5 py-8 text-slate-950 sm:px-6">
-      <section className="w-full max-w-[420px]">
+    <main className="flex min-h-screen w-full items-center justify-center bg-white px-6 py-8 text-slate-950 md:bg-slate-50">
+      <section className="w-full md:max-w-md md:rounded-2xl md:border md:border-slate-200 md:bg-white md:px-10 md:py-10 md:shadow-[0_2px_16px_rgba(15,23,42,0.06)]">
         <div className="mb-8 text-center">
           <div className="mb-8 flex justify-center">
             <ChemDeckLogo variant="full" scheme="light" className="hidden w-[230px] sm:block" />
@@ -295,7 +295,7 @@ export default function LoginPage() {
             <div className="mt-3 flex items-center justify-between gap-4">
               <label
                 htmlFor="remember-me"
-                className="inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-[#D9E1E8]/75 transition hover:text-[#D9E1E8]"
+                className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-600 transition hover:text-slate-950"
               >
                 <input
                   id="remember-me"
@@ -303,7 +303,7 @@ export default function LoginPage() {
                   checked={rememberMe}
                   onChange={(event) => setRememberMe(event.target.checked)}
                   disabled={loading}
-                  className="h-3.5 w-3.5 rounded border-white/20 bg-white/[0.08] text-[#3EC6FF] accent-[#3EC6FF]"
+                  className="h-3.5 w-3.5 rounded border-slate-300 bg-white text-blue-600 accent-blue-600"
                 />
                 <span>Remember me</span>
               </label>
@@ -311,7 +311,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={handleForgotPassword}
                 disabled={loading || !supabase}
-                className="text-xs font-medium text-[#D9E1E8]/75 transition hover:text-[#D9E1E8] disabled:cursor-not-allowed disabled:text-[#D9E1E8]/35"
+                className="text-xs font-semibold text-slate-600 transition hover:text-slate-950 disabled:cursor-not-allowed disabled:text-slate-400"
               >
                 Forgot password?
               </button>

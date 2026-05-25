@@ -354,8 +354,8 @@ export default function LoginClient({
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
-      <div className="w-full max-w-lg">
+    <main className="flex min-h-screen items-center justify-center bg-white px-6 py-10 md:bg-slate-50">
+      <div className="w-full md:max-w-md">
         <Link
           href="/"
           data-sound="back"
@@ -365,15 +365,15 @@ export default function LoginClient({
           Go back
         </Link>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
-          <div className="border-b border-slate-200 bg-white px-6 py-5">
+        <div className="overflow-hidden bg-white md:rounded-2xl md:border md:border-slate-200 md:px-10 md:py-10 md:shadow-[0_2px_16px_rgba(15,23,42,0.06)]">
+          <div className="bg-white md:border-b-0 md:px-0 md:py-0">
             <div>
               <ChemDeckLogo variant="full" className="w-40" />
               <p className="mt-1 text-sm text-slate-500">{label}</p>
             </div>
           </div>
 
-          <div className="p-6 lg:p-8">
+          <div className="pt-6 md:p-0 md:pt-6">
             <div className="mb-6 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
               {(['login', 'create', 'recover'] as const).map((item) => (
                 <button
