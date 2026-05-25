@@ -4,8 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  getAccountAccess,
-  inactiveAccountMessage,
+  normalizeProfileRole,
   routeForRole,
 } from "@/lib/auth/accountAccess";
 import { appSessionCookie, createDevSession, isDevCredentials } from "@/lib/auth/devSession";
@@ -14,8 +13,7 @@ import { createClient } from "../../lib/supabase/client";
 
 const authErrorMessages: Record<string, string> = {
   auth_not_configured: "Authentication is not configured for this environment.",
-  inactive_account: inactiveAccountMessage,
-  missing_workspace: "Your workspace is not ready yet. Please contact your manager or administrator.",
+  missing_workspace: "Enter your company code to finish setting up your account.",
 };
 
 export default function LoginPage() {
@@ -34,6 +32,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -46,12 +45,6 @@ export default function LoginPage() {
     const timer = window.setTimeout(() => {
       setError(authErrorMessages[authError] ?? authError);
     }, 0);
-
-    if (authError === "inactive_account" || authError === "missing_workspace") {
-      supabase?.auth.signOut().catch((signOutError) => {
-        console.error("Unable to clear inactive session:", signOutError);
-      });
-    }
 
     return () => window.clearTimeout(timer);
   }, [supabase]);
@@ -70,29 +63,34 @@ export default function LoginPage() {
       return { route: null, message: userError?.message ?? "Unable to verify this login." };
     }
 
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
+    const { data: userRow } = await supabase
+      .from("users")
       .select("*")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (profileError || !profile) {
-      await supabase.auth.signOut();
-      return { route: null, message: inactiveAccountMessage };
+    const accountRecord = userRow as Record<string, unknown> | null;
+
+    if (!accountRecord) {
+      return { route: "/choose-role", message: "" };
     }
 
-    const access = getAccountAccess(profile as Record<string, unknown>);
+    const rawRole = typeof accountRecord.role === "string" ? accountRecord.role.trim().toLowerCase() : "";
+    const role = normalizeProfileRole(rawRole || null);
 
-    if (!access.allowed) {
-      if (access.reason === "missing_workspace") {
-        return { route: "/onboarding/company", message: "" };
-      }
-
-      await supabase.auth.signOut();
-      return { route: null, message: inactiveAccountMessage };
+    if (!rawRole) {
+      return { route: "/choose-role", message: "" };
     }
 
-    return { route: routeForRole(access.role), message: "" };
+    if (rawRole === "boss" && !accountRecord.company_id && !accountRecord.organization_id) {
+      return { route: "/create-company", message: "" };
+    }
+
+    if (rawRole === "guard" && !accountRecord.company_id && !accountRecord.organization_id) {
+      return { route: "/enter-company-code", message: "" };
+    }
+
+    return { route: routeForRole(role), message: "" };
   };
 
   const handleEmailSignIn = async (e: FormEvent<HTMLFormElement>) => {
@@ -133,7 +131,7 @@ export default function LoginPage() {
       const access = await verifyActiveAccount();
 
       if (!access.route) {
-        setError(access.message || inactiveAccountMessage);
+        setError(access.message || "This account cannot access ChemDeck. Please contact your manager or administrator.");
         setLoading(false);
         return;
       }
@@ -241,13 +239,11 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen w-full items-center justify-center bg-white px-5 py-8 text-slate-950 sm:px-6">
       <section className="w-full max-w-[420px]">
-        <div className="mb-10 text-center">
+        <div className="mb-8 text-center">
           <div className="mb-8 flex justify-center">
             <ChemDeckLogo variant="full" scheme="light" className="hidden w-[230px] sm:block" />
             <ChemDeckLogo variant="mark" scheme="light" className="h-12 w-12 sm:hidden" />
           </div>
-          <h1 className="text-4xl font-semibold tracking-tight text-slate-950">Sign in</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-500">Access your pool chemistry workspace.</p>
         </div>
 
         {(!supabase || error) && (
@@ -296,12 +292,26 @@ export default function LoginPage() {
               autoComplete="current-password"
               required
             />
-            <div className="mt-2 flex justify-end">
+            <div className="mt-3 flex items-center justify-between gap-4">
+              <label
+                htmlFor="remember-me"
+                className="inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-[#D9E1E8]/75 transition hover:text-[#D9E1E8]"
+              >
+                <input
+                  id="remember-me"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(event) => setRememberMe(event.target.checked)}
+                  disabled={loading}
+                  className="h-3.5 w-3.5 rounded border-white/20 bg-white/[0.08] text-[#3EC6FF] accent-[#3EC6FF]"
+                />
+                <span>Remember me</span>
+              </label>
               <button
                 type="button"
                 onClick={handleForgotPassword}
                 disabled={loading || !supabase}
-                className="text-sm font-medium text-blue-600 transition hover:text-blue-800 disabled:cursor-not-allowed disabled:text-slate-400"
+                className="text-xs font-medium text-[#D9E1E8]/75 transition hover:text-[#D9E1E8] disabled:cursor-not-allowed disabled:text-[#D9E1E8]/35"
               >
                 Forgot password?
               </button>
@@ -315,6 +325,12 @@ export default function LoginPage() {
           >
             {loading ? "Signing in..." : "Sign In"}
           </button>
+          <Link
+            href="/create-account"
+            className="flex h-12 w-full items-center justify-center rounded-md border border-[#3EC6FF] bg-[rgba(62,198,255,0.15)] px-4 text-sm font-semibold text-[#3EC6FF] transition hover:bg-[rgba(62,198,255,0.25)]"
+          >
+            Create Account
+          </Link>
         </form>
 
         <div className="my-7 flex items-center gap-3">

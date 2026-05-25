@@ -1,10 +1,17 @@
 import Link from 'next/link';
-import { Code2, UserRoundCog, Waves } from 'lucide-react';
+import { Building2, Code2, Gauge, SlidersHorizontal, UserRoundCog, Users, Waves } from 'lucide-react';
 import ChemDeckLogo from '@/components/ChemDeckLogo';
 
 const navItems = [
   { label: 'Worker POV', href: '/worker-view', icon: Waves },
   { label: 'Boss POV', href: '/boss-view', icon: UserRoundCog },
+];
+
+const adminItems = [
+  { label: 'Profiles', href: '/dev-admin/profiles', icon: Users },
+  { label: 'Companies', href: '/dev-admin/companies', icon: Building2 },
+  { label: 'Pools', href: '/dev-admin/pools', icon: Waves },
+  { label: 'System Controls', href: '/dev-admin/system-controls', icon: SlidersHorizontal },
 ];
 
 export default function DevShell({ children }: { children: React.ReactNode }) {
@@ -32,6 +39,27 @@ export default function DevShell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+          <div className="pt-5">
+            <div className="mb-2 flex items-center gap-2 px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <Gauge className="h-3.5 w-3.5" />
+              Admin Panel
+            </div>
+            <div className="space-y-1">
+              {adminItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex h-10 items-center gap-3 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-950"
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </nav>
         <div className="absolute bottom-5 left-4 right-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
           <div className="flex items-center gap-2">

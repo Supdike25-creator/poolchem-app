@@ -1,0 +1,96 @@
+import { redirect } from 'next/navigation';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getServerAppSession } from '@/lib/serverAppSession';
+
+export type AdminProfile = {
+  id: string;
+  email: string | null;
+  role: string | null;
+  company_id: string | null;
+  active: boolean | null;
+  status: string | null;
+  last_login: string | null;
+};
+
+export type AdminCompany = {
+  id: string;
+  company_name: string;
+  company_code: string;
+  created_by: string | null;
+  user_count: number;
+  pool_count: number;
+};
+
+export type AdminPool = {
+  id: string;
+  name: string;
+  company_id: string | null;
+  company_name: string | null;
+  location: string | null;
+  pool_type: string | null;
+};
+
+export const requireDev = async () => {
+  const session = await getServerAppSession();
+  if (session?.role !== 'dev') {
+    redirect('/dashboard');
+  }
+};
+
+export const loadCompanies = async (): Promise<AdminCompany[]> => {
+  const supabase = createAdminClient();
+  const [{ data: companies }, { data: users }, { data: pools }] = await Promise.all([
+    supabase.from('companies').select('id,company_name,company_code,created_by').order('company_name'),
+    supabase.from('users').select('id,company_id'),
+    supabase.from('pools').select('id,company_id'),
+  ]);
+
+  return (companies ?? []).map((company) => ({
+    id: company.id,
+    company_name: company.company_name,
+    company_code: company.company_code,
+    created_by: company.created_by,
+    user_count: (users ?? []).filter((user) => user.company_id === company.id).length,
+    pool_count: (pools ?? []).filter((pool) => pool.company_id === company.id).length,
+  }));
+};
+
+export const loadProfiles = async (): Promise<AdminProfile[]> => {
+  const supabase = createAdminClient();
+  const [{ data: users }, authUsers] = await Promise.all([
+    supabase.from('users').select('id,email,role,company_id,active,status').order('email'),
+    supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+  ]);
+
+  const lastLoginById = new Map(
+    (authUsers.data.users ?? []).map((user) => [user.id, user.last_sign_in_at ?? null]),
+  );
+
+  return (users ?? []).map((user) => ({
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    company_id: user.company_id,
+    active: user.active,
+    status: user.status,
+    last_login: lastLoginById.get(user.id) ?? null,
+  }));
+};
+
+export const loadPools = async (): Promise<AdminPool[]> => {
+  const supabase = createAdminClient();
+  const [{ data: pools }, { data: companies }] = await Promise.all([
+    supabase.from('pools').select('id,name,company_id,pool_type,notes').order('name'),
+    supabase.from('companies').select('id,company_name'),
+  ]);
+  const companyById = new Map((companies ?? []).map((company) => [company.id, company.company_name]));
+
+  return (pools ?? []).map((pool) => ({
+    id: pool.id,
+    name: pool.name,
+    company_id: pool.company_id,
+    company_name: pool.company_id ? companyById.get(pool.company_id) ?? null : null,
+    location: pool.notes,
+    pool_type: pool.pool_type,
+  }));
+};

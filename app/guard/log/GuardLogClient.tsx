@@ -66,18 +66,15 @@ export default function GuardLogClient({ searchParams }: { searchParams: URLSear
 
   useEffect(() => {
     const loadPools = async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('pools')
-        .select('id,name,pool_type,volume_gallons,target_chlorine_min,target_chlorine_max,target_ph_min,target_ph_max,default_chlorine_strength')
-        .order('name');
+      const response = await fetch('/api/company-pools', { cache: 'no-store' });
+      const result = await response.json().catch(() => null);
 
-      if (error) {
-        setError(error.message);
+      if (!response.ok || !result?.ok) {
+        setError(result?.message || 'Unable to load pools.');
         return;
       }
 
-      const loadedPools = data ?? [];
+      const loadedPools = result.pools ?? [];
       setPools(loadedPools);
       const initialPoolId = searchParams.get('poolId') || loadedPools[0]?.id || '';
       setSelectedPoolId(initialPoolId);

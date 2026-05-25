@@ -1,6 +1,133 @@
+"use client";
+
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Building2, KeyRound } from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
+import { normalizeProfileRole, routeForRole } from "@/lib/auth/accountAccess";
+
+type Profile = {
+  id: string;
+  role?: string | null;
+  company_id?: string | null;
+};
+
+const bossRoles = new Set(["boss", "manager", "admin", "supervisor", "owner"]);
 
 export default function CompanyOnboardingPage() {
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [companyName, setCompanyName] = useState("");
+  const [companyCode, setCompanyCode] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const rawRole = profile?.role?.toLowerCase().trim() || "guard";
+  const isBoss = bossRoles.has(rawRole);
+  const route = routeForRole(normalizeProfileRole(profile?.role));
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadProfile = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.user) {
+        router.replace("/login");
+        return;
+      }
+
+      const { data, error: profileError } = await supabase
+        .from("profiles")
+        .select("id,role,company_id")
+        .eq("id", session.user.id)
+        .single();
+
+      if (!mounted) return;
+
+      if (profileError || !data) {
+        setError(profileError?.message || "Unable to load your account profile.");
+        setLoading(false);
+        return;
+      }
+
+      if (data.company_id) {
+        router.replace(routeForRole(normalizeProfileRole(data.role)));
+        return;
+      }
+
+      setProfile(data);
+      setLoading(false);
+    };
+
+    loadProfile();
+
+    return () => {
+      mounted = false;
+    };
+  }, [router, supabase]);
+
+  const handleCreateCompany = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+
+    if (!profile?.id || !companyName.trim()) {
+      setError("Enter a company name.");
+      return;
+    }
+
+    setSubmitting(true);
+    const { data, error: rpcError } = await supabase.rpc("create_company_for_boss", {
+      p_boss_user_id: profile.id,
+      p_company_name: companyName.trim(),
+    });
+    setSubmitting(false);
+
+    if (rpcError) {
+      setError(rpcError.message);
+      return;
+    }
+
+    const createdCompany = Array.isArray(data) ? data[0] : data;
+    setMessage(`Company created. Code: ${createdCompany?.company_code ?? "ready"}`);
+    router.replace(route);
+    router.refresh();
+  };
+
+  const handleJoinCompany = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+
+    if (!profile?.id || !companyCode.trim()) {
+      setError("Enter a company code.");
+      return;
+    }
+
+    setSubmitting(true);
+    const { error: rpcError } = await supabase.rpc("join_company_by_code", {
+      p_user_id: profile.id,
+      p_company_code: companyCode.trim(),
+    });
+    setSubmitting(false);
+
+    if (rpcError) {
+      setError(rpcError.message);
+      return;
+    }
+
+    setMessage("Company joined.");
+    router.replace(route);
+    router.refresh();
+  };
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
       <section className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-8 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
@@ -8,19 +135,73 @@ export default function CompanyOnboardingPage() {
           Workspace setup
         </p>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
-          Company setup is needed
+          {isBoss ? "Create your company" : "Join your company"}
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          Your account is signed in, but it is not connected to a company workspace yet. Ask a manager
-          for a company code or finish workspace setup before using ChemDeck.
+          {isBoss
+            ? "Manager accounts create the ChemDeck company workspace. ChemDeck will generate a company code for lifeguards."
+            : "Lifeguard accounts need a company code from a manager before using ChemDeck."}
         </p>
-        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          If you expected to see your dashboard, your profile may be missing an organization or role.
-        </div>
+
+        {loading ? (
+          <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+            Loading your account...
+          </div>
+        ) : isBoss ? (
+          <form onSubmit={handleCreateCompany} className="mt-6 space-y-4">
+            <label className="block">
+              <span className="text-sm font-semibold text-slate-700">Company name</span>
+              <input
+                value={companyName}
+                onChange={(event) => setCompanyName(event.target.value)}
+                className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                placeholder="Example: Northside Aquatics"
+                required
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+            >
+              <Building2 className="mr-2 h-4 w-4" />
+              {submitting ? "Creating..." : "Create company"}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleJoinCompany} className="mt-6 space-y-4">
+            <label className="block">
+              <span className="text-sm font-semibold text-slate-700">Company code</span>
+              <input
+                value={companyCode}
+                onChange={(event) => setCompanyCode(event.target.value.toUpperCase())}
+                className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                placeholder="CHEM1234"
+                required
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+            >
+              <KeyRound className="mr-2 h-4 w-4" />
+              {submitting ? "Joining..." : "Join company"}
+            </button>
+          </form>
+        )}
+
+        {error ? (
+          <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>
+        ) : null}
+        {message ? (
+          <div className="mt-5 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">{message}</div>
+        ) : null}
+
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <Link
             href="/pending"
-            className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
+            className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
           >
             View account status
           </Link>

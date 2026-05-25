@@ -28,7 +28,7 @@ export default function NewPoolPage() {
 
     const supabase = createClient();
 
-    // Get current user's organization
+    // Get current user's company
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) {
       setError('Unauthorized');
@@ -38,12 +38,14 @@ export default function NewPoolPage() {
 
     const { data: profileData } = await supabase
       .from('profiles')
-      .select('organization_id')
+      .select('company_id')
       .eq('id', session.user.id)
       .single();
 
-    if (!profileData?.organization_id) {
-      setError('No organization found');
+    const companyId = profileData?.company_id;
+
+    if (!companyId) {
+      setError('No company found');
       setSubmitting(false);
       return;
     }
@@ -59,7 +61,7 @@ export default function NewPoolPage() {
         target_ph_max: Number(phMax) || 0,
         default_chlorine_strength: Number(chlorineStrength) || null,
         notes,
-        organization_id: profileData.organization_id,
+        company_id: companyId,
       },
     ]);
 

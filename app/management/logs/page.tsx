@@ -83,23 +83,23 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
     redirect('/login');
   }
 
-  let organizationId: string | null = null;
+  let companyId: string | null = null;
   if (session?.user) {
     const { data: profileData } = await supabase
       .from('profiles')
-      .select('organization_id, role')
+      .select('company_id, role')
       .eq('id', session.user.id)
       .single();
 
-    if (!profileData?.organization_id) {
-      redirect('/onboarding/company');
+    companyId = profileData?.company_id || null;
+
+    if (!companyId) {
+      redirect('/enter-company-code');
     }
 
-    if (!['manager', 'supervisor', 'admin'].includes(profileData.role)) {
+    if (!['boss', 'manager', 'supervisor', 'admin'].includes(profileData?.role ?? '')) {
       redirect('/guard');
     }
-
-    organizationId = profileData.organization_id;
   }
 
   let poolsQuery = supabase
@@ -107,8 +107,8 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
     .select('id,name')
     .order('name');
 
-  if (organizationId) {
-    poolsQuery = poolsQuery.eq('organization_id', organizationId);
+  if (companyId) {
+    poolsQuery = poolsQuery.eq('company_id', companyId);
   }
 
   const { data: pools } = await poolsQuery;

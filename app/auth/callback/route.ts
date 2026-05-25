@@ -1,8 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import {
-  getAccountAccess,
-  inactiveAccountMessage,
+  normalizeProfileRole,
   routeForRole,
 } from "@/lib/auth/accountAccess";
 
@@ -65,31 +64,35 @@ export async function GET(request: NextRequest) {
   if (userError || !user) {
     console.error("Supabase OAuth user verification error:", userError?.message || "Missing user");
     await supabase.auth.signOut();
-    return redirectWithCookies("/login?error=inactive_account");
+    return redirectWithCookies("/login");
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
+  const { data: userRow } = await supabase
+    .from("users")
     .select("*")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (profileError || !profile) {
-    console.error("Supabase OAuth profile verification error:", profileError?.message || inactiveAccountMessage);
-    await supabase.auth.signOut();
-    return redirectWithCookies("/login?error=inactive_account");
+  const accountRecord = userRow as Record<string, unknown> | null;
+
+  if (!accountRecord) {
+    return redirectWithCookies("/choose-role");
   }
 
-  const access = getAccountAccess(profile as Record<string, unknown>);
+  const rawRole = typeof accountRecord.role === "string" ? accountRecord.role.trim().toLowerCase() : "";
+  const role = normalizeProfileRole(rawRole || null);
 
-  if (!access.allowed) {
-    if (access.reason === "missing_workspace") {
-      return redirectWithCookies("/onboarding/company");
-    }
-
-    await supabase.auth.signOut();
-    return redirectWithCookies("/login?error=inactive_account");
+  if (!rawRole) {
+    return redirectWithCookies("/choose-role");
   }
 
-  return redirectWithCookies(routeForRole(access.role));
+  if (rawRole === "boss" && !accountRecord.company_id && !accountRecord.organization_id) {
+    return redirectWithCookies("/create-company");
+  }
+
+  if (rawRole === "guard" && !accountRecord.company_id && !accountRecord.organization_id) {
+    return redirectWithCookies("/enter-company-code");
+  }
+
+  return redirectWithCookies(routeForRole(role));
 }

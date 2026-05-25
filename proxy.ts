@@ -1,15 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { getAccountAccess, routeForRole } from "@/lib/auth/accountAccess";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { normalizeProfileRole, routeForRole } from "@/lib/auth/accountAccess";
 import { isDevRequest } from "@/lib/auth/devSession";
 
-const PUBLIC_PATHS = ["/", "/login", "/auth/callback", "/pending", "/onboarding/company"];
+const PUBLIC_PATHS = ["/login", "/create-account", "/api/create-account", "/auth/callback"];
+const ROLE_SETUP_PATHS = ["/choose-role", "/api/choose-role"];
 
 const managerDashboardPath = "/management/dashboard";
 const guardDashboardPath = "/guard";
-const inactiveLoginPath = "/login?error=inactive_account";
 const DEV_ALLOWED_PATHS = [
   "/dev-dashboard",
+  "/dev-admin",
   "/worker-view",
   "/boss-view",
   "/guard",
@@ -22,6 +24,9 @@ const DEV_ALLOWED_PATHS = [
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasDevSession = isDevRequest(request);
+  const hasJustJoinedCompany = request.cookies.get("chemdeck.justJoinedCompany")?.value === "true";
+  const pendingRole = request.cookies.get("chemdeck.pendingRole")?.value;
+  const hasPendingRole = pendingRole === "boss" || pendingRole === "guard";
 
   if (hasDevSession) {
     if (pathname === "/login" || pathname === "/pending") {
@@ -31,6 +36,14 @@ export async function proxy(request: NextRequest) {
     if (DEV_ALLOWED_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
       return NextResponse.next({ request });
     }
+  }
+
+  if (pathname === "/choose-role" && hasPendingRole) {
+    return NextResponse.redirect(new URL("/enter-company-code", request.url));
+  }
+
+  if (ROLE_SETUP_PATHS.includes(pathname)) {
+    return NextResponse.next({ request });
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -75,41 +88,68 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
+  const accountDb = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase;
+  const { data: userRow } = await accountDb
+    .from("users")
     .select("*")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (profileError || !profile) {
-    if (pathname === "/login") {
+  const accountRecord = userRow as Record<string, unknown> | null;
+
+  if (!accountRecord) {
+    if (hasPendingRole && (pathname === "/enter-company-code" || pathname === "/api/join-company")) {
       return supabaseResponse;
     }
 
-    if (pathname !== "/pending") {
-      return NextResponse.redirect(new URL(inactiveLoginPath, request.url));
+    if (hasJustJoinedCompany && pathname === "/") {
+      supabaseResponse.cookies.delete("chemdeck.justJoinedCompany");
+      return supabaseResponse;
+    }
+
+    return NextResponse.redirect(new URL("/choose-role", request.url));
+  }
+
+  const storedRole = typeof accountRecord.role === "string" ? accountRecord.role.trim().toLowerCase() : "";
+  const rawRole = storedRole || (hasPendingRole ? pendingRole : "");
+  const role = normalizeProfileRole(rawRole || null);
+  const hasCompany = Boolean(accountRecord.company_id || accountRecord.organization_id);
+
+  if (rawRole === "dev") {
+    if (pathname === "/login" || pathname === "/pending") {
+      return NextResponse.redirect(new URL("/dev-dashboard", request.url));
+    }
+
+    return supabaseResponse;
+  }
+
+  if (!rawRole) {
+    return NextResponse.redirect(new URL("/choose-role", request.url));
+  }
+
+  if (rawRole === "boss" && !hasCompany) {
+    if (
+      pathname !== "/create-company" &&
+      pathname !== "/onboarding/company" &&
+      pathname !== "/enter-company-code" &&
+      pathname !== "/api/join-company"
+    ) {
+      return NextResponse.redirect(new URL("/create-company", request.url));
     }
     return supabaseResponse;
   }
 
-  const access = getAccountAccess(profile as Record<string, unknown>);
-
-  if (!access.allowed) {
-    if (pathname === "/login") {
-      return supabaseResponse;
-    }
-
-    if (access.reason === "missing_workspace") {
-      if (pathname !== "/onboarding/company") {
-        return NextResponse.redirect(new URL("/onboarding/company", request.url));
+  if (rawRole === "guard" && !hasCompany) {
+    if (pathname !== "/enter-company-code" && pathname !== "/api/join-company") {
+      if (hasJustJoinedCompany && pathname === "/") {
+        supabaseResponse.cookies.delete("chemdeck.justJoinedCompany");
+        return supabaseResponse;
       }
-      return supabaseResponse;
+
+      return NextResponse.redirect(new URL("/enter-company-code", request.url));
     }
-
-    return NextResponse.redirect(new URL(inactiveLoginPath, request.url));
+    return supabaseResponse;
   }
-
-  const role = access.role;
 
   if (pathname === "/login") {
     return NextResponse.redirect(new URL(routeForRole(role), request.url));
@@ -135,6 +175,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp3|wav|ogg|m4a)$).*)",
   ],
 };

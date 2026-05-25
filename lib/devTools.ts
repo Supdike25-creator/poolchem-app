@@ -37,6 +37,7 @@ export const defaultFeatureFlags: DevFeatureFlag[] = [
 ];
 
 export const devTableNames = [
+  'companies',
   'profiles',
   'users',
   'app_accounts',

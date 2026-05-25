@@ -13,7 +13,7 @@ export type AccountAccessResult = {
 };
 
 export const inactiveAccountMessage =
-  "Your account is not active yet. Please contact your manager or administrator.";
+  "This account cannot access ChemDeck. Please contact your manager or administrator.";
 
 const managerRoles = new Set(["admin", "manager", "supervisor", "owner", "boss"]);
 const guardRoles = new Set(["guard", "worker", "lifeguard", "technician"]);
@@ -53,7 +53,8 @@ export function getAccountAccess(profile: Record<string, unknown> | null | undef
     };
   }
 
-  const role = normalizeProfileRole(typeof profile.role === "string" ? profile.role : null);
+  const rawRole = typeof profile.role === "string" ? profile.role.toLowerCase().trim() : "";
+  const role = normalizeProfileRole(rawRole || null);
   const rawStatus = typeof profile.status === "string" ? profile.status.toLowerCase().trim() : null;
 
   if (rawStatus && inactiveStatuses.has(rawStatus)) {
@@ -79,12 +80,20 @@ export function getAccountAccess(profile: Record<string, unknown> | null | undef
     }
   }
 
-  const workspaceFields = ["organization_id", "company_id", "app_account_id"];
+  if (role === "dev") {
+    return {
+      allowed: true,
+      reason: "allowed",
+      role,
+    };
+  }
+
+  const workspaceFields = ["company_id", "organization_id"];
   const knownWorkspaceFields = workspaceFields.filter((field) => hasOwn(profile, field));
 
   if (knownWorkspaceFields.length > 0) {
     const hasWorkspace = knownWorkspaceFields.some((field) => Boolean(profile[field]));
-    if (!hasWorkspace) {
+    if (!hasWorkspace && rawRole !== "boss") {
       return { allowed: false, reason: "missing_workspace", role };
     }
   }

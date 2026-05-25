@@ -149,44 +149,14 @@ export default function LogPage() {
       setLoadingPools(true);
 
       try {
-        const supabase = createClient();
+        const response = await fetch('/api/company-pools', { cache: 'no-store' });
+        const result = await response.json().catch(() => null);
 
-        // Get current user's organization
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
-          setPoolLoadError('Unauthorized');
-          setPools([]);
-          setLoadingPools(false);
-          return;
-        }
-
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('organization_id')
-          .eq('id', session.user.id)
-          .single();
-
-        if (!profileData?.organization_id) {
-          setPoolLoadError('No organization found');
-          setPools([]);
-          setLoadingPools(false);
-          return;
-        }
-
-        const { data, error } = await supabase
-          .from('pools')
-          .select(
-            'id,name,volume_gallons,pool_type,is_baby_pool,target_chlorine_min,target_chlorine_max,target_ph_min,target_ph_max,default_chlorine_type,default_chlorine_strength,max_single_dose_oz,retest_minutes'
-          )
-          .eq('organization_id', profileData.organization_id)
-          .order('name');
-
-        if (error) {
-          const message = typeof error.message === 'string' ? error.message : String(error);
-          setPoolLoadError(`Unable to load pools from Supabase: ${message}`);
+        if (!response.ok || !result?.ok) {
+          setPoolLoadError(result?.message || 'Unable to load pools from Supabase.');
           setPools([]);
         } else {
-          setPools(data || []);
+          setPools(result.pools || []);
         }
       } catch (loadError) {
         const message = loadError instanceof Error ? loadError.message : String(loadError);

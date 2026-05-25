@@ -86,24 +86,37 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
           return;
         }
 
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
+        const accountResponse = await fetch('/api/current-account', { cache: 'no-store' });
+        const accountResult = await accountResponse.json().catch(() => null);
 
         if (!isMounted) return;
 
-        if (profileError || !profileData) {
-          await supabase.auth.signOut();
-          clearLegacyAppSession();
-          setError(inactiveAccountMessage);
-          setStatus('unauthenticated');
-          router.replace(`/login?role=${role}&error=inactive_account`);
+        const accountRecord = accountResult?.account;
+
+        if (!accountRecord) {
+          router.replace('/choose-role');
           return;
         }
 
-        const access = getAccountAccess(profileData as Record<string, unknown>);
+        const rawRole = typeof accountRecord.role === 'string' ? accountRecord.role.trim().toLowerCase() : '';
+        const hasCompany = Boolean(accountRecord.company_id || accountRecord.organization_id);
+
+        if (!rawRole) {
+          router.replace('/choose-role');
+          return;
+        }
+
+        if (rawRole === 'boss' && !hasCompany) {
+          router.replace('/create-company');
+          return;
+        }
+
+        if (rawRole === 'guard' && !hasCompany) {
+          router.replace('/enter-company-code');
+          return;
+        }
+
+        const access = getAccountAccess(accountRecord as Record<string, unknown>);
 
         if (!access.allowed) {
           if (access.reason === 'missing_workspace') {
@@ -119,15 +132,15 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
           return;
         }
 
-        const savedRole = normalizeProfileRole(profileData.role);
+        const savedRole = normalizeProfileRole(rawRole);
         if (savedRole !== role) {
           router.replace(routeForRole(savedRole));
           return;
         }
 
         setProfile({
-          full_name: profileData?.full_name || user.user_metadata?.full_name || user.email || '',
-          email: profileData?.email || user.email || '',
+          full_name: accountRecord?.full_name || user.user_metadata?.full_name || user.email || '',
+          email: accountRecord?.email || user.email || '',
           role: savedRole,
         });
         setStatus('authenticated');

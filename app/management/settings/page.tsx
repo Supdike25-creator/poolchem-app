@@ -64,6 +64,18 @@ interface SettingsData {
   companyCode: string;
 }
 
+type Profile = {
+  full_name?: string | null;
+  email?: string | null;
+  role?: string | null;
+  company_id?: string | null;
+};
+
+type CompanyDetails = {
+  company_name: string;
+  company_code: string;
+};
+
 const defaultSettings: SettingsData = {
   theme: 'light',
   stylePreset: 'default',
@@ -165,7 +177,8 @@ const ToggleRow = ({
 
 export default function ManagementSettingsPage() {
   const [settings, setSettings] = useState<SettingsData>(loadStoredSettings);
-  const [profile, setProfile] = useState<{ full_name?: string; email?: string; role?: string } | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [companyDetails, setCompanyDetails] = useState<CompanyDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [copyMessage, setCopyMessage] = useState('');
 
@@ -177,10 +190,20 @@ export default function ManagementSettingsPage() {
       if (session?.user) {
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('full_name,email,role')
+          .select('full_name,email,role,company_id')
           .eq('id', session.user.id)
-          .single();
+          .single<Profile>();
         setProfile(profileData);
+
+        const companyId = profileData?.company_id;
+        if (companyId) {
+          const { data: companyData } = await supabase
+            .from('companies')
+            .select('company_name,company_code')
+            .eq('id', companyId)
+            .single<CompanyDetails>();
+          setCompanyDetails(companyData ?? null);
+        }
       }
       setLoading(false);
     };
@@ -203,14 +226,22 @@ export default function ManagementSettingsPage() {
   };
 
   const copyCompanyCode = async () => {
+    if (!companyDetails?.company_code) {
+      return;
+    }
+
     try {
-      await navigator.clipboard.writeText(settings.companyCode);
+      await navigator.clipboard.writeText(companyDetails.company_code);
       setCopyMessage('Copied');
       window.setTimeout(() => setCopyMessage(''), 1600);
     } catch {
       setCopyMessage('Copy failed');
     }
   };
+
+  const rawRole = profile?.role?.toLowerCase().trim() || '';
+  const isBoss = ['boss', 'manager', 'admin', 'supervisor', 'owner'].includes(rawRole);
+  const displayCompanyName = companyDetails?.company_name || settings.companyName;
 
   if (loading) {
     return (
@@ -519,41 +550,41 @@ export default function ManagementSettingsPage() {
           <SectionHeader
             icon={<Building2 className="h-4 w-4" />}
             title="Company / Workspace"
-            description="Share the company code with staff joining this workspace."
+            description={isBoss ? "Share the company code with staff joining this workspace." : "Your assigned ChemDeck company workspace."}
           />
 
           <div className="space-y-3">
             <div>
               <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Company Name</label>
-              <input
-                type="text"
-                value={settings.companyName}
-                onChange={(event) => saveSettings({ companyName: event.target.value })}
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Company Code</p>
-              <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <code className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-base font-semibold tracking-[0.18em] text-slate-950">
-                  {settings.companyCode}
-                </code>
-                <button
-                  type="button"
-                  onClick={copyCompanyCode}
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                >
-                  <Clipboard className="h-4 w-4" />
-                  {copyMessage || 'Copy code'}
-                </button>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">
+                {displayCompanyName}
               </div>
             </div>
+
+            {isBoss ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Company Code</p>
+                <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <code className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-base font-semibold tracking-[0.18em] text-slate-950">
+                    {companyDetails?.company_code || 'Not assigned'}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={copyCompanyCode}
+                    disabled={!companyDetails?.company_code}
+                    className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
+                  >
+                    <Clipboard className="h-4 w-4" />
+                    {copyMessage || 'Copy code'}
+                  </button>
+                </div>
+              </div>
+            ) : null}
 
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center gap-2 text-sm text-slate-700">
                 <Users className="h-4 w-4 text-slate-500" />
-                <span>Current role: {profile?.role === 'manager' ? 'Manager / Supervisor' : 'Guard / Technician'}</span>
+                <span>Current role: {isBoss ? 'Manager / Supervisor' : 'Guard / Technician'}</span>
               </div>
               <button
                 type="button"
