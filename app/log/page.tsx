@@ -4,6 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import BackButton from '../../components/BackButton';
 import {
+  defaultCompanySettings,
+  getPhotoRequirementMessage,
+  mergeCompanySettings,
+} from '@/lib/companySettings';
+import {
   AlertTriangle,
   Camera,
   Check,
@@ -144,6 +149,7 @@ export default function LogPage() {
   const [photoKey, setPhotoKey] = useState(0);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState('');
   const [defaultPoolVolume, setDefaultPoolVolume] = useState(getDefaultPoolVolume);
+  const [companySettings, setCompanySettings] = useState(defaultCompanySettings);
 
   useEffect(() => {
     const redirectGuards = async () => {
@@ -182,6 +188,18 @@ export default function LogPage() {
     };
 
     loadPools();
+  }, []);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      const response = await fetch('/api/company-settings', { cache: 'no-store' });
+      const result = await response.json().catch(() => null);
+      if (response.ok && result?.ok) {
+        setCompanySettings(mergeCompanySettings(result.company?.settings));
+      }
+    };
+
+    void loadSettings();
   }, []);
 
   useEffect(() => {
@@ -244,6 +262,11 @@ export default function LogPage() {
   };
 
   const nextStep = () => {
+    if (currentStep === 'photo' && activePhotoRequirementMessage) {
+      setSubmitError(activePhotoRequirementMessage);
+      return;
+    }
+
     const steps: Step[] = ['pool', 'chlorine', 'ph', 'photo', 'review', 'submit'];
     const currentIndex = steps.indexOf(currentStep);
     if (currentIndex < steps.length - 1) {
@@ -287,6 +310,12 @@ export default function LogPage() {
     try {
       if (!formData.poolId) {
         setSubmitError('Select a pool before submitting.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (activePhotoRequirementMessage) {
+        setSubmitError(activePhotoRequirementMessage);
         setIsSubmitting(false);
         return;
       }
@@ -358,12 +387,31 @@ export default function LogPage() {
     isBabyPool,
     maxSingleDoseOz
   );
-  const isOutOfRange = Boolean(formData.freeChlorine && (chlorineValue < 1.0 || chlorineValue > 5.0)) || Boolean(formData.ph && (phValue < 7.2 || phValue > 7.8));
-  const photoRequirementMessage = isBabyPool
-    ? 'Photo required for baby pools.'
-    : isOutOfRange
-    ? 'Photo required for out-of-range readings.'
-    : 'Photo optional for normal tests.';
+  const isOutOfRange = Boolean(formData.freeChlorine && (chlorineValue < (selectedPool?.target_chlorine_min ?? 1) || chlorineValue > (selectedPool?.target_chlorine_max ?? 4)))
+    || Boolean(formData.ph && (phValue < (selectedPool?.target_ph_min ?? 7.2) || phValue > (selectedPool?.target_ph_max ?? 7.8)));
+
+  const activePhotoRequirementMessage = selectedPool
+    ? getPhotoRequirementMessage(
+      companySettings,
+      {
+        freeChlorine: chlorineValue,
+        ph: phValue,
+        poolType: selectedPool.pool_type,
+        chlorineMin: selectedPool.target_chlorine_min,
+        chlorineMax: selectedPool.target_chlorine_max,
+        phMin: selectedPool.target_ph_min,
+        phMax: selectedPool.target_ph_max,
+      },
+      Boolean(formData.photo),
+    )
+    : null;
+
+  const photoRequirementMessage = activePhotoRequirementMessage
+    || (isBabyPool
+      ? 'Photo recommended for baby pools.'
+      : isOutOfRange
+      ? 'Photo recommended for out-of-range readings.'
+      : 'Photo optional for normal tests.');
 
   const renderStepIndicator = () => {
     const steps = [
@@ -649,7 +697,6 @@ export default function LogPage() {
             <Camera className="mt-0.5 h-5 w-5 shrink-0" />
             <p className="text-sm font-medium">{photoRequirementMessage}</p>
           </div>
-          {/* TODO: Persist and enforce workspace photo rules once the Supabase settings schema exists. */}
         </div>
 
         <label className="block">

@@ -3,6 +3,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getStoredSession } from '@/lib/appAccounts';
+import {
+  defaultCompanySettings,
+  getPhotoRequirementMessage,
+  mergeCompanySettings,
+} from '@/lib/companySettings';
+import {
+  enqueueLog,
+  fileToDataUrl,
+  isLikelyNetworkError,
+} from '@/lib/offlineLogQueue';
+import OfflineLogSync from '../../../components/OfflineLogSync';
 import BackButton from '../../../components/BackButton';
 
 interface Pool {
@@ -73,6 +84,8 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [defaultPoolVolume, setDefaultPoolVolume] = useState(getDefaultPoolVolume);
+  const [companySettings, setCompanySettings] = useState(defaultCompanySettings);
+  const [queuedNotice, setQueuedNotice] = useState('');
 
   useEffect(() => {
     const loadPools = async () => {
@@ -95,6 +108,18 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
 
     void loadPools();
   }, [companyId, poolIdParam, initialPools.length]);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      const response = await fetch('/api/company-settings', { cache: 'no-store', credentials: 'same-origin' });
+      const result = await response.json().catch(() => null);
+      if (response.ok && result?.ok) {
+        setCompanySettings(mergeCompanySettings(result.company?.settings));
+      }
+    };
+
+    void loadSettings();
+  }, []);
 
   useEffect(() => {
     if (!logIdParam) return;
@@ -151,6 +176,46 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
     ? Number(ph) >= (selectedPool.target_ph_min ?? 7.2) && Number(ph) <= (selectedPool.target_ph_max ?? 7.8)
     : true;
 
+  const photoRequirementMessage = selectedPool
+    ? getPhotoRequirementMessage(
+      companySettings,
+      {
+        freeChlorine: Number(chlorine),
+        ph: Number(ph),
+        poolType: selectedPool.pool_type,
+        chlorineMin: selectedPool.target_chlorine_min,
+        chlorineMax: selectedPool.target_chlorine_max,
+        phMin: selectedPool.target_ph_min,
+        phMax: selectedPool.target_ph_max,
+      },
+      Boolean(photoFile || existingPhotoUrl),
+    )
+    : null;
+
+  const queueOfflineSubmission = async (uploadedPhotoUrl?: string | null) => {
+    let photoDataUrl: string | null = null;
+    if (!uploadedPhotoUrl && photoFile) {
+      photoDataUrl = await fileToDataUrl(photoFile);
+    }
+
+    enqueueLog({
+      pool_id: selectedPoolId,
+      pool_name: selectedPool?.name,
+      free_chlorine: Number(chlorine),
+      ph: Number(ph),
+      notes,
+      photo_url: uploadedPhotoUrl ?? null,
+      photo_data_url: photoDataUrl,
+      log_id: editingLogId,
+    });
+
+    setQueuedNotice('Saved offline. This log will sync automatically when you reconnect.');
+    setPhotoFile(null);
+    setPhotoName('');
+    setNotes('');
+    setSaving(false);
+  };
+
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     setPhotoFile(file);
@@ -180,10 +245,17 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
+    setQueuedNotice('');
     setSaving(true);
 
     if (!selectedPoolId) {
       setError('Please select a pool before submitting.');
+      setSaving(false);
+      return;
+    }
+
+    if (photoRequirementMessage) {
+      setError(photoRequirementMessage);
       setSaving(false);
       return;
     }
@@ -194,6 +266,16 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
     try {
       photoUrl = await uploadPhotoIfNeeded();
     } catch (uploadError) {
+      if (isLikelyNetworkError(uploadError)) {
+        try {
+          await queueOfflineSubmission();
+          return;
+        } catch (queueError) {
+          setSaving(false);
+          setError((queueError as Error).message);
+          return;
+        }
+      }
       setSaving(false);
       setError((uploadError as Error).message);
       return;
@@ -233,36 +315,50 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
       return;
     }
 
-    const response = await fetch('/api/guard-log', {
-      method: editingLogId ? 'PATCH' : 'POST',
-      headers: { 'content-type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({
-        ...(editingLogId ? { log_id: editingLogId } : {}),
-        pool_id: selectedPoolId,
-        free_chlorine: Number(chlorine),
-        ph: Number(ph),
-        notes,
-        photo_url: photoUrl ?? existingPhotoUrl,
-      }),
-    });
-    const raw = await response.text();
-    let result: { ok?: boolean; message?: string } | null = null;
     try {
-      result = raw ? JSON.parse(raw) : null;
-    } catch {
+      const response = await fetch('/api/guard-log', {
+        method: editingLogId ? 'PATCH' : 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          ...(editingLogId ? { log_id: editingLogId } : {}),
+          pool_id: selectedPoolId,
+          free_chlorine: Number(chlorine),
+          ph: Number(ph),
+          notes,
+          photo_url: photoUrl ?? existingPhotoUrl,
+        }),
+      });
+      const raw = await response.text();
+      let result: { ok?: boolean; message?: string } | null = null;
+      try {
+        result = raw ? JSON.parse(raw) : null;
+      } catch {
+        setSaving(false);
+        setError(response.ok ? 'Unexpected server response.' : `Unable to submit chemistry log (${response.status}).`);
+        return;
+      }
       setSaving(false);
-      setError(response.ok ? 'Unexpected server response.' : `Unable to submit chemistry log (${response.status}).`);
-      return;
-    }
-    setSaving(false);
 
-    if (!response.ok || !result?.ok) {
-      setError(result?.message || 'Unable to submit chemistry log.');
-      return;
-    }
+      if (!response.ok || !result?.ok) {
+        setError(result?.message || 'Unable to submit chemistry log.');
+        return;
+      }
 
-    router.push(`/guard/review?poolId=${selectedPoolId}&chlorine=${chlorine}&ph=${ph}${companyId ? `&companyId=${encodeURIComponent(companyId)}` : ''}`);
+      router.push(`/guard/review?poolId=${selectedPoolId}&chlorine=${chlorine}&ph=${ph}${companyId ? `&companyId=${encodeURIComponent(companyId)}` : ''}`);
+    } catch (submitError) {
+      setSaving(false);
+      if (isLikelyNetworkError(submitError)) {
+        try {
+          await queueOfflineSubmission(photoUrl ?? existingPhotoUrl);
+          return;
+        } catch (queueError) {
+          setError((queueError as Error).message);
+          return;
+        }
+      }
+      setError(submitError instanceof Error ? submitError.message : 'Unable to submit chemistry log.');
+    }
   };
 
   return (
@@ -286,6 +382,8 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
             Back to Guard Home
           </button>
         </div>
+
+        <OfflineLogSync />
 
         <form onSubmit={handleSubmit} className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
@@ -379,7 +477,14 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700">Photo (optional)</label>
+            <label className="block text-sm font-medium text-slate-700">
+              Photo {photoRequirementMessage ? '(required)' : '(optional)'}
+            </label>
+            {photoRequirementMessage ? (
+              <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                {photoRequirementMessage}
+              </p>
+            ) : null}
             <input
               type="file"
               accept="image/*"
@@ -391,6 +496,7 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
           </div>
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {queuedNotice ? <p className="text-sm text-amber-700">{queuedNotice}</p> : null}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button

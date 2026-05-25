@@ -19,6 +19,7 @@ import { getStoredSession } from '@/lib/appAccounts';
 import { createClient } from '@/utils/supabase/client';
 import { SidebarNav, buildDevPreviewNavItems } from './SidebarNav';
 import InstallAppBanner from './InstallAppBanner';
+import AlertsBell from './AlertsBell';
 
 type Profile = {
   full_name?: string | null;
@@ -271,6 +272,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                {role === 'manager' ? <AlertsBell /> : null}
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm">
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900">

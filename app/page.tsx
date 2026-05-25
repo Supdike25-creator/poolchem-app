@@ -53,8 +53,8 @@ const features = [
   },
   {
     icon: Smartphone,
-    title: 'Works On Any Device',
-    description: 'Optimized for phones in the field. No app download required - just open a browser and log.',
+    title: 'Installable On Any Device',
+    description: 'Works in the browser and installs to your home screen. Guards can log offline and sync when connection returns.',
   },
 ];
 
@@ -65,7 +65,7 @@ const steps = [
   },
   {
     title: 'Invite Your Team',
-    description: 'Send email invites to guards and managers. They join with one click - no separate signup needed.',
+    description: 'Share your company code or send email invites from the Team page. Guards sign up, join, and you approve access.',
   },
   {
     title: 'Start Logging',
@@ -79,8 +79,7 @@ const footerColumns = [
     links: [
       { label: 'Features', href: '#features' },
       { label: 'Pricing', href: '#pricing' },
-      { label: 'Security', href: '#' },
-      // TODO: Replace placeholder once changelog exists.
+      { label: 'Security', href: '/privacy' },
       { label: 'Changelog', href: '#' },
     ],
   },
@@ -89,16 +88,13 @@ const footerColumns = [
     links: [
       { label: 'About', href: '#about' },
       { label: 'Contact', href: 'mailto:hello@chemdeck.com' },
-      // TODO: Add careers page.
-      { label: 'Careers', href: '#' },
-      // TODO: Add blog.
+      { label: 'Careers', href: 'mailto:hello@chemdeck.com' },
       { label: 'Blog', href: '#' },
     ],
   },
   {
     title: 'Legal',
     links: [
-      // TODO: Add legal pages.
       { label: 'Privacy Policy', href: '/privacy' },
       { label: 'Terms of Service', href: '/terms' },
       { label: 'Cookie Policy', href: '/cookies' },
