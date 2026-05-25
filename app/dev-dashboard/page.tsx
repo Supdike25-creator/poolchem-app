@@ -1,14 +1,16 @@
 import { redirect } from 'next/navigation';
 import { Activity, AlertTriangle, Bug, ClipboardList, Database, Server, Users, Waves } from 'lucide-react';
 import { getServerAppSession } from '@/lib/serverAppSession';
-import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { StatCard, StatusBadge } from '@/components/OperationsUI';
+import DevBranchingPanel from '@/components/dev/DevBranchingPanel';
 import DevShell from '@/components/dev/DevShell';
 import DevToolPanel from '@/components/dev/DevToolPanel';
 import HardstylePlayer from '@/components/dev/HardstylePlayer';
 import {
   defaultFeatureFlags,
   readDevApiRequests,
+  readDevCompanies,
   readDevRawLogs,
   readDevTables,
   readFeatureFlags,
@@ -63,34 +65,63 @@ const formatLogTime = (value?: string | null) => {
   return date.toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
 };
 
-async function loadSnapshot(): Promise<DevSnapshot> {
+async function loadSnapshot(selectedCompanyId?: string): Promise<DevSnapshot> {
   try {
-    const supabase = await createClient();
-    const [profilesResult, poolsResult, logsResult, alertsResult, flags, rawLogs, apiRequests, tables] = await Promise.all([
-      supabase.from('profiles').select('id', { count: 'exact', head: true }),
-      supabase.from('pools').select('id', { count: 'exact', head: true }),
-      supabase
-        .from('chemical_logs')
-        .select('id, free_chlorine, ph, created_at, pools(name)')
-        .order('created_at', { ascending: false })
-        .limit(5),
-      supabase.from('dev_alerts').select('id', { count: 'exact', head: true }),
+    const supabase = createAdminClient();
+    const scopedPoolsQuery = supabase.from('pools').select('id', { count: 'exact' });
+    if (selectedCompanyId) scopedPoolsQuery.eq('company_id', selectedCompanyId);
+    const poolsForScope = await scopedPoolsQuery;
+    const poolIds = (poolsForScope.data ?? []).map((pool) => pool.id);
+
+    const logsQuery = supabase
+      .from('chemical_logs')
+      .select('id, free_chlorine, ph, created_at, pools(name)')
+      .order('created_at', { ascending: false })
+      .limit(10);
+    if (selectedCompanyId) {
+      if (poolIds.length === 0) {
+        logsQuery.eq('pool_id', '__no_pools_for_company__');
+      } else {
+        logsQuery.in('pool_id', poolIds);
+      }
+    }
+
+    const alertsQuery = supabase.from('dev_alerts').select('id', { count: 'exact', head: true });
+    if (selectedCompanyId) alertsQuery.contains('metadata', { company_id: selectedCompanyId });
+
+    const errorLogsQuery = supabase
+      .from('error_logs')
+      .select('message,created_at')
+      .order('created_at', { ascending: false })
+      .limit(8);
+    if (selectedCompanyId) errorLogsQuery.eq('company_id', selectedCompanyId);
+
+    const [usersResult, logsResult, alertsResult, errorLogsResult, flags, rawLogs, apiRequests, tables] = await Promise.all([
+      supabase.from('users').select('id', { count: 'exact', head: true }),
+      logsQuery,
+      alertsQuery,
+      errorLogsQuery,
       readFeatureFlags(),
       readDevRawLogs(),
       readDevApiRequests(),
       readDevTables(),
     ]);
 
-    const errors = [profilesResult.error, poolsResult.error, logsResult.error, alertsResult.error]
+    const errors = [usersResult.error, poolsForScope.error, logsResult.error, alertsResult.error]
       .filter(Boolean)
       .map((error) => error?.message ?? 'Unknown Supabase error');
+    const errorLogMessages = errorLogsResult.error
+      ? []
+      : ((errorLogsResult.data ?? []) as Array<{ message?: string | null; created_at?: string | null }>)
+          .map((row) => row.message || row.created_at || 'error_log row')
+          .filter(Boolean);
 
     return {
-      activeUsers: profilesResult.count ?? 0,
-      pools: poolsResult.count ?? 0,
+      activeUsers: usersResult.count ?? 0,
+      pools: poolsForScope.count ?? 0,
       recentLogs: (logsResult.data ?? []) as RecentLog[],
       alerts: alertsResult.count ?? 0,
-      errors,
+      errors: [...errors, ...errorLogMessages],
       apiHealth: errors.length > 0 ? 'degraded' : 'healthy',
       databaseStatus: errors.length > 1 ? 'unavailable' : 'connected',
       tables,
@@ -106,14 +137,23 @@ async function loadSnapshot(): Promise<DevSnapshot> {
   }
 }
 
-export default async function DevDashboardPage() {
+export default async function DevDashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ companyId?: string }>;
+}) {
   const session = await getServerAppSession();
 
   if (session?.role !== 'dev') {
-    redirect('/login');
+    redirect('/dashboard');
   }
 
-  const snapshot = await loadSnapshot();
+  const params = await searchParams;
+  const selectedCompanyId = params?.companyId ?? '';
+  const [snapshot, companies] = await Promise.all([
+    loadSnapshot(selectedCompanyId),
+    readDevCompanies(),
+  ]);
 
   return (
     <DevShell>
@@ -133,6 +173,8 @@ export default async function DevDashboardPage() {
             </StatusBadge>
           </div>
         </div>
+
+        <DevBranchingPanel companies={companies} initialCompanyId={selectedCompanyId} />
 
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Active users" value={snapshot.activeUsers} icon={<Users className="h-5 w-5" />} tone="info" />
@@ -184,6 +226,7 @@ export default async function DevDashboardPage() {
             initialFlags={snapshot.flags}
             initialLogs={snapshot.rawLogs}
             initialRequests={snapshot.apiRequests}
+            selectedCompanyId={selectedCompanyId}
           />
         </div>
       </div>

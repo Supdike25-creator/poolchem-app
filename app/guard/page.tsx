@@ -6,7 +6,7 @@ import BackButton from '../../components/BackButton';
 
 export const dynamic = 'force-dynamic';
 
-export default async function GuardHomePage() {
+export default async function GuardHomePage({ devCompanyId }: { devCompanyId?: string } = {}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -20,21 +20,29 @@ export default async function GuardHomePage() {
   }> = [];
   let poolErrorMessage = "";
 
-  if (user) {
-    const db = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase;
-    const { data: account, error: accountError } = await db
-      .from('users')
-      .select('company_id')
-      .eq('id', user.id)
-      .maybeSingle<{ company_id: string | null }>();
+  if (user || devCompanyId) {
+    const db = devCompanyId || process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase;
+    let companyId = devCompanyId || null;
 
-    if (accountError) {
-      poolErrorMessage = accountError.message;
-    } else if (account?.company_id) {
+    if (!companyId && user) {
+      const { data: account, error: accountError } = await db
+        .from('users')
+        .select('company_id')
+        .eq('id', user.id)
+        .maybeSingle<{ company_id: string | null }>();
+
+      if (accountError) {
+        poolErrorMessage = accountError.message;
+      } else {
+        companyId = account?.company_id ?? null;
+      }
+    }
+
+    if (companyId) {
       const { data: pools, error } = await db
         .from('pools')
         .select('id,name,pool_type,volume_gallons')
-        .eq('company_id', account.company_id)
+        .eq('company_id', companyId)
         .order('name');
 
       if (error) {
@@ -63,14 +71,14 @@ export default async function GuardHomePage() {
 
         <div className="grid gap-4 sm:grid-cols-2 mb-6">
           <Link
-            href="/guard/log"
+            href={devCompanyId ? `/guard/log?companyId=${encodeURIComponent(devCompanyId)}` : '/guard/log'}
             className="rounded-xl border border-blue-200 bg-white p-5 text-left shadow-sm transition hover:border-blue-300 hover:shadow-md"
           >
             <p className="text-sm font-semibold text-blue-700">Start a New Log</p>
             <p className="mt-3 text-slate-700">Begin the guard log workflow for a pool and submit your findings.</p>
           </Link>
           <Link
-            href="/guard/review"
+            href={devCompanyId ? `/guard/review?companyId=${encodeURIComponent(devCompanyId)}` : '/guard/review'}
             className="rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-slate-300 hover:shadow-md"
           >
             <p className="text-sm font-semibold text-slate-700">Review Completed Logs</p>
@@ -93,7 +101,7 @@ export default async function GuardHomePage() {
               poolList.map((pool) => (
                 <Link
                   key={pool.id}
-                  href={`/guard/log?poolId=${pool.id}`}
+                  href={`/guard/log?poolId=${pool.id}${devCompanyId ? `&companyId=${encodeURIComponent(devCompanyId)}` : ''}`}
                   className="rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-sm transition hover:border-blue-300 hover:bg-white"
                 >
                   <p className="text-lg font-semibold text-slate-900">{pool.name}</p>

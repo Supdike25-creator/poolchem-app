@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { isDevRequest } from "@/lib/auth/devSession";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -20,36 +22,43 @@ const poolColumns = [
   "retest_minutes",
 ].join(",");
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const devCompanyId = isDevRequest(request) ? request.nextUrl.searchParams.get("companyId") : null;
   const supabase = await createClient();
   const {
     data: { user },
     error: userError,
   } = await supabase.auth.getUser();
 
-  if (userError || !user) {
+  if ((userError || !user) && !devCompanyId) {
     return NextResponse.json({ ok: false, message: "Unauthorized" }, { status: 401 });
   }
 
   const db = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase;
-  const { data: account, error: accountError } = await db
-    .from("users")
-    .select("company_id")
-    .eq("id", user.id)
-    .maybeSingle<{ company_id: string | null }>();
+  let companyId = devCompanyId;
 
-  if (accountError) {
-    return NextResponse.json({ ok: false, message: accountError.message }, { status: 500 });
+  if (!companyId && user) {
+    const { data: account, error: accountError } = await db
+      .from("users")
+      .select("company_id")
+      .eq("id", user.id)
+      .maybeSingle<{ company_id: string | null }>();
+
+    if (accountError) {
+      return NextResponse.json({ ok: false, message: accountError.message }, { status: 500 });
+    }
+
+    companyId = account?.company_id ?? null;
   }
 
-  if (!account?.company_id) {
+  if (!companyId) {
     return NextResponse.json({ ok: false, message: "No company found" }, { status: 400 });
   }
 
   const { data: pools, error: poolsError } = await db
     .from("pools")
     .select(poolColumns)
-    .eq("company_id", account.company_id)
+    .eq("company_id", companyId)
     .order("name");
 
   if (poolsError) {

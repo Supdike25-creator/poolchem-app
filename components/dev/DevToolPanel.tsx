@@ -15,11 +15,13 @@ export default function DevToolPanel({
   initialFlags,
   initialLogs,
   initialRequests,
+  selectedCompanyId,
 }: {
   tables: DevTableSummary[];
   initialFlags: DevFeatureFlag[];
   initialLogs: DevRawLog[];
   initialRequests: DevApiRequest[];
+  selectedCompanyId?: string;
 }) {
   const [flags, setFlags] = useState(initialFlags);
   const [rawLogs, setRawLogs] = useState(initialLogs);
@@ -28,7 +30,8 @@ export default function DevToolPanel({
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
   const refreshActivity = async () => {
-    const response = await fetch('/api/dev/activity');
+    const query = selectedCompanyId ? `?companyId=${encodeURIComponent(selectedCompanyId)}` : '';
+    const response = await fetch(`/api/dev/activity${query}`);
     const data = await response.json();
     if (data.flags) setFlags(data.flags);
     if (data.logs) setRawLogs(data.logs);
@@ -43,7 +46,7 @@ export default function DevToolPanel({
       const response = await fetch('/api/dev/feature-flags', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ key: flag.key, enabled: nextEnabled }),
+        body: JSON.stringify({ key: flag.key, enabled: nextEnabled, companyId: selectedCompanyId || null }),
       });
       const data = (await response.json()) as ApiResult & { flags?: DevFeatureFlag[] };
       setResult(data);
@@ -60,7 +63,12 @@ export default function DevToolPanel({
     setResult({ message: `Running ${action}...` });
 
     try {
-      const response = await fetch(endpoint, { method: endpoint.endsWith('/health') ? 'GET' : 'POST' });
+      const query = selectedCompanyId ? `?companyId=${encodeURIComponent(selectedCompanyId)}` : '';
+      const response = await fetch(`${endpoint}${query}`, {
+        method: endpoint.endsWith('/health') ? 'GET' : 'POST',
+        headers: endpoint.endsWith('/health') ? undefined : { 'content-type': 'application/json' },
+        body: endpoint.endsWith('/health') ? undefined : JSON.stringify({ companyId: selectedCompanyId || null }),
+      });
       const data = (await response.json()) as ApiResult;
       setResult(data);
       await refreshActivity();
@@ -100,6 +108,11 @@ export default function DevToolPanel({
           <Radio className="h-5 w-5 text-slate-500" />
           <h2 className="text-lg font-semibold text-slate-950">Tool Actions</h2>
         </div>
+        {selectedCompanyId ? (
+          <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Scoped to selected company</p>
+        ) : (
+          <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-amber-600">Select a company for data-writing tools</p>
+        )}
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           {[
             { label: 'API health', endpoint: '/api/dev/health', icon: ShieldCheck },
@@ -113,7 +126,7 @@ export default function DevToolPanel({
                 key={item.endpoint}
                 type="button"
                 onClick={() => runTool(item.label, item.endpoint)}
-                disabled={loadingAction === item.label}
+                disabled={loadingAction === item.label || (!selectedCompanyId && item.endpoint !== '/api/dev/health')}
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Icon className="h-4 w-4" />

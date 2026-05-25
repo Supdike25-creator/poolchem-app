@@ -29,6 +29,12 @@ export type DevTableSummary = {
   status: 'ok' | 'missing' | 'error';
 };
 
+export type DevCompany = {
+  id: string;
+  company_name: string;
+  company_code?: string | null;
+};
+
 export const defaultFeatureFlags: DevFeatureFlag[] = [
   { key: 'newLogFlow', label: 'New log flow', enabled: true },
   { key: 'managerAlerts', label: 'Manager alerts', enabled: true },
@@ -47,6 +53,8 @@ export const devTableNames = [
   'dev_alerts',
   'dev_api_requests',
   'dev_raw_logs',
+  'alerts',
+  'error_logs',
 ];
 
 export const jsonDevForbidden = () =>
@@ -66,6 +74,15 @@ export const getAdminOrError = () => {
   } catch (error) {
     return { supabase: null, error: (error as Error).message };
   }
+};
+
+export const getDevCompanyId = async (request: NextRequest) => {
+  if (request.method === 'GET') {
+    return request.nextUrl.searchParams.get('companyId')?.trim() || null;
+  }
+
+  const body = await request.clone().json().catch(() => null) as { companyId?: string | null; selected_company_id?: string | null } | null;
+  return body?.companyId?.trim() || body?.selected_company_id?.trim() || request.nextUrl.searchParams.get('companyId')?.trim() || null;
 };
 
 export const logDevRequest = async (input: {
@@ -107,6 +124,19 @@ export const readFeatureFlags = async (): Promise<DevFeatureFlag[]> => {
 
   if (error || !data || data.length === 0) return defaultFeatureFlags;
   return data as DevFeatureFlag[];
+};
+
+export const readDevCompanies = async (): Promise<DevCompany[]> => {
+  const { supabase } = getAdminOrError();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('companies')
+    .select('id,company_name,company_code')
+    .order('company_name');
+
+  if (error) return [];
+  return (data ?? []) as DevCompany[];
 };
 
 export const readDevApiRequests = async (): Promise<DevApiRequest[]> => {

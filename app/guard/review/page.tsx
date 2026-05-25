@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import BackButton from '../../../components/BackButton';
 import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
 
 interface ChemicalLogRow {
@@ -38,17 +39,21 @@ const getStatus = (log: ChemicalLogRow) => {
 
 const formatTime = (value: Date) => value.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
-export default async function GuardReviewPage({ searchParams }: { searchParams: Promise<{ sheet?: string; poolId?: string; chlorine?: string; ph?: string }> }) {
+export default async function GuardReviewPage({ searchParams }: { searchParams: Promise<{ sheet?: string; poolId?: string; chlorine?: string; ph?: string; companyId?: string }> }) {
   const params = await searchParams;
   const isFullSheet = params?.sheet === 'full';
-  const supabase = await createClient();
+  const devCompanyId = params?.companyId;
+  const supabase = devCompanyId ? createAdminClient() : await createClient();
 
-  const { data: pools } = await supabase
+  const poolsQuery = supabase
     .from('pools')
     .select('id,name')
     .order('name');
+  if (devCompanyId) poolsQuery.eq('company_id', devCompanyId);
+  const { data: pools } = await poolsQuery;
 
   const poolMap = new Map(pools?.map((pool) => [pool.id, pool.name]) || []);
+  const poolIds = pools?.map((pool) => pool.id) ?? [];
 
   const now = new Date();
   const rangeStart = new Date(now);
@@ -67,6 +72,7 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
     .gte('created_at', (isFullSheet ? dayStart : rangeStart).toISOString())
     .lt('created_at', (isFullSheet ? dayEnd : rangeEnd).toISOString())
     .order('created_at', { ascending: false });
+  if (devCompanyId) query.in('pool_id', poolIds.length ? poolIds : ['__no_pools_for_company__']);
 
   const { data: logs, error } = await query;
 

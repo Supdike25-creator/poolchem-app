@@ -1,5 +1,6 @@
 import GuardLogClient from './GuardLogClient';
 
-export default function GuardLogPage({ searchParams }: { searchParams: { poolId?: string } }) {
-  return <GuardLogClient searchParams={new URLSearchParams(searchParams as Record<string, string>)} />;
+export default async function GuardLogPage({ searchParams }: { searchParams: Promise<{ poolId?: string; companyId?: string }> }) {
+  const params = await searchParams;
+  return <GuardLogClient searchParams={new URLSearchParams(params as Record<string, string>)} />;
 }

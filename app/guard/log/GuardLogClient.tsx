@@ -66,7 +66,9 @@ export default function GuardLogClient({ searchParams }: { searchParams: URLSear
 
   useEffect(() => {
     const loadPools = async () => {
-      const response = await fetch('/api/company-pools', { cache: 'no-store' });
+      const companyId = searchParams.get('companyId');
+      const query = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
+      const response = await fetch(`/api/company-pools${query}`, { cache: 'no-store' });
       const result = await response.json().catch(() => null);
 
       if (!response.ok || !result?.ok) {
@@ -153,7 +155,8 @@ export default function GuardLogClient({ searchParams }: { searchParams: URLSear
       return;
     }
 
-    router.push(`/guard/review?poolId=${selectedPoolId}&chlorine=${chlorine}&ph=${ph}`);
+    const companyId = searchParams.get('companyId');
+    router.push(`/guard/review?poolId=${selectedPoolId}&chlorine=${chlorine}&ph=${ph}${companyId ? `&companyId=${encodeURIComponent(companyId)}` : ''}`);
   };
 
   return (

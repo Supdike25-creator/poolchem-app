@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Building2, Code2, Gauge, SlidersHorizontal, UserRoundCog, Users, Waves } from 'lucide-react';
 import ChemDeckLogo from '@/components/ChemDeckLogo';
+import { DevCompanyProvider } from '@/components/dev/DevCompanyContext';
 
 const navItems = [
   { label: 'Worker POV', href: '/worker-view', icon: Waves },
@@ -16,6 +17,7 @@ const adminItems = [
 
 export default function DevShell({ children }: { children: React.ReactNode }) {
   return (
+    <DevCompanyProvider>
     <div className="min-h-screen bg-slate-100 text-slate-950">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-slate-200 bg-white px-4 py-5 shadow-sm lg:block">
         <div className="flex items-center gap-3">
@@ -81,5 +83,6 @@ export default function DevShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
     </div>
+    </DevCompanyProvider>
   );
 }

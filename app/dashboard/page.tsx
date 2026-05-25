@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { AlertCircle, Camera, CheckCircle2, ClipboardCheck, Clock3, Eye, Info, Plus, Waves } from 'lucide-react';
 import { EmptyState, StatCard, StatusBadge, buttonClass, type StatusTone } from '../../components/OperationsUI';
 
@@ -149,7 +150,7 @@ const formatRelativeDue = (latestLog?: ChemicalLog) => {
   return `Due in ${minutes} min`;
 };
 
-export default async function Dashboard() {
+export default async function Dashboard({ devCompanyId }: { devCompanyId?: string } = {}) {
   let poolsWithStatus: Array<{
     id: string;
     name: string;
@@ -170,13 +171,15 @@ export default async function Dashboard() {
   let submitterMap = new Map<string, string>();
 
   try {
-    const supabase = await createClient();
+    const supabase = devCompanyId ? createAdminClient() : await createClient();
 
     // Fetch all pools
-    const { data: pools, error: poolsError } = await supabase
+    const poolsQuery = supabase
       .from('pools')
       .select('id, name, pool_type, is_baby_pool')
       .order('name');
+    if (devCompanyId) poolsQuery.eq('company_id', devCompanyId);
+    const { data: pools, error: poolsError } = await poolsQuery;
 
     if (poolsError) {
       throw new Error(`Failed to fetch pools: ${poolsError.message}`);
@@ -190,10 +193,13 @@ export default async function Dashboard() {
 
     if (!hasNoPools) {
       // Fetch recent logs for all pools
-      const { data: recentLogs, error: logsError } = await supabase
+      const poolIds = poolList.map((pool) => pool.id);
+      const logsQuery = supabase
         .from('chemical_logs')
         .select('id, pool_id, submitted_by, free_chlorine, ph, notes, photo_url, created_at')
         .order('created_at', { ascending: false });
+      if (devCompanyId) logsQuery.in('pool_id', poolIds.length ? poolIds : ['__no_pools_for_company__']);
+      const { data: recentLogs, error: logsError } = await logsQuery;
 
       if (logsError) {
         throw new Error(`Failed to fetch logs: ${logsError.message}`);

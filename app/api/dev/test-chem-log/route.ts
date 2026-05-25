@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { assertDevRequest, getAdminOrError, logDevMessage, logDevRequest } from '@/lib/devTools';
+import { assertDevRequest, getDevCompanyId, getAdminOrError, logDevMessage, logDevRequest } from '@/lib/devTools';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,10 +13,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, message: adminError }, { status: 500 });
   }
 
+  const companyId = await getDevCompanyId(request);
+  if (!companyId) {
+    await logDevRequest({ method: 'POST', path: '/api/dev/test-chem-log', status: 400, message: 'Missing selected company.' });
+    return NextResponse.json({ ok: false, message: 'Select a company before inserting a test chem log.' }, { status: 400 });
+  }
+
   const { data: pool, error: poolError } = await supabase
     .from('pools')
     .select('id,name')
     .eq('name', 'ChemDeck Dev Test Pool')
+    .eq('company_id', companyId)
     .maybeSingle();
 
   let poolId = pool?.id;
@@ -27,6 +34,7 @@ export async function POST(request: NextRequest) {
       .from('pools')
       .insert({
         name: 'ChemDeck Dev Test Pool',
+        company_id: companyId,
         pool_type: 'Dev',
         volume_gallons: 25000,
         target_chlorine_min: 1,
@@ -60,7 +68,7 @@ export async function POST(request: NextRequest) {
       pool_id: poolId,
       free_chlorine: 2.4,
       ph: 7.5,
-      notes: 'DEV_TEST_DATA: ChemDeck Dev Dashboard test chemistry submission.',
+      notes: `DEV_TEST_DATA: ChemDeck Dev Dashboard test chemistry submission for company ${companyId}.`,
       photo_url: null,
       dosing_amount: null,
       dosing_unit: null,
@@ -84,6 +92,7 @@ export async function POST(request: NextRequest) {
       message: 'Test chem log validated.',
       details: {
         id: log?.id,
+        company_id: companyId,
         pool: poolName,
         freeChlorine: 2.4,
         ph: 7.5,

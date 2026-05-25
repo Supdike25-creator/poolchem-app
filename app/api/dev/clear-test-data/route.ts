@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { assertDevRequest, getAdminOrError, logDevMessage, logDevRequest } from '@/lib/devTools';
+import { assertDevRequest, getDevCompanyId, getAdminOrError, logDevMessage, logDevRequest } from '@/lib/devTools';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,10 +13,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, message: adminError }, { status: 500 });
   }
 
+  const companyId = await getDevCompanyId(request);
+  if (!companyId) {
+    await logDevRequest({ method: 'POST', path: '/api/dev/clear-test-data', status: 400, message: 'Missing selected company.' });
+    return NextResponse.json({ ok: false, message: 'Select a company before clearing test data.' }, { status: 400 });
+  }
+
   const { data: testPool } = await supabase
     .from('pools')
     .select('id')
     .eq('name', 'ChemDeck Dev Test Pool')
+    .eq('company_id', companyId)
     .maybeSingle();
 
   const deletions: Record<string, unknown> = {};
@@ -26,7 +33,11 @@ export async function POST(request: NextRequest) {
     deletions.chemical_logs = error?.message ?? 'deleted';
   }
 
-  const { error: alertsError } = await supabase.from('dev_alerts').delete().eq('source', 'dev-dashboard');
+  const { error: alertsError } = await supabase
+    .from('dev_alerts')
+    .delete()
+    .eq('source', 'dev-dashboard')
+    .contains('metadata', { company_id: companyId });
   deletions.dev_alerts = alertsError?.message ?? 'deleted';
 
   const { error: logsError } = await supabase.from('dev_raw_logs').delete().like('message', '%Test chem log%');
@@ -43,6 +54,7 @@ export async function POST(request: NextRequest) {
     message: failed ? 'Clear test data completed with errors.' : 'Clear test data completed.',
     details: {
       deletions,
+      selected_company_id: companyId,
       mode: 'database',
     },
   }, { status });
