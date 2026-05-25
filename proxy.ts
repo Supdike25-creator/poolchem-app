@@ -4,7 +4,15 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeProfileRole, routeForRole } from "@/lib/auth/accountAccess";
 import { isDevRequest } from "@/lib/auth/devSession";
 
-const PUBLIC_PATHS = ["/", "/login", "/create-account", "/signup", "/api/create-account", "/auth/callback"];
+const PUBLIC_PATHS = [
+  "/",
+  "/login",
+  "/create-account",
+  "/signup",
+  "/manifest.json",
+  "/api/create-account",
+  "/auth/callback",
+];
 const ROLE_SETUP_PATHS = ["/choose-role", "/api/choose-role"];
 
 const managerDashboardPath = "/management/dashboard";
@@ -175,6 +183,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp3|wav|ogg|m4a)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest\\.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp3|wav|ogg|m4a)$).*)",
   ],
 };

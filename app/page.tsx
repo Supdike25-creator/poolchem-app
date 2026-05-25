@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import ChemDeckLogo from '@/components/ChemDeckLogo';
+import InstallAppBanner from '@/components/InstallAppBanner';
 
 const navLinks = [
   { label: 'Features', href: '#features' },
@@ -194,6 +195,10 @@ export default function Home() {
           </div>
         ) : null}
       </header>
+
+      <div className="mx-auto max-w-6xl px-6 pt-20">
+        <InstallAppBanner />
+      </div>
 
       <section
         className="bg-white pt-32 pb-24"

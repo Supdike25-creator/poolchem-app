@@ -67,8 +67,8 @@ export default function InstallAppBanner() {
           <p className="font-semibold text-cyan-950">Install ChemDeck</p>
           {iosHint ? (
             <p className="mt-1 leading-6 text-cyan-900">
-              Tap <span className="font-semibold">Share</span>, then choose{' '}
-              <span className="font-semibold">Add to Home Screen</span> for quick pool-side access.
+              Open the ChemDeck homepage, tap <span className="font-semibold">Share</span>, then choose{' '}
+              <span className="font-semibold">Add to Home Screen</span> so the app opens there.
             </p>
           ) : (
             <p className="mt-1 leading-6 text-cyan-900">
