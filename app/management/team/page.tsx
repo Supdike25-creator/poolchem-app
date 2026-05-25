@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CheckCircle, Users, Waves } from 'lucide-react';
-import { EmptyState, PageHeader, SectionCard, StatusBadge } from '../../../components/OperationsUI';
+import { CheckCircle, Copy, Link2, Send, Users, Waves } from 'lucide-react';
+import { EmptyState, PageHeader, SectionCard, StatusBadge, buttonClass } from '../../../components/OperationsUI';
 
 type GuardMember = {
   id: string;
@@ -25,11 +25,18 @@ export default function ManagementTeamPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [savingGuardId, setSavingGuardId] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteLinks, setInviteLinks] = useState<{ signup_link?: string; join_link?: string; company_code?: string }>({});
+  const [sendingInvite, setSendingInvite] = useState(false);
 
   const loadTeam = async () => {
-    const response = await fetch('/api/pool-assignments', { cache: 'no-store' });
-    const result = await response.json().catch(() => null);
-    if (!response.ok || !result?.ok) {
+    const [teamResponse, inviteResponse] = await Promise.all([
+      fetch('/api/pool-assignments', { cache: 'no-store' }),
+      fetch('/api/team-invite', { cache: 'no-store' }),
+    ]);
+    const result = await teamResponse.json().catch(() => null);
+    const inviteResult = await inviteResponse.json().catch(() => null);
+    if (!teamResponse.ok || !result?.ok) {
       setMessage(result?.message || 'Unable to load team data.');
       setLoading(false);
       return;
@@ -39,6 +46,13 @@ export default function ManagementTeamPage() {
     setPools(result.pools ?? []);
     setAssignments(result.assignments ?? {});
     setPendingMembers(result.pendingMembers ?? []);
+    if (inviteResult?.ok) {
+      setInviteLinks({
+        signup_link: inviteResult.signup_link,
+        join_link: inviteResult.join_link,
+        company_code: inviteResult.company_code,
+      });
+    }
     setLoading(false);
   };
 
@@ -93,6 +107,30 @@ export default function ManagementTeamPage() {
     setMessage(result.message);
   };
 
+  const copyInviteLink = async () => {
+    if (!inviteLinks.signup_link) return;
+    await navigator.clipboard.writeText(inviteLinks.signup_link);
+    setMessage('Invite link copied to clipboard.');
+  };
+
+  const sendInviteEmail = async () => {
+    setSendingInvite(true);
+    setMessage('');
+    const response = await fetch('/api/team-invite', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: inviteEmail }),
+    });
+    const result = await response.json().catch(() => null);
+    setSendingInvite(false);
+    if (!response.ok || !result?.ok) {
+      setMessage(result?.message || 'Unable to send invite email.');
+      return;
+    }
+    setInviteEmail('');
+    setMessage(result.message);
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-[420px] items-center justify-center rounded-xl border border-slate-200 bg-white py-12 shadow-sm">
@@ -113,6 +151,48 @@ export default function ManagementTeamPage() {
       {message ? (
         <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">{message}</div>
       ) : null}
+
+      <SectionCard className="p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <Link2 className="h-4 w-4 text-slate-500" />
+          <h2 className="text-base font-semibold text-slate-950">Invite Guards</h2>
+        </div>
+        <p className="text-sm text-slate-600">
+          Share a signup link or email an invite. Guards create an account, enter code{' '}
+          <span className="font-semibold text-slate-900">{inviteLinks.company_code || '—'}</span>, then wait for your approval.
+        </p>
+
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <button type="button" onClick={() => void copyInviteLink()} className={buttonClass.secondary} disabled={!inviteLinks.signup_link}>
+            <Copy className="mr-2 h-4 w-4" />
+            Copy invite link
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
+          <label className="block text-sm">
+            <span className="mb-1 block font-semibold text-slate-700">Email invite</span>
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={(event) => setInviteEmail(event.target.value)}
+              placeholder="guard@example.com"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+          </label>
+          <div className="flex items-end">
+            <button
+              type="button"
+              disabled={sendingInvite || !inviteEmail.trim()}
+              onClick={() => void sendInviteEmail()}
+              className={buttonClass.primary}
+            >
+              <Send className="mr-2 h-4 w-4" />
+              {sendingInvite ? 'Sending...' : 'Send invite'}
+            </button>
+          </div>
+        </div>
+      </SectionCard>
 
       {pendingMembers.length > 0 ? (
         <SectionCard className="p-5">

@@ -18,6 +18,7 @@ import {
 import { getStoredSession } from '@/lib/appAccounts';
 import { createClient } from '@/utils/supabase/client';
 import { SidebarNav, buildDevPreviewNavItems } from './SidebarNav';
+import InstallAppBanner from './InstallAppBanner';
 
 type Profile = {
   full_name?: string | null;
@@ -336,6 +337,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
           ) : null}
           {children}
         </div>
+        {role === 'guard' ? <InstallAppBanner /> : null}
       </main>
     </div>
   );

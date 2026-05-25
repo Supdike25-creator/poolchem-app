@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import ButtonSoundEffects from "../components/ButtonSoundEffects";
+import ServiceWorkerRegister from "../components/ServiceWorkerRegister";
 import ThemeManager from "../components/ThemeManager";
 import VersionBadge from "../components/VersionBadge";
 import "./globals.css";
@@ -52,6 +53,7 @@ export default function RootLayout({
     >
       <body className={`${dmSans.className} min-h-full w-full flex flex-col bg-slate-50 text-slate-950`}>
         <ThemeManager />
+        <ServiceWorkerRegister />
         <ButtonSoundEffects />
         {children}
         <VersionBadge />

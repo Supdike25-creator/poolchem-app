@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Building2, ChevronLeft, KeyRound } from "lucide-react";
 import ChemDeckLogo from "@/components/ChemDeckLogo";
 import { normalizeProfileRole, routeForRole } from "@/lib/auth/accountAccess";
@@ -10,10 +10,11 @@ import { createClient } from "@/lib/supabase/client";
 
 const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
-export default function EnterCompanyCodePage() {
+function EnterCompanyCodeForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = useMemo(() => createClient(), []);
-  const [companyCode, setCompanyCode] = useState("");
+  const [companyCode, setCompanyCode] = useState(() => searchParams.get("code")?.trim().toUpperCase() || "");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [checking, setChecking] = useState(true);
@@ -240,5 +241,13 @@ export default function EnterCompanyCodePage() {
         )}
       </section>
     </main>
+  );
+}
+
+export default function EnterCompanyCodePage() {
+  return (
+    <Suspense fallback={<main className="flex min-h-screen items-center justify-center bg-[#0A1A2F] text-sm text-[#D9E1E8]/80">Loading...</main>}>
+      <EnterCompanyCodeForm />
+    </Suspense>
   );
 }

@@ -115,3 +115,72 @@ export async function loadCompanyAlerts(
 
   return data ?? [];
 }
+
+type PoolSummary = {
+  id: string;
+  name: string;
+};
+
+export async function syncMissedTestAlerts(
+  db: SupabaseClient,
+  companyId: string,
+  pools: PoolSummary[],
+  latestLogByPool: Map<string, { created_at: string }>,
+  settings: ReturnType<typeof mergeCompanySettings>,
+) {
+  if (!settings.missedTestAlerts || !pools.length) return [];
+
+  const thresholdMinutes = Math.max(settings.retestReminder || 60, 15);
+  const thresholdMs = thresholdMinutes * 60 * 1000;
+  const rows: Array<{
+    company_id: string;
+    pool_id: string;
+    chemical_log_id: null;
+    severity: string;
+    alert_type: string;
+    title: string;
+    message: string;
+    metadata: Record<string, unknown>;
+  }> = [];
+
+  for (const pool of pools) {
+    const latest = latestLogByPool.get(pool.id);
+    const ageMs = latest ? Date.now() - new Date(latest.created_at).getTime() : Number.POSITIVE_INFINITY;
+    if (ageMs <= thresholdMs) continue;
+
+    const { data: existing } = await db
+      .from('alerts')
+      .select('id')
+      .eq('company_id', companyId)
+      .eq('pool_id', pool.id)
+      .eq('alert_type', 'missed_test')
+      .is('read_at', null)
+      .gte('created_at', new Date(Date.now() - thresholdMs).toISOString())
+      .limit(1);
+
+    if (existing?.length) continue;
+
+    rows.push({
+      company_id: companyId,
+      pool_id: pool.id,
+      chemical_log_id: null,
+      severity: 'warning',
+      alert_type: 'missed_test',
+      title: `${pool.name} is overdue for testing`,
+      message: `No chemistry log in the last ${thresholdMinutes} minutes.`,
+      metadata: { pool_id: pool.id, threshold_minutes: thresholdMinutes },
+    });
+  }
+
+  if (!rows.length) return [];
+
+  const { data, error } = await db.from('alerts').insert(rows).select('id, alert_type, title');
+  if (error) {
+    if (error.message.toLowerCase().includes('does not exist')) {
+      return [];
+    }
+    throw new Error(error.message);
+  }
+
+  return data ?? [];
+}

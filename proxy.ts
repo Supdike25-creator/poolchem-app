@@ -13,7 +13,9 @@ const PUBLIC_PATHS = [
   "/terms",
   "/cookies",
   "/pending",
+  "/offline",
   "/manifest.json",
+  "/sw.js",
   "/api/create-account",
   "/auth/callback",
 ];
@@ -205,6 +207,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|manifest\\.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp3|wav|ogg|m4a)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest\\.json|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp3|wav|ogg|m4a)$).*)",
   ],
 };

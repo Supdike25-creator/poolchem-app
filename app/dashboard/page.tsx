@@ -4,7 +4,8 @@ import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { AlertCircle, Camera, CheckCircle2, ClipboardCheck, Clock3, Eye, Info, Plus, Waves } from 'lucide-react';
 import { EmptyState, StatCard, StatusBadge, buttonClass, type StatusTone } from '../../components/OperationsUI';
-import { loadCompanyAlerts } from '@/lib/alerts';
+import { loadCompanyAlerts, syncMissedTestAlerts } from '@/lib/alerts';
+import { mergeCompanySettings } from '@/lib/companySettings';
 
 export const dynamic = 'force-dynamic';
 
@@ -191,19 +192,6 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
       }
     }
 
-    if (companyId) {
-      const dbAlerts = await loadCompanyAlerts(supabase, companyId, 8);
-      unreadAlertCount = dbAlerts.filter((alert) => !alert.read_at).length;
-      dbAlertActions = dbAlerts
-        .filter((alert) => !alert.read_at)
-        .slice(0, 3)
-        .map((alert) => ({
-          tone: alert.severity === 'critical' ? ('critical' as StatusTone) : ('warning' as StatusTone),
-          title: alert.title,
-          detail: alert.message,
-        }));
-    }
-
     // Fetch all pools
     const poolsQuery = supabase
       .from('pools')
@@ -264,6 +252,36 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
         if (!latestLogByPool.has(log.pool_id)) {
           latestLogByPool.set(log.pool_id, log);
         }
+      }
+
+      if (companyId) {
+        const { data: companyRow } = await supabase
+          .from('companies')
+          .select('settings')
+          .eq('id', companyId)
+          .maybeSingle();
+        const settings = mergeCompanySettings(companyRow?.settings);
+        const latestForAlerts = new Map<string, { created_at: string }>();
+        for (const [poolId, log] of latestLogByPool.entries()) {
+          latestForAlerts.set(poolId, { created_at: log.created_at });
+        }
+
+        try {
+          await syncMissedTestAlerts(supabase, companyId, poolList, latestForAlerts, settings);
+        } catch {
+          // Missed-test sync is best-effort during dashboard load.
+        }
+
+        const dbAlerts = await loadCompanyAlerts(supabase, companyId, 8);
+        unreadAlertCount = dbAlerts.filter((alert) => !alert.read_at).length;
+        dbAlertActions = dbAlerts
+          .filter((alert) => !alert.read_at)
+          .slice(0, 3)
+          .map((alert) => ({
+            tone: alert.severity === 'critical' ? ('critical' as StatusTone) : ('warning' as StatusTone),
+            title: alert.title,
+            detail: alert.message,
+          }));
       }
 
       // Create pool data with status

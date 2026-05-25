@@ -1,16 +1,19 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import ChemDeckLogo from "@/components/ChemDeckLogo";
 import { createClient } from "@/lib/supabase/client";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function CreateAccountPage() {
+function CreateAccountForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteCode = searchParams.get("code")?.trim().toUpperCase() || "";
+  const inviteRole = searchParams.get("role") === "boss" ? "boss" : "guard";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -72,8 +75,13 @@ export default function CreateAccountPage() {
         return;
       }
 
-      setNotice("Account created. Redirecting to role selection...");
+      setNotice("Account created. Redirecting...");
       window.setTimeout(() => {
+        if (inviteCode) {
+          document.cookie = `chemdeck.pendingRole=${inviteRole}; path=/; max-age=3600; samesite=lax`;
+          router.replace(`/enter-company-code?code=${encodeURIComponent(inviteCode)}`);
+          return;
+        }
         router.replace("/choose-role");
       }, 700);
     } catch {
@@ -93,7 +101,9 @@ export default function CreateAccountPage() {
           </div>
           <h1 className="text-4xl font-semibold tracking-tight text-white">Create account</h1>
           <p className="mt-3 text-sm leading-6 text-[#D9E1E8]/80">
-            Create your ChemDeck account.
+            {inviteCode
+              ? `Create your ChemDeck account, then join with company code ${inviteCode}.`
+              : "Create your ChemDeck account."}
           </p>
         </div>
 
@@ -171,5 +181,13 @@ export default function CreateAccountPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+export default function CreateAccountPage() {
+  return (
+    <Suspense fallback={<main className="flex min-h-screen items-center justify-center bg-[#0A1A2F] text-sm text-[#D9E1E8]/80">Loading...</main>}>
+      <CreateAccountForm />
+    </Suspense>
   );
 }
