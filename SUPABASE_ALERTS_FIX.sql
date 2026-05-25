@@ -1,5 +1,8 @@
--- Run in Supabase SQL Editor: production alerts for managers
--- If indexes fail with "company_id does not exist", run SUPABASE_ALERTS_FIX.sql instead.
+-- Run in Supabase SQL Editor if alerts indexes failed with:
+-- ERROR: column "company_id" does not exist
+--
+-- Cause: an older public.alerts table existed without the production columns.
+-- CREATE TABLE IF NOT EXISTS skipped creation, then index creation failed.
 
 do $$
 begin
@@ -16,7 +19,7 @@ begin
       and column_name = 'company_id'
   ) then
     if exists (select 1 from public.alerts limit 1) then
-      raise exception 'public.alerts has rows but is missing company_id. Run SUPABASE_ALERTS_FIX.sql after backfilling or renaming the old table.';
+      raise exception 'public.alerts has rows but is missing company_id. Rename or backfill that table before running this fix.';
     end if;
 
     drop table public.alerts cascade;
