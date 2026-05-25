@@ -1,10 +1,12 @@
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 import LogDateSlider from '../../../components/LogDateSlider';
+import ManagementLogFilters from '../../../components/ManagementLogFilters';
 import { getServerAppSession } from '../../../lib/serverAppSession';
 import { createClient } from '@/utils/supabase/server';
 import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
 import { EmptyState, PageHeader, SectionCard, StatCard, StatusBadge, type StatusTone } from '../../../components/OperationsUI';
-import { ClipboardList, Clock3, Download, Filter, Rows3, Search, Waves } from 'lucide-react';
+import { ClipboardList, Clock3, Filter, Rows3, Waves } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +21,7 @@ interface ChemicalLogRow {
   dosing_chemical?: string | null;
   dosing_recommendation?: string | null;
   notes?: string | null;
+  photo_url?: string | null;
   created_at: string;
 }
 
@@ -67,7 +70,14 @@ const getLogStatus = (log: ChemicalLogRow) => {
 
 const formatTime = (date: Date) => date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
-export default async function ManagementLogsPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+const getLogStatusKey = (log: ChemicalLogRow) => {
+  const status = getLogStatus(log);
+  if (status.label === 'In Range') return 'in-range';
+  if (status.label === 'Review') return 'review';
+  return 'legacy';
+};
+
+export default async function ManagementLogsPage({ searchParams }: { searchParams: Promise<{ date?: string; q?: string; status?: string; logger?: string; photo?: string }> }) {
   const params = await searchParams;
   const selectedDate = getSelectedDate(params?.date);
   const dayStart = new Date(`${selectedDate}T00:00:00`);
@@ -118,7 +128,7 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
   const { data: logs, error } = poolIds.length > 0
     ? await supabase
       .from('chemical_logs')
-      .select('id,pool_id,submitted_by,free_chlorine,ph,dosing_amount,dosing_unit,dosing_chemical,dosing_recommendation,notes,created_at')
+      .select('id,pool_id,submitted_by,free_chlorine,ph,dosing_amount,dosing_unit,dosing_chemical,dosing_recommendation,notes,photo_url,created_at')
       .in('pool_id', poolIds)
       .gte('created_at', dayStart.toISOString())
       .lt('created_at', dayEnd.toISOString())
@@ -130,6 +140,21 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
   }
 
   const dayLogs = (error ? [] : logs ?? []) as ChemicalLogRow[];
+  const q = params?.q?.trim().toLowerCase() ?? '';
+  const statusFilter = params?.status?.trim() ?? '';
+  const loggerFilter = params?.logger?.trim() ?? '';
+  const photoFilter = params?.photo?.trim() ?? '';
+
+  const filteredLogs = dayLogs.filter((log) => {
+    const poolName = poolMap.get(log.pool_id) || '';
+    if (q && !poolName.toLowerCase().includes(q)) return false;
+    if (loggerFilter && log.submitted_by !== loggerFilter) return false;
+    const statusKey = getLogStatusKey(log);
+    if (statusFilter && statusKey !== statusFilter) return false;
+    if (photoFilter === 'missing-photo' && log.photo_url) return false;
+    return true;
+  });
+
   const submitterIds = Array.from(new Set(dayLogs.map((log) => log.submitted_by).filter(Boolean))) as string[];
   const { data: submitters } = submitterIds.length > 0
     ? await supabase
@@ -162,7 +187,7 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
         <LogDateSlider selectedDate={selectedDate} />
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <StatCard label="Rows" value={dayLogs.length} icon={<Rows3 className="h-5 w-5" />} tone="info" />
+          <StatCard label="Rows" value={filteredLogs.length} icon={<Rows3 className="h-5 w-5" />} tone="info" />
           <StatCard label="Pools" value={poolMap.size} icon={<Waves className="h-5 w-5" />} tone="neutral" />
           <StatCard label="Slots" value="12" icon={<Clock3 className="h-5 w-5" />} tone="neutral" />
         </div>
@@ -172,39 +197,16 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
             <Filter className="h-4 w-4 text-slate-500" />
             <h2 className="text-sm font-semibold text-slate-950">Search and Filters</h2>
           </div>
-          {/* TODO: Wire these filter controls to server search params once log filtering is persisted in route state. */}
-          <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
-            <label className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <span className="sr-only">Search by pool name</span>
-              <input
-                type="search"
-                placeholder="Search by pool name"
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
-            </label>
-            <select className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500" defaultValue="">
-              <option value="">All statuses</option>
-              <option value="in-range">In range</option>
-              <option value="review">Needs review</option>
-              <option value="legacy">Legacy / missing values</option>
-            </select>
-            <select className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500" defaultValue="">
-              <option value="">All loggers</option>
-              {submitterIds.map((id) => (
-                <option key={id} value={id}>{submitterMap.get(id) || 'Unknown'}</option>
-              ))}
-            </select>
-            <select className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500" defaultValue="">
-              <option value="">All records</option>
-              <option value="missing-photo">Missing photo</option>
-              <option value="overdue">Overdue slots</option>
-            </select>
-            <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
-              <Download className="h-4 w-4" />
-              Export CSV
-            </button>
-          </div>
+          {/* Filters persist in URL search params and apply to CSV export. */}
+          <Suspense fallback={<div className="h-10 rounded-lg bg-slate-100" />}>
+            <ManagementLogFilters
+              selectedDate={selectedDate}
+              submitterOptions={submitterIds.map((id) => ({
+                id,
+                label: submitterMap.get(id) || 'Unknown',
+              }))}
+            />
+          </Suspense>
         </SectionCard>
 
         <SectionCard className="overflow-hidden">
@@ -212,7 +214,7 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
             <h2 className="text-base font-semibold text-slate-950">Log Rows</h2>
             <p className="mt-1 text-sm text-slate-500">Chemistry submissions grouped by operating hour.</p>
           </div>
-          {dayLogs.length === 0 ? (
+          {filteredLogs.length === 0 ? (
             <div className="p-5">
               <EmptyState
                 icon={<ClipboardList className="h-6 w-6" />}
@@ -238,7 +240,7 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
               </thead>
               <tbody>
                 {hours.map((hour) => {
-                  const slotLogs = dayLogs.filter((log) => getLogTime(log).getHours() === hour);
+                  const slotLogs = filteredLogs.filter((log) => getLogTime(log).getHours() === hour);
                   const rows = slotLogs.length > 0 ? slotLogs : [null];
 
                   return rows.map((log, index) => {

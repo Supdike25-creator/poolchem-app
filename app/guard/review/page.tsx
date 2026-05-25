@@ -45,11 +45,25 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
   const devCompanyId = await resolveCompanyScopeId(params?.companyId);
   const supabase = devCompanyId ? createAdminClient() : await createClient();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let companyId = devCompanyId;
+  if (!companyId && user) {
+    const { data: account } = await supabase
+      .from('users')
+      .select('company_id')
+      .eq('id', user.id)
+      .maybeSingle();
+    companyId = account?.company_id ?? null;
+  }
+
   const poolsQuery = supabase
     .from('pools')
     .select('id,name')
     .order('name');
-  if (devCompanyId) poolsQuery.eq('company_id', devCompanyId);
+  if (companyId) poolsQuery.eq('company_id', companyId);
   const { data: pools } = await poolsQuery;
 
   const poolMap = new Map(pools?.map((pool) => [pool.id, pool.name]) || []);
@@ -72,7 +86,14 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
     .gte('created_at', (isFullSheet ? dayStart : rangeStart).toISOString())
     .lt('created_at', (isFullSheet ? dayEnd : rangeEnd).toISOString())
     .order('created_at', { ascending: false });
-  if (devCompanyId) query.in('pool_id', poolIds.length ? poolIds : ['__no_pools_for_company__']);
+  if (poolIds.length) {
+    query.in('pool_id', poolIds);
+  } else if (companyId) {
+    query.in('pool_id', ['__no_pools_for_company__']);
+  }
+  if (!devCompanyId && user) {
+    query.eq('submitted_by', user.id);
+  }
 
   const { data: logs, error } = await query;
 
@@ -173,7 +194,7 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
                         </td>
                         <td className="max-w-sm truncate px-4 py-3 text-sm text-slate-600">{log.notes || '—'}</td>
                         <td className="px-4 py-3 text-right text-sm">
-                          <Link href={`/guard/log?poolId=${log.pool_id}`} data-sound="click" className="font-semibold text-blue-600 hover:text-blue-800">
+                          <Link href={`/guard/log?logId=${log.id}&poolId=${log.pool_id}`} data-sound="click" className="font-semibold text-blue-600 hover:text-blue-800">
                             Edit
                           </Link>
                         </td>

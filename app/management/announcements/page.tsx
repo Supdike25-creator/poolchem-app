@@ -72,7 +72,6 @@ export default function AnnouncementsPage() {
   async function loadData() {
     const supabase = createClient();
 
-    // Get user role
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
       const { data: profile } = await supabase
@@ -80,70 +79,24 @@ export default function AnnouncementsPage() {
         .select('role')
         .eq('id', session.user.id)
         .single();
-      setIsManager(profile?.role === 'manager');
+      setIsManager(['boss', 'manager', 'admin', 'supervisor', 'owner'].includes(profile?.role ?? ''));
     }
 
-    // Load pools for manager form
     const { data: poolsData } = await supabase
       .from('pools')
       .select('id, name')
       .order('name');
     setPools(poolsData || []);
 
-    // Load announcements (mock data for now)
-    const mockAnnouncements: Announcement[] = [
-      {
-        id: '1',
-        title: 'Weekly Maintenance Reminder',
-        message: 'Please ensure all pool equipment is functioning properly and chemical levels are within range. Report any issues immediately.',
-        priority: 'normal',
-        audience: 'all_lifeguards',
-        created_by: 'manager1',
-        author_name: 'John Manager',
-        created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        send_notification: true,
-        require_acknowledgment: false,
-        acknowledged_count: 12,
-        recipient_count: 12,
-      },
-      {
-        id: '2',
-        title: 'New Safety Protocol',
-        message: 'Starting tomorrow, all baby pools must have photo verification for every chemical test. This is mandatory for safety compliance.',
-        priority: 'important',
-        audience: 'all_lifeguards',
-        created_by: 'manager1',
-        author_name: 'John Manager',
-        created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        send_notification: true,
-        require_acknowledgment: true,
-        acknowledged_count: 8,
-        recipient_count: 12,
-        unread: true,
-      },
-      {
-        id: '3',
-        title: 'Emergency: Pool 3 Closure',
-        message: 'Pool 3 is experiencing equipment failure and must be closed immediately. All guards please evacuate the area and redirect guests to other pools.',
-        priority: 'emergency',
-        audience: 'all_lifeguards',
-        pool_id: 'pool3',
-        pool_name: 'Olympic Pool',
-        created_by: 'manager1',
-        author_name: 'John Manager',
-        created_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-        send_notification: true,
-        require_acknowledgment: true,
-        acknowledged_count: 10,
-        recipient_count: 12,
-        unread: true,
-      },
-    ];
-
-    setAnnouncements(mockAnnouncements);
+    const response = await fetch('/api/announcements', { cache: 'no-store' });
+    const result = await response.json().catch(() => null);
+    if (response.ok && result?.ok) {
+      setAnnouncements(result.announcements ?? []);
+    } else {
+      setAnnouncements([]);
+    }
     setLoading(false);
 
-    // Load notification preference
     const saved = localStorage.getItem('announcement-notifications');
     if (saved !== null) {
       setAnnouncementNotifications(JSON.parse(saved));
@@ -160,37 +113,58 @@ export default function AnnouncementsPage() {
 
     setSubmitting(true);
 
-    // Mock announcement creation
-    const newAnnouncement: Announcement = {
-      id: Date.now().toString(),
-      title: formData.title,
-      message: formData.message,
-      priority: formData.priority,
-      audience: formData.audience,
-      pool_id: formData.pool_id || undefined,
-      pool_name: formData.pool_id ? pools.find(p => p.id === formData.pool_id)?.name : undefined,
-      created_by: 'current-user',
-      author_name: 'Current User',
-      created_at: new Date().toISOString(),
-      send_notification: formData.send_notification,
-      require_acknowledgment: formData.require_acknowledgment,
-      acknowledged_count: 0,
-      recipient_count: formData.audience === 'managers_only' ? 3 : 12,
-      unread: true,
-    };
-
-    setAnnouncements(prev => [newAnnouncement, ...prev]);
-    setFormData({
-      title: '',
-      message: '',
-      priority: 'normal',
-      audience: 'all_lifeguards',
-      pool_id: '',
-      send_notification: true,
-      require_acknowledgment: false,
+    const response = await fetch('/api/announcements', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        title: formData.title,
+        message: formData.message,
+        priority: formData.priority,
+        audience: formData.audience,
+        pool_id: formData.pool_id || null,
+        send_notification: formData.send_notification,
+        require_acknowledgment: formData.require_acknowledgment,
+      }),
     });
-    setShowCreateForm(false);
+    const result = await response.json().catch(() => null);
+
+    if (response.ok && result?.ok) {
+      setAnnouncements((prev) => [result.announcement, ...prev]);
+      setFormData({
+        title: '',
+        message: '',
+        priority: 'normal',
+        audience: 'all_lifeguards',
+        pool_id: '',
+        send_notification: true,
+        require_acknowledgment: false,
+      });
+      setShowCreateForm(false);
+    }
+
     setSubmitting(false);
+  };
+
+  const acknowledgeAnnouncement = async (announcementId: string) => {
+    const response = await fetch('/api/announcements', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ announcement_id: announcementId }),
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) return;
+
+    setAnnouncements((prev) =>
+      prev.map((announcement) =>
+        announcement.id === announcementId
+          ? {
+              ...announcement,
+              unread: false,
+              acknowledged_count: announcement.acknowledged_count + 1,
+            }
+          : announcement,
+      ),
+    );
   };
 
   const toggleNotifications = () => {
@@ -482,8 +456,12 @@ export default function AnnouncementsPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    {!isManager && announcement.require_acknowledgment ? (
-                      <button type="button" className="inline-flex h-8 items-center rounded-lg bg-slate-950 px-3 text-xs font-semibold text-white shadow-sm hover:bg-slate-800">
+                    {!isManager && announcement.require_acknowledgment && announcement.unread ? (
+                      <button
+                        type="button"
+                        onClick={() => acknowledgeAnnouncement(announcement.id)}
+                        className="inline-flex h-8 items-center rounded-lg bg-slate-950 px-3 text-xs font-semibold text-white shadow-sm hover:bg-slate-800"
+                      >
                         Acknowledge
                       </button>
                     ) : null}

@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
     free_chlorine?: number;
     ph?: number;
     notes?: string | null;
+    photo_url?: string | null;
     companyId?: string | null;
   } | null;
 
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
       free_chlorine: freeChlorine,
       ph,
       notes: body?.notes?.trim() || null,
-      photo_url: null,
+      photo_url: body?.photo_url?.trim() || null,
       dosing_amount: null,
       dosing_unit: null,
       dosing_chemical: 'chlorine',

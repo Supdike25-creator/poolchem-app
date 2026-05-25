@@ -9,6 +9,9 @@ const PUBLIC_PATHS = [
   "/login",
   "/create-account",
   "/signup",
+  "/privacy",
+  "/terms",
+  "/cookies",
   "/manifest.json",
   "/api/create-account",
   "/auth/callback",
@@ -176,6 +179,13 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/guard/")
   ) {
     return NextResponse.redirect(new URL(managerDashboardPath, request.url));
+  }
+
+  if (
+    role === "guard" &&
+    (pathname === "/management" || pathname.startsWith("/management/"))
+  ) {
+    return NextResponse.redirect(new URL(guardDashboardPath, request.url));
   }
 
   return supabaseResponse;

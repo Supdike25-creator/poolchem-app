@@ -16,6 +16,7 @@ import {
 import { useState } from 'react';
 import ChemDeckLogo from '@/components/ChemDeckLogo';
 import InstallAppBanner from '@/components/InstallAppBanner';
+import PwaLaunchRedirect from '@/components/PwaLaunchRedirect';
 
 const navLinks = [
   { label: 'Features', href: '#features' },
@@ -98,9 +99,9 @@ const footerColumns = [
     title: 'Legal',
     links: [
       // TODO: Add legal pages.
-      { label: 'Privacy Policy', href: '#' },
-      { label: 'Terms of Service', href: '#' },
-      { label: 'Cookie Policy', href: '#' },
+      { label: 'Privacy Policy', href: '/privacy' },
+      { label: 'Terms of Service', href: '/terms' },
+      { label: 'Cookie Policy', href: '/cookies' },
     ],
   },
 ];
@@ -122,6 +123,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen scroll-smooth bg-slate-50 text-slate-950">
+      <PwaLaunchRedirect />
       <header className="fixed inset-x-0 top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur">
         <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Link href="/" aria-label="ChemDeck home">

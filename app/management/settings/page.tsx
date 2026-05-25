@@ -30,39 +30,17 @@ import {
   XCircle
 } from 'lucide-react';
 
-type Theme = 'light' | 'dark' | 'system';
-type StylePreset = 'default' | 'compact' | 'contrast' | 'soft';
-type ChlorineType = 'liquid' | 'cal-hypo' | 'trichlor' | 'dichlor';
-type DosingUnit = 'ounces' | 'cups' | 'gallons' | 'pounds';
+import { defaultCompanySettings, mergeCompanySettings, type CompanySettings } from '@/lib/companySettings';
 
-interface SettingsData {
-  theme: Theme;
-  stylePreset: StylePreset;
-  compactLayout: boolean;
-  largerTextMode: boolean;
-  chemCalcEnabled: boolean;
-  chlorineType: ChlorineType;
-  chlorineStrength: number;
-  poolVolumeGallons: number;
-  dosingUnit: DosingUnit;
-  babyPoolSafety: boolean;
-  requireApproval: boolean;
-  retestReminder: number;
-  masterNotifications: boolean;
-  missedTestAlerts: boolean;
-  outOfRangeAlerts: boolean;
-  newAnnouncementAlerts: boolean;
-  dailySummary: boolean;
-  quietHoursStart: string;
-  quietHoursEnd: string;
-  requirePhotoEveryTest: boolean;
-  requirePhotoOutOfRange: boolean;
-  requirePhotoBabyPools: boolean;
-  allowGalleryUploads: boolean;
-  cameraOnlyMode: boolean;
+type Theme = CompanySettings['theme'];
+type StylePreset = CompanySettings['stylePreset'];
+type ChlorineType = CompanySettings['chlorineType'];
+type DosingUnit = CompanySettings['dosingUnit'];
+
+type SettingsData = CompanySettings & {
   companyName: string;
   companyCode: string;
-}
+};
 
 type Profile = {
   full_name?: string | null;
@@ -77,30 +55,7 @@ type CompanyDetails = {
 };
 
 const defaultSettings: SettingsData = {
-  theme: 'light',
-  stylePreset: 'default',
-  compactLayout: false,
-  largerTextMode: false,
-  chemCalcEnabled: true,
-  chlorineType: 'liquid',
-  chlorineStrength: 12.5,
-  poolVolumeGallons: 25000,
-  dosingUnit: 'ounces',
-  babyPoolSafety: true,
-  requireApproval: true,
-  retestReminder: 30,
-  masterNotifications: true,
-  missedTestAlerts: true,
-  outOfRangeAlerts: true,
-  newAnnouncementAlerts: true,
-  dailySummary: false,
-  quietHoursStart: '22:00',
-  quietHoursEnd: '08:00',
-  requirePhotoEveryTest: false,
-  requirePhotoOutOfRange: true,
-  requirePhotoBabyPools: true,
-  allowGalleryUploads: true,
-  cameraOnlyMode: false,
+  ...defaultCompanySettings,
   companyName: 'My Pool Company',
   companyCode: 'CHEM7K2',
 };
@@ -183,7 +138,6 @@ export default function ManagementSettingsPage() {
   const [copyMessage, setCopyMessage] = useState('');
 
   useEffect(() => {
-    // Load profile
     const loadProfile = async () => {
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
@@ -205,18 +159,42 @@ export default function ManagementSettingsPage() {
           setCompanyDetails(companyData ?? null);
         }
       }
+
+      const settingsResponse = await fetch('/api/company-settings', { cache: 'no-store' });
+      const settingsResult = await settingsResponse.json().catch(() => null);
+      if (settingsResponse.ok && settingsResult?.ok) {
+        setSettings({
+          ...mergeCompanySettings(settingsResult.settings),
+          companyName: settingsResult.company?.company_name || defaultSettings.companyName,
+          companyCode: settingsResult.company?.company_code || defaultSettings.companyCode,
+        });
+        localStorage.setItem('chemdeck-settings', JSON.stringify(settingsResult.settings));
+        notifySettingsChanged();
+      }
+
       setLoading(false);
     };
 
     loadProfile();
   }, []);
 
-  const saveSettings = (newSettings: Partial<SettingsData>) => {
+  const saveSettings = async (newSettings: Partial<SettingsData>) => {
     const updated = { ...settings, ...newSettings };
     setSettings(updated);
-    // TODO: Sync workspace-level settings to Supabase when the settings schema is added.
-    localStorage.setItem('chemdeck-settings', JSON.stringify(updated));
+
+    const { companyName: _companyName, companyCode: _companyCode, ...workspaceSettings } = updated;
+    localStorage.setItem('chemdeck-settings', JSON.stringify(workspaceSettings));
     notifySettingsChanged();
+
+    const response = await fetch('/api/company-settings', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(workspaceSettings),
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) {
+      console.error('Unable to sync settings to Supabase:', result?.message);
+    }
   };
 
   const handleLogout = async () => {

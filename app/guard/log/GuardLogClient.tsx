@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@/utils/supabase/client';
 import { getStoredSession } from '@/lib/appAccounts';
 import BackButton from '../../../components/BackButton';
 
@@ -67,6 +66,7 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
   const [ph, setPh] = useState('7.4');
   const [notes, setNotes] = useState('');
   const [photoName, setPhotoName] = useState('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [defaultPoolVolume, setDefaultPoolVolume] = useState(getDefaultPoolVolume);
@@ -123,7 +123,29 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
     : true;
 
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setPhotoName(event.target.files?.[0]?.name || '');
+    const file = event.target.files?.[0] ?? null;
+    setPhotoFile(file);
+    setPhotoName(file?.name || '');
+  };
+
+  const uploadPhotoIfNeeded = async () => {
+    if (!photoFile || !selectedPoolId) return null;
+
+    const formData = new FormData();
+    formData.append('file', photoFile);
+    formData.append('pool_id', selectedPoolId);
+
+    const response = await fetch('/api/upload-log-photo', {
+      method: 'POST',
+      body: formData,
+      credentials: 'same-origin',
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) {
+      throw new Error(result?.message || 'Unable to upload photo.');
+    }
+
+    return result.photo_url as string;
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -138,6 +160,16 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
     }
 
     const devSession = getStoredSession();
+    let photoUrl: string | null = null;
+
+    try {
+      photoUrl = await uploadPhotoIfNeeded();
+    } catch (uploadError) {
+      setSaving(false);
+      setError((uploadError as Error).message);
+      return;
+    }
+
     if (devSession?.role === 'dev') {
       const response = await fetch('/api/dev/guard-log', {
         method: 'POST',
@@ -149,6 +181,7 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
           free_chlorine: Number(chlorine),
           ph: Number(ph),
           notes,
+          photo_url: photoUrl,
         }),
       });
       const raw = await response.text();
@@ -171,29 +204,31 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
       return;
     }
 
-    const supabase = createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session?.user) {
-      setError('Unauthorized');
-      setSaving(false);
-      return;
-    }
-
-    const { error: insertError } = await supabase.from('chemical_logs').insert([
-      {
+    const response = await fetch('/api/guard-log', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({
         pool_id: selectedPoolId,
-        submitted_by: session.user.id,
         free_chlorine: Number(chlorine),
         ph: Number(ph),
         notes,
-      },
-    ]);
-
+        photo_url: photoUrl,
+      }),
+    });
+    const raw = await response.text();
+    let result: { ok?: boolean; message?: string } | null = null;
+    try {
+      result = raw ? JSON.parse(raw) : null;
+    } catch {
+      setSaving(false);
+      setError(response.ok ? 'Unexpected server response.' : `Unable to submit chemistry log (${response.status}).`);
+      return;
+    }
     setSaving(false);
 
-    if (insertError) {
-      setError(insertError.message);
+    if (!response.ok || !result?.ok) {
+      setError(result?.message || 'Unable to submit chemistry log.');
       return;
     }
 
@@ -316,6 +351,7 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
             <input
               type="file"
               accept="image/*"
+              capture="environment"
               onChange={handlePhotoChange}
               className="mt-2 block w-full text-sm text-slate-700"
             />
