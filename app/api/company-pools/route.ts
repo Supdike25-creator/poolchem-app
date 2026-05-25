@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isDevRequest } from "@/lib/auth/devSession";
 import { resolveDevCompanyId } from "@/lib/devTools";
+import { loadGuardPools } from "@/lib/guardPools";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -61,15 +62,33 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, message: "No company found" }, { status: 400 });
   }
 
-  const { data: pools, error: poolsError } = await db
-    .from("pools")
-    .select(poolColumns)
-    .eq("company_id", companyId)
-    .order("name");
+  let guardId: string | null = null;
+  let guardRole: string | null = null;
 
-  if (poolsError) {
-    return NextResponse.json({ ok: false, message: poolsError.message }, { status: 500 });
+  if (user && !devCompanyId) {
+    const { data: account } = await db
+      .from("users")
+      .select("id, role")
+      .eq("id", user.id)
+      .maybeSingle<{ id: string; role?: string | null }>();
+    guardId = account?.id ?? null;
+    guardRole = account?.role ?? null;
   }
 
-  return NextResponse.json({ ok: true, pools: pools ?? [] });
+  try {
+    const pools = await loadGuardPools(db, {
+      companyId,
+      guardId,
+      guardRole,
+      devPreview: Boolean(devCompanyId),
+      select: poolColumns,
+    });
+
+    return NextResponse.json({ ok: true, pools });
+  } catch (poolsError) {
+    return NextResponse.json(
+      { ok: false, message: poolsError instanceof Error ? poolsError.message : "Unable to load pools." },
+      { status: 500 },
+    );
+  }
 }

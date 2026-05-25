@@ -4,6 +4,7 @@ export type AccountAccessReason =
   | "allowed"
   | "missing_profile"
   | "inactive"
+  | "pending_approval"
   | "missing_workspace";
 
 export type AccountAccessResult = {
@@ -17,11 +18,10 @@ export const inactiveAccountMessage =
 
 const managerRoles = new Set(["admin", "manager", "supervisor", "owner", "boss"]);
 const guardRoles = new Set(["guard", "worker", "lifeguard", "technician"]);
+const pendingStatuses = new Set(["pending", "unapproved"]);
 const inactiveStatuses = new Set([
   "inactive",
   "disabled",
-  "pending",
-  "unapproved",
   "suspended",
   "rejected",
   "archived",
@@ -44,6 +44,11 @@ export function routeForRole(role: AppRole) {
   return role === "manager" ? "/management/dashboard" : "/guard";
 }
 
+export function routeForAccess(result: AccountAccessResult) {
+  if (result.reason === "pending_approval") return "/pending";
+  return routeForRole(result.role);
+}
+
 export function getAccountAccess(profile: Record<string, unknown> | null | undefined): AccountAccessResult {
   if (!profile) {
     return {
@@ -56,6 +61,10 @@ export function getAccountAccess(profile: Record<string, unknown> | null | undef
   const rawRole = typeof profile.role === "string" ? profile.role.toLowerCase().trim() : "";
   const role = normalizeProfileRole(rawRole || null);
   const rawStatus = typeof profile.status === "string" ? profile.status.toLowerCase().trim() : null;
+
+  if (rawStatus && pendingStatuses.has(rawStatus)) {
+    return { allowed: false, reason: "pending_approval", role };
+  }
 
   if (rawStatus && inactiveStatuses.has(rawStatus)) {
     return { allowed: false, reason: "inactive", role };

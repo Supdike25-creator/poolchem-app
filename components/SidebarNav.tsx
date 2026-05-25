@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Megaphone,
   Settings,
+  Users,
   Waves,
 } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
@@ -25,6 +26,7 @@ export const mainNavItems: SidebarNavItem[] = [
   { label: 'Submit Log', href: '/log', icon: ClipboardPlus, match: ['/log', '/guard/log'] },
   { label: 'Review Logs', href: '/management/logs', icon: ClipboardList, match: ['/management/logs', '/guard/review'] },
   { label: 'Pools', href: '/management/pools', icon: Waves, match: ['/management/pools'] },
+  { label: 'Team', href: '/management/team', icon: Users, match: ['/management/team'] },
   { label: 'Announcements', href: '/management/announcements', icon: Megaphone, match: ['/management/announcements'] },
   { label: 'Settings', href: '/management/settings', icon: Settings, match: ['/management/settings', '/dashboard/settings'] },
 ];

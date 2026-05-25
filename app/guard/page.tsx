@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { loadGuardPools } from '@/lib/guardPools';
 import { temporaryLoginBypass } from '../../lib/temporaryLoginBypass';
 import BackButton from '../../components/BackButton';
 
@@ -18,37 +19,41 @@ export default async function GuardHomePage({ devCompanyId }: { devCompanyId?: s
     pool_type?: string | null;
     volume_gallons?: number | null;
   }> = [];
-  let poolErrorMessage = "";
+  let poolErrorMessage = '';
 
   if (user || devCompanyId) {
     const db = devCompanyId || process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase;
     let companyId = devCompanyId || null;
+    let guardId: string | null = null;
+    let guardRole: string | null = null;
 
     if (!companyId && user) {
       const { data: account, error: accountError } = await db
         .from('users')
-        .select('company_id')
+        .select('company_id, role, id')
         .eq('id', user.id)
-        .maybeSingle<{ company_id: string | null }>();
+        .maybeSingle<{ company_id: string | null; role?: string | null; id: string }>();
 
       if (accountError) {
         poolErrorMessage = accountError.message;
       } else {
         companyId = account?.company_id ?? null;
+        guardId = account?.id ?? null;
+        guardRole = account?.role ?? null;
       }
     }
 
     if (companyId) {
-      const { data: pools, error } = await db
-        .from('pools')
-        .select('id,name,pool_type,volume_gallons')
-        .eq('company_id', companyId)
-        .order('name');
-
-      if (error) {
-        poolErrorMessage = error.message;
-      } else {
-        poolList = pools ?? [];
+      try {
+        poolList = await loadGuardPools(db, {
+          companyId,
+          guardId,
+          guardRole,
+          devPreview: Boolean(devCompanyId),
+          select: 'id,name,pool_type,volume_gallons',
+        });
+      } catch (error) {
+        poolErrorMessage = error instanceof Error ? error.message : 'Unable to load pools.';
       }
     }
   }

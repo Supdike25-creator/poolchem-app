@@ -51,16 +51,17 @@ async function updateCompanyMembership(
   userColumn: "id" | "auth_user_id",
   userId: string,
   companyId: string,
+  membershipStatus: "active" | "pending" = "active",
 ) {
   const updateWithActive = {
     company_id: companyId,
-    status: "active",
-    active: true,
+    status: membershipStatus,
+    active: membershipStatus === "active",
   };
 
   const updateWithoutActive = {
     company_id: companyId,
-    status: "active",
+    status: membershipStatus,
   };
 
   const result = await db
@@ -222,13 +223,15 @@ export async function POST(request: NextRequest) {
     return jsonError("Invalid or expired company code.", 404);
   }
 
-  const { error: updateUserError } = await updateCompanyMembership(db, "users", "id", user.id, company.id);
+  const membershipStatus = normalizeProfileRole(account.role) === "guard" ? "pending" : "active";
+
+  const { error: updateUserError } = await updateCompanyMembership(db, "users", "id", user.id, company.id, membershipStatus);
 
   if (updateUserError && !optionalTableMissing(updateUserError.message)) {
     return jsonError(updateUserError.message, 500);
   }
 
-  const { error: updateProfileError } = await updateCompanyMembership(db, "profiles", "id", user.id, company.id);
+  const { error: updateProfileError } = await updateCompanyMembership(db, "profiles", "id", user.id, company.id, membershipStatus);
 
   if (
     updateProfileError &&
@@ -238,7 +241,7 @@ export async function POST(request: NextRequest) {
     return jsonError(updateProfileError.message, 500);
   }
 
-  const { error: updateAppAccountError } = await updateCompanyMembership(db, "app_accounts", "auth_user_id", user.id, company.id);
+  const { error: updateAppAccountError } = await updateCompanyMembership(db, "app_accounts", "auth_user_id", user.id, company.id, membershipStatus);
 
   if (
     updateAppAccountError &&
@@ -252,10 +255,10 @@ export async function POST(request: NextRequest) {
 
   const response = NextResponse.json({
     ok: true,
-    message: "Company joined.",
+    message: membershipStatus === "pending" ? "Company joined. Waiting for manager approval." : "Company joined.",
     company,
     company_id: company.id,
-    redirectTo: routeForRole(normalizeProfileRole(account.role)),
+    redirectTo: membershipStatus === "pending" ? "/pending" : routeForRole(normalizeProfileRole(account.role)),
   });
 
   response.cookies.delete("chemdeck.pendingRole");

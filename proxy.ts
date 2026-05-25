@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { normalizeProfileRole, routeForRole } from "@/lib/auth/accountAccess";
+import { normalizeProfileRole, routeForRole, routeForAccess, getAccountAccess } from "@/lib/auth/accountAccess";
 import { isDevRequest } from "@/lib/auth/devSession";
 
 const PUBLIC_PATHS = [
@@ -12,6 +12,7 @@ const PUBLIC_PATHS = [
   "/privacy",
   "/terms",
   "/cookies",
+  "/pending",
   "/manifest.json",
   "/api/create-account",
   "/auth/callback",
@@ -125,6 +126,16 @@ export async function proxy(request: NextRequest) {
   const rawRole = storedRole || (hasPendingRole ? pendingRole : "");
   const role = normalizeProfileRole(rawRole || null);
   const hasCompany = Boolean(accountRecord.company_id || accountRecord.organization_id);
+  const rawStatus = typeof accountRecord.status === "string" ? accountRecord.status.toLowerCase().trim() : "";
+  const isPendingApproval = rawStatus === "pending" || rawStatus === "unapproved";
+
+  if (isPendingApproval) {
+    if (pathname === "/pending") {
+      return supabaseResponse;
+    }
+
+    return NextResponse.redirect(new URL("/pending", request.url));
+  }
 
   if (rawRole === "dev") {
     if (pathname === "/login" || pathname === "/pending") {
@@ -167,7 +178,8 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname === "/pending") {
-    return NextResponse.redirect(new URL(routeForRole(role), request.url));
+    const access = getAccountAccess(accountRecord as Record<string, unknown>);
+    return NextResponse.redirect(new URL(routeForAccess(access), request.url));
   }
 
   if (role === "guard" && pathname.startsWith("/admin/")) {

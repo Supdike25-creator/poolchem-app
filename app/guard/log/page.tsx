@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { loadGuardPools } from '@/lib/guardPools';
 import { resolveCompanyScopeId } from '@/lib/resolveCompanyScopeId';
 import GuardLogClient, { type GuardPool } from './GuardLogClient';
 
@@ -13,14 +14,11 @@ async function loadInitialPools(companyId?: string): Promise<GuardPool[]> {
 
   try {
     const supabase = createAdminClient();
-    const { data, error } = await supabase
-      .from('pools')
-      .select(poolSelect)
-      .eq('company_id', companyId)
-      .order('name');
-
-    if (error) return [];
-    return (data ?? []) as GuardPool[];
+    return await loadGuardPools(supabase, {
+      companyId,
+      devPreview: true,
+      select: poolSelect,
+    }) as GuardPool[];
   } catch {
     return [];
   }

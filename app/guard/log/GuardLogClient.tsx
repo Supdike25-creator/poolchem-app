@@ -58,10 +58,13 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
   const searchParams = useSearchParams();
   const companyId = searchParams.get('companyId');
   const poolIdParam = searchParams.get('poolId');
+  const logIdParam = searchParams.get('logId');
   const guardHomeHref = companyId ? `/worker-view?companyId=${encodeURIComponent(companyId)}` : '/guard';
 
   const [pools, setPools] = useState<Pool[]>(initialPools);
   const [selectedPoolId, setSelectedPoolId] = useState<string>(() => poolIdParam || initialPools[0]?.id || '');
+  const [editingLogId, setEditingLogId] = useState<string | null>(logIdParam);
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
   const [chlorine, setChlorine] = useState('2.0');
   const [ph, setPh] = useState('7.4');
   const [notes, setNotes] = useState('');
@@ -92,6 +95,32 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
 
     void loadPools();
   }, [companyId, poolIdParam, initialPools.length]);
+
+  useEffect(() => {
+    if (!logIdParam) return;
+
+    const loadExistingLog = async () => {
+      const response = await fetch(`/api/guard-log?logId=${encodeURIComponent(logIdParam)}`, {
+        cache: 'no-store',
+        credentials: 'same-origin',
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.ok || !result.log) {
+        setError(result?.message || 'Unable to load log for editing.');
+        return;
+      }
+
+      setEditingLogId(result.log.id);
+      setSelectedPoolId(result.log.pool_id);
+      setChlorine(String(result.log.free_chlorine ?? ''));
+      setPh(String(result.log.ph ?? ''));
+      setNotes(result.log.notes ?? '');
+      setExistingPhotoUrl(result.log.photo_url ?? null);
+      setPhotoName(result.log.photo_url ? 'Existing photo attached' : '');
+    };
+
+    void loadExistingLog();
+  }, [logIdParam]);
 
   const selectedPool = useMemo(
     () => pools.find((pool) => pool.id === selectedPoolId) ?? null,
@@ -205,15 +234,16 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
     }
 
     const response = await fetch('/api/guard-log', {
-      method: 'POST',
+      method: editingLogId ? 'PATCH' : 'POST',
       headers: { 'content-type': 'application/json' },
       credentials: 'same-origin',
       body: JSON.stringify({
+        ...(editingLogId ? { log_id: editingLogId } : {}),
         pool_id: selectedPoolId,
         free_chlorine: Number(chlorine),
         ph: Number(ph),
         notes,
-        photo_url: photoUrl,
+        photo_url: photoUrl ?? existingPhotoUrl,
       }),
     });
     const raw = await response.text();
@@ -241,8 +271,10 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm text-slate-500 uppercase tracking-wide">Guard</p>
-            <h1 className="text-2xl font-semibold text-slate-900">Chemical Log</h1>
-            <p className="mt-2 text-sm text-slate-600 max-w-2xl">Submit the latest chemistry values for your assigned pool.</p>
+            <h1 className="text-2xl font-semibold text-slate-900">{editingLogId ? 'Edit Chemical Log' : 'Chemical Log'}</h1>
+            <p className="mt-2 text-sm text-slate-600 max-w-2xl">
+              {editingLogId ? 'Update a recent submission within the last 24 hours.' : 'Submit the latest chemistry values for your assigned pool.'}
+            </p>
           </div>
           <BackButton fallbackHref={guardHomeHref} label="Back" />
           <button
@@ -375,7 +407,7 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
               data-sound="success"
               className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              {saving ? 'Submitting...' : 'Submit Log'}
+              {saving ? 'Submitting...' : editingLogId ? 'Save Changes' : 'Submit Log'}
             </button>
           </div>
         </form>

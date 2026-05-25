@@ -129,6 +129,11 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
             return;
           }
 
+          if (access.reason === 'pending_approval') {
+            router.replace('/pending');
+            return;
+          }
+
           await supabase.auth.signOut();
           clearLegacyAppSession();
           setError(inactiveAccountMessage);

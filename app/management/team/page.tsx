@@ -1,0 +1,213 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { CheckCircle, Users, Waves } from 'lucide-react';
+import { EmptyState, PageHeader, SectionCard, StatusBadge } from '../../../components/OperationsUI';
+
+type GuardMember = {
+  id: string;
+  full_name?: string | null;
+  email?: string | null;
+  role?: string | null;
+  status?: string | null;
+};
+
+type PoolOption = {
+  id: string;
+  name: string;
+};
+
+export default function ManagementTeamPage() {
+  const [guards, setGuards] = useState<GuardMember[]>([]);
+  const [pools, setPools] = useState<PoolOption[]>([]);
+  const [assignments, setAssignments] = useState<Record<string, string[]>>({});
+  const [pendingMembers, setPendingMembers] = useState<GuardMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');
+  const [savingGuardId, setSavingGuardId] = useState<string | null>(null);
+
+  const loadTeam = async () => {
+    const response = await fetch('/api/pool-assignments', { cache: 'no-store' });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) {
+      setMessage(result?.message || 'Unable to load team data.');
+      setLoading(false);
+      return;
+    }
+
+    setGuards(result.guards ?? []);
+    setPools(result.pools ?? []);
+    setAssignments(result.assignments ?? {});
+    setPendingMembers(result.pendingMembers ?? []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadTeam();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const toggleAssignment = (guardId: string, poolId: string) => {
+    setAssignments((current) => {
+      const existing = new Set(current[guardId] ?? []);
+      if (existing.has(poolId)) {
+        existing.delete(poolId);
+      } else {
+        existing.add(poolId);
+      }
+      return { ...current, [guardId]: Array.from(existing) };
+    });
+  };
+
+  const saveAssignments = async (guardId: string) => {
+    setSavingGuardId(guardId);
+    setMessage('');
+    const response = await fetch('/api/pool-assignments', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        guard_id: guardId,
+        pool_ids: assignments[guardId] ?? [],
+      }),
+    });
+    const result = await response.json().catch(() => null);
+    setSavingGuardId(null);
+    setMessage(result?.ok ? 'Pool assignments saved.' : result?.message || 'Unable to save assignments.');
+  };
+
+  const updateMemberStatus = async (userId: string, status: 'active' | 'pending' | 'inactive') => {
+    setMessage('');
+    const response = await fetch('/api/pool-assignments', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, status }),
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) {
+      setMessage(result?.message || 'Unable to update member status.');
+      return;
+    }
+    await loadTeam();
+    setMessage(result.message);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[420px] items-center justify-center rounded-xl border border-slate-200 bg-white py-12 shadow-sm">
+        <p className="text-sm text-slate-600">Loading team...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <PageHeader
+        eyebrow="Management"
+        title="Team & Pool Assignments"
+        description="Approve new guards and choose which pools each guard can log."
+        icon={<Users className="h-4 w-4" />}
+      />
+
+      {message ? (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">{message}</div>
+      ) : null}
+
+      {pendingMembers.length > 0 ? (
+        <SectionCard className="p-5">
+          <h2 className="text-base font-semibold text-slate-950">Pending Approval</h2>
+          <p className="mt-1 text-sm text-slate-500">These guards joined your company and are waiting for access.</p>
+          <div className="mt-4 space-y-3">
+            {pendingMembers.map((member) => (
+              <div key={member.id} className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-semibold text-slate-900">{member.full_name || member.email || member.id}</p>
+                  <p className="text-sm text-slate-600">{member.email}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => updateMemberStatus(member.id, 'active')}
+                    className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700"
+                  >
+                    <CheckCircle className="h-4 w-4" />
+                    Approve
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateMemberStatus(member.id, 'inactive')}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Deny
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      ) : null}
+
+      <SectionCard className="p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <Waves className="h-4 w-4 text-slate-500" />
+          <h2 className="text-base font-semibold text-slate-950">Guard Assignments</h2>
+        </div>
+
+        {guards.length === 0 ? (
+          <EmptyState
+            icon={<Users className="h-6 w-6" />}
+            title="No guards in this company yet."
+            description="Guards will appear here after they join with your company code."
+          />
+        ) : (
+          <div className="space-y-4">
+            {guards.map((guard) => {
+              const selected = new Set(assignments[guard.id] ?? []);
+              const isPending = String(guard.status).toLowerCase() === 'pending';
+
+              return (
+                <div key={guard.id} className="rounded-xl border border-slate-200 p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="font-semibold text-slate-900">{guard.full_name || guard.email || guard.id}</p>
+                      <p className="text-sm text-slate-600">{guard.email}</p>
+                    </div>
+                    {isPending ? <StatusBadge tone="warning">Pending</StatusBadge> : <StatusBadge tone="good">Active</StatusBadge>}
+                  </div>
+
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {pools.map((pool) => (
+                      <label key={pool.id} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(pool.id)}
+                          onChange={() => toggleAssignment(guard.id, pool.id)}
+                        />
+                        <span>{pool.name}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      disabled={savingGuardId === guard.id}
+                      onClick={() => saveAssignments(guard.id)}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                    >
+                      {savingGuardId === guard.id ? 'Saving...' : 'Save assignments'}
+                    </button>
+                    {!selected.size ? (
+                      <p className="mt-2 text-xs text-slate-500">No pools selected means the guard can access all company pools.</p>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </SectionCard>
+    </div>
+  );
+}
