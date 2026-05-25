@@ -16,7 +16,7 @@ const getStoredSettings = () => {
 
 const getStoredTheme = (): Theme => {
   const theme = getStoredSettings()?.theme;
-  return theme === 'light' || theme === 'dark' || theme === 'system' ? theme : 'system';
+  return theme === 'light' || theme === 'dark' || theme === 'system' ? theme : 'light';
 };
 
 const getStoredStyle = (): StylePreset => {

@@ -11,7 +11,6 @@ import {
   Calculator,
   Bell,
   Camera,
-  User,
   HelpCircle,
   Mail,
   Users,
@@ -66,7 +65,7 @@ interface SettingsData {
 }
 
 const defaultSettings: SettingsData = {
-  theme: 'system',
+  theme: 'light',
   stylePreset: 'default',
   compactLayout: false,
   largerTextMode: false,
@@ -283,9 +282,9 @@ export default function ManagementSettingsPage() {
               <div className="grid gap-2 sm:grid-cols-2">
                 {[
                   { value: 'default' as StylePreset, label: 'Standard Blue', description: 'Clean sans with ChemDeck blue accents.' },
-                  { value: 'compact' as StylePreset, label: 'Compact Teal', description: 'Tighter font with teal action colors.' },
-                  { value: 'contrast' as StylePreset, label: 'High Contrast', description: 'Bold system font with amber highlights.' },
-                  { value: 'soft' as StylePreset, label: 'Soft Indigo', description: 'Softer indigo accents with the same SaaS typography.' },
+                  { value: 'compact' as StylePreset, label: 'Compact Blue', description: 'Tighter spacing with the same corporate blue palette.' },
+                  { value: 'contrast' as StylePreset, label: 'High Contrast', description: 'Sharper contrast while preserving the ChemDeck colors.' },
+                  { value: 'soft' as StylePreset, label: 'Soft Blue', description: 'Softer surfaces with restrained blue accents.' },
                 ].map((option) => (
                   <button
                     key={option.value}
@@ -646,7 +645,7 @@ export default function ManagementSettingsPage() {
                 </div>
 
                 <div className="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3">
-                  <Megaphone className="mt-0.5 h-4 w-4 text-purple-600" />
+                  <Megaphone className="mt-0.5 h-4 w-4 text-blue-600" />
                   <div>
                     <p className="text-sm font-medium text-slate-900">How announcements work</p>
                     <p className="mt-1 text-sm leading-5 text-slate-600">Managers can post announcements that appear in the Announcements section for all users.</p>
