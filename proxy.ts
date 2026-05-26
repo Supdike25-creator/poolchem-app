@@ -18,6 +18,7 @@ const PUBLIC_PATHS = [
   "/sw.js",
   "/api/create-account",
   "/auth/callback",
+  "/api/spotify/callback",
 ];
 const ROLE_SETUP_PATHS = ["/choose-role", "/api/choose-role"];
 

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { Activity, AlertTriangle, Bug, ClipboardList, Database, Server, Users, Waves } from 'lucide-react';
 import { getServerAppSession } from '@/lib/serverAppSession';
@@ -6,7 +7,7 @@ import { StatCard, StatusBadge } from '@/components/OperationsUI';
 import DevBranchingPanel from '@/components/dev/DevBranchingPanel';
 import DevShell from '@/components/dev/DevShell';
 import DevToolPanel from '@/components/dev/DevToolPanel';
-import HardstylePlayer from '@/components/dev/HardstylePlayer';
+import SpotifyPlayer from '@/components/dev/SpotifyPlayer';
 import {
   defaultFeatureFlags,
   readDevApiRequests,
@@ -193,7 +194,9 @@ export default async function DevDashboardPage({
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <HardstylePlayer />
+            <Suspense fallback={<div className="h-10 w-24 rounded-md bg-slate-100" />}>
+              <SpotifyPlayer />
+            </Suspense>
             <StatusBadge tone={snapshot.apiHealth === 'healthy' ? 'good' : 'warning'}>
               API {snapshot.apiHealth}
             </StatusBadge>
