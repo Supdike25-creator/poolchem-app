@@ -1,58 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { loadCompanyAlerts } from '@/lib/alerts';
+import { resolveManagerApiScope } from '@/lib/managerApiScope';
+import { resolveApiCompanyScope } from '@/lib/apiCompanyScope';
 
 export const dynamic = 'force-dynamic';
 
 const managerRoles = new Set(['boss', 'manager', 'admin', 'supervisor', 'owner']);
 
-const getContext = async () => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    return { error: NextResponse.json({ ok: false, message: 'Unauthorized.' }, { status: 401 }) };
-  }
-
-  const db = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase;
-  const { data: account } = await db
-    .from('users')
-    .select('role, company_id')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  const companyId = account?.company_id ?? null;
-  if (!companyId) {
-    return { error: NextResponse.json({ ok: false, message: 'Join a company before viewing alerts.' }, { status: 400 }) };
-  }
-
-  return { user, companyId, role: account?.role ?? '', db };
-};
-
 export async function GET(request: NextRequest) {
-  const context = await getContext();
-  if ('error' in context && context.error) return context.error;
+  const managerContext = await resolveManagerApiScope(request);
+  const context = managerContext.ok ? managerContext : await resolveApiCompanyScope(request);
 
-  const { companyId, role, db } = context;
+  if (!context.ok) {
+    return context.response;
+  }
+
+  const { companyId, accountDb, account } = context.scope;
+  const role = String(account?.role ?? '').toLowerCase();
+  const isManager = managerContext.ok || managerRoles.has(role);
+
   const unreadOnly = request.nextUrl.searchParams.get('unread') === '1';
   const limit = Number(request.nextUrl.searchParams.get('limit') ?? '20');
 
-  let alerts = await loadCompanyAlerts(db, companyId, Number.isFinite(limit) ? limit : 20);
+  let alerts = await loadCompanyAlerts(accountDb, companyId, Number.isFinite(limit) ? limit : 20);
   if (unreadOnly) {
     alerts = alerts.filter((alert) => !alert.read_at);
   }
 
-  if (!managerRoles.has(String(role).toLowerCase())) {
+  if (!isManager) {
     alerts = alerts.filter((alert) => alert.alert_type !== 'manager_only');
   }
 
   const poolIds = Array.from(new Set(alerts.map((alert) => alert.pool_id).filter(Boolean))) as string[];
   const { data: pools } = poolIds.length
-    ? await db.from('pools').select('id, name').in('id', poolIds)
+    ? await accountDb.from('pools').select('id, name').in('id', poolIds)
     : { data: [] };
 
   const poolMap = new Map((pools ?? []).map((pool) => [pool.id, pool.name]));
@@ -67,21 +48,18 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const context = await getContext();
-  if ('error' in context && context.error) return context.error;
+  const context = await resolveManagerApiScope(request);
+  if (!context.ok) return context.response;
 
-  const { companyId, role, db } = context;
-  if (!managerRoles.has(String(role).toLowerCase())) {
-    return NextResponse.json({ ok: false, message: 'Manager access required.' }, { status: 403 });
-  }
-
+  const { companyId, accountDb } = context.scope;
   const body = await request.json().catch(() => null) as {
     alert_id?: string;
     mark_all_read?: boolean;
+    companyId?: string;
   } | null;
 
   if (body?.mark_all_read) {
-    const { error } = await db
+    const { error } = await accountDb
       .from('alerts')
       .update({ read_at: new Date().toISOString() })
       .eq('company_id', companyId)
@@ -99,7 +77,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ ok: false, message: 'Alert id is required.' }, { status: 400 });
   }
 
-  const { error } = await db
+  const { error } = await accountDb
     .from('alerts')
     .update({ read_at: new Date().toISOString() })
     .eq('id', alertId)

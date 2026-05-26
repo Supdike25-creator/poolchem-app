@@ -1,54 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { isGuardRole } from '@/lib/guardPools';
+import { resolveManagerApiScope } from '@/lib/managerApiScope';
 
 export const dynamic = 'force-dynamic';
 
-const managerRoles = new Set(['boss', 'manager', 'admin', 'supervisor', 'owner']);
+export async function GET(request: NextRequest) {
+  const context = await resolveManagerApiScope(request);
+  if (!context.ok) return context.response;
 
-const getManagerContext = async () => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    return { error: NextResponse.json({ ok: false, message: 'Unauthorized.' }, { status: 401 }) };
-  }
-
-  const db = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase;
-  const { data: account } = await db
-    .from('users')
-    .select('id, role, company_id')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  const companyId = account?.company_id ?? null;
-  const role = String(account?.role ?? '').toLowerCase();
-
-  if (!companyId || !managerRoles.has(role)) {
-    return { error: NextResponse.json({ ok: false, message: 'Manager access required.' }, { status: 403 }) };
-  }
-
-  return { user, companyId, db };
-};
-
-export async function GET() {
-  const context = await getManagerContext();
-  if ('error' in context && context.error) return context.error;
-
-  const { companyId, db } = context;
+  const { companyId, accountDb } = context.scope;
 
   const [{ data: members }, { data: pools }, { data: assignments }] = await Promise.all([
-    db
+    accountDb
       .from('users')
       .select('id, full_name, email, role, status')
       .eq('company_id', companyId)
       .order('full_name'),
-    db.from('pools').select('id, name').eq('company_id', companyId).order('name'),
-    db
+    accountDb.from('pools').select('id, name').eq('company_id', companyId).order('name'),
+    accountDb
       .from('guard_pool_assignments')
       .select('guard_id, pool_id')
       .eq('company_id', companyId),
@@ -73,13 +42,14 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const context = await getManagerContext();
-  if ('error' in context && context.error) return context.error;
+  const context = await resolveManagerApiScope(request);
+  if (!context.ok) return context.response;
 
-  const { companyId, db } = context;
+  const { companyId, accountDb } = context.scope;
   const body = await request.json().catch(() => null) as {
     guard_id?: string;
     pool_ids?: string[];
+    companyId?: string;
   } | null;
 
   const guardId = body?.guard_id?.trim();
@@ -89,7 +59,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, message: 'Select a guard.' }, { status: 400 });
   }
 
-  const { data: guard } = await db
+  const { data: guard } = await accountDb
     .from('users')
     .select('id, company_id, role')
     .eq('id', guardId)
@@ -99,10 +69,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, message: 'Guard not found in your company.' }, { status: 404 });
   }
 
-  await db.from('guard_pool_assignments').delete().eq('company_id', companyId).eq('guard_id', guardId);
+  await accountDb.from('guard_pool_assignments').delete().eq('company_id', companyId).eq('guard_id', guardId);
 
   if (poolIds.length) {
-    const { data: validPools } = await db
+    const { data: validPools } = await accountDb
       .from('pools')
       .select('id')
       .eq('company_id', companyId)
@@ -110,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     const validIds = (validPools ?? []).map((pool) => pool.id);
     if (validIds.length) {
-      const { error: insertError } = await db.from('guard_pool_assignments').insert(
+      const { error: insertError } = await accountDb.from('guard_pool_assignments').insert(
         validIds.map((poolId) => ({
           company_id: companyId,
           guard_id: guardId,
@@ -128,13 +98,14 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const context = await getManagerContext();
-  if ('error' in context && context.error) return context.error;
+  const context = await resolveManagerApiScope(request);
+  if (!context.ok) return context.response;
 
-  const { companyId, db } = context;
+  const { companyId, accountDb } = context.scope;
   const body = await request.json().catch(() => null) as {
     user_id?: string;
     status?: string;
+    companyId?: string;
   } | null;
 
   const userId = body?.user_id?.trim();
@@ -144,7 +115,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ ok: false, message: 'Invalid approval request.' }, { status: 400 });
   }
 
-  const { data: member } = await db
+  const { data: member } = await accountDb
     .from('users')
     .select('id, company_id')
     .eq('id', userId)
@@ -154,12 +125,12 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ ok: false, message: 'Team member not found.' }, { status: 404 });
   }
 
-  const { error } = await db.from('users').update({ status }).eq('id', userId);
+  const { error } = await accountDb.from('users').update({ status }).eq('id', userId);
   if (error) {
     return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
   }
 
-  await db.from('profiles').update({ status }).eq('id', userId);
+  await accountDb.from('profiles').update({ status }).eq('id', userId);
 
   return NextResponse.json({ ok: true, message: `Member marked ${status}.` });
 }

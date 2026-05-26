@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AlertCircle, Bell, CheckCheck, Clock3 } from 'lucide-react';
+import { useDevCompanyScope } from '@/lib/useDevCompanyScope';
 import { EmptyState, PageHeader, SectionCard, StatusBadge, buttonClass, type StatusTone } from '../../../components/OperationsUI';
 
 interface AlertRow {
@@ -31,6 +32,7 @@ const formatWhen = (value: string) => {
 };
 
 export default function ManagementAlertsPage() {
+  const { companyId, query } = useDevCompanyScope();
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -40,7 +42,8 @@ export default function ManagementAlertsPage() {
     setLoading(true);
     setError('');
 
-    const response = await fetch('/api/alerts?limit=50', { cache: 'no-store', credentials: 'same-origin' });
+    const alertsUrl = `/api/alerts${query ? `${query}&limit=50` : '?limit=50'}`;
+    const response = await fetch(alertsUrl, { cache: 'no-store', credentials: 'same-origin' });
     const result = await response.json().catch(() => null);
 
     if (!response.ok || !result?.ok) {
@@ -55,15 +58,15 @@ export default function ManagementAlertsPage() {
 
   useEffect(() => {
     void loadAlerts();
-  }, []);
+  }, [companyId, query]);
 
   const markRead = async (alertId: string) => {
     setBusyId(alertId);
-    const response = await fetch('/api/alerts', {
+    const response = await fetch(`/api/alerts${query}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ alert_id: alertId }),
+      body: JSON.stringify({ companyId, alert_id: alertId }),
     });
     const result = await response.json().catch(() => null);
     setBusyId(null);
@@ -82,11 +85,11 @@ export default function ManagementAlertsPage() {
 
   const markAllRead = async () => {
     setBusyId('all');
-    const response = await fetch('/api/alerts', {
+    const response = await fetch(`/api/alerts${query}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ mark_all_read: true }),
+      body: JSON.stringify({ companyId, mark_all_read: true }),
     });
     const result = await response.json().catch(() => null);
     setBusyId(null);

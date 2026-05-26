@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveApiCompanyScope } from '@/lib/apiCompanyScope';
+import { resolveManagerApiScope } from '@/lib/managerApiScope';
 
 export const dynamic = 'force-dynamic';
-
-const managerRoles = new Set(['boss', 'manager', 'admin', 'supervisor', 'owner']);
 
 export async function GET(request: NextRequest) {
   const context = await resolveApiCompanyScope(request);
@@ -62,40 +59,12 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ ok: true, announcements });
 }
 
-const getManagerContext = async () => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    return { error: NextResponse.json({ ok: false, message: 'Unauthorized.' }, { status: 401 }) };
-  }
-
-  const accountDb = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase;
-  const { data: account } = await accountDb
-    .from('users')
-    .select('id, role, company_id, full_name, email')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  const companyId = account?.company_id ?? null;
-  if (!companyId) {
-    return { error: NextResponse.json({ ok: false, message: 'Join a company before viewing announcements.' }, { status: 400 }) };
-  }
-
-  return { user, account, companyId, accountDb };
-};
-
 export async function POST(request: NextRequest) {
-  const context = await getManagerContext();
-  if ('error' in context && context.error) return context.error;
+  const context = await resolveManagerApiScope(request);
+  if (!context.ok) return context.response;
 
-  const { user, account, companyId, accountDb } = context;
-  if (!managerRoles.has(String(account?.role ?? '').toLowerCase())) {
-    return NextResponse.json({ ok: false, message: 'Only managers can publish announcements.' }, { status: 403 });
-  }
+  const { scope } = context;
+  const { userId, companyId, accountDb, account } = scope;
 
   const body = await request.json().catch(() => null) as {
     title?: string;
@@ -105,6 +74,7 @@ export async function POST(request: NextRequest) {
     pool_id?: string | null;
     send_notification?: boolean;
     require_acknowledgment?: boolean;
+    companyId?: string;
   } | null;
 
   const title = body?.title?.trim();
@@ -122,7 +92,7 @@ export async function POST(request: NextRequest) {
       priority: body?.priority || 'normal',
       audience: body?.audience || 'all_lifeguards',
       pool_id: body?.pool_id || null,
-      created_by: user.id,
+      created_by: userId,
       send_notification: body?.send_notification ?? true,
       require_acknowledgment: body?.require_acknowledgment ?? false,
     })
@@ -137,7 +107,7 @@ export async function POST(request: NextRequest) {
     ok: true,
     announcement: {
       ...data,
-      author_name: account?.full_name || account?.email || 'Manager',
+      author_name: account?.full_name || account?.email || 'ChemDeck Dev',
       acknowledged_count: 0,
       recipient_count: 0,
       unread: true,
@@ -146,11 +116,15 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const context = await getManagerContext();
-  if ('error' in context && context.error) return context.error;
+  const context = await resolveApiCompanyScope(request);
+  if (!context.ok) return context.response;
 
-  const { user, companyId, accountDb } = context;
-  const body = await request.json().catch(() => null) as { announcement_id?: string } | null;
+  const { userId, companyId, accountDb } = context.scope;
+  if (!userId) {
+    return NextResponse.json({ ok: false, message: 'Sign in to acknowledge announcements.' }, { status: 401 });
+  }
+
+  const body = await request.json().catch(() => null) as { announcement_id?: string; companyId?: string } | null;
   const announcementId = body?.announcement_id?.trim();
 
   if (!announcementId) {
@@ -171,7 +145,7 @@ export async function PATCH(request: NextRequest) {
     .from('announcement_acknowledgments')
     .upsert({
       announcement_id: announcementId,
-      user_id: user.id,
+      user_id: userId,
       acknowledged_at: new Date().toISOString(),
     });
 

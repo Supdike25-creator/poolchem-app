@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { getStoredSession } from '@/lib/appAccounts';
+import { useDevCompanyScope } from '@/lib/useDevCompanyScope';
 import {
   Megaphone,
   Plus,
@@ -52,6 +53,7 @@ const priorityConfig = {
 };
 
 export default function AnnouncementsPage() {
+  const { companyId, query } = useDevCompanyScope();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [pools, setPools] = useState<Pool[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,25 +72,31 @@ export default function AnnouncementsPage() {
   const [announcementNotifications, setAnnouncementNotifications] = useState(true);
 
   async function loadData() {
-    const supabase = createClient();
+    const devSession = getStoredSession()?.role === 'dev';
+    setIsManager(devSession);
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single();
-      setIsManager(['boss', 'manager', 'admin', 'supervisor', 'owner'].includes(profile?.role ?? ''));
+    if (!devSession) {
+      const response = await fetch('/api/current-account', { cache: 'no-store', credentials: 'same-origin' });
+      const result = await response.json().catch(() => null);
+      const role = String(result?.account?.role ?? '').toLowerCase();
+      setIsManager(['boss', 'manager', 'admin', 'supervisor', 'owner'].includes(role));
     }
 
-    const { data: poolsData } = await supabase
-      .from('pools')
-      .select('id, name')
-      .order('name');
-    setPools(poolsData || []);
+    if (devSession || companyId) {
+      const poolsResponse = await fetch(`/api/company-pools${query}`, {
+        cache: 'no-store',
+        credentials: 'same-origin',
+      });
+      const poolsResult = await poolsResponse.json().catch(() => null);
+      setPools((poolsResult?.pools ?? []).map((pool: Pool) => ({ id: pool.id, name: pool.name })));
+    } else {
+      setPools([]);
+    }
 
-    const response = await fetch('/api/announcements', { cache: 'no-store' });
+    const response = await fetch(`/api/announcements${query}`, {
+      cache: 'no-store',
+      credentials: 'same-origin',
+    });
     const result = await response.json().catch(() => null);
     if (response.ok && result?.ok) {
       setAnnouncements(result.announcements ?? []);
@@ -105,7 +113,7 @@ export default function AnnouncementsPage() {
 
   useEffect(() => {
     void Promise.resolve().then(loadData);
-  }, []);
+  }, [companyId, query]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,10 +121,12 @@ export default function AnnouncementsPage() {
 
     setSubmitting(true);
 
-    const response = await fetch('/api/announcements', {
+    const response = await fetch(`/api/announcements${query}`, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        companyId,
         title: formData.title,
         message: formData.message,
         priority: formData.priority,
@@ -146,10 +156,11 @@ export default function AnnouncementsPage() {
   };
 
   const acknowledgeAnnouncement = async (announcementId: string) => {
-    const response = await fetch('/api/announcements', {
+    const response = await fetch(`/api/announcements${query}`, {
       method: 'PATCH',
+      credentials: 'same-origin',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ announcement_id: announcementId }),
+      body: JSON.stringify({ companyId, announcement_id: announcementId }),
     });
     const result = await response.json().catch(() => null);
     if (!response.ok || !result?.ok) return;

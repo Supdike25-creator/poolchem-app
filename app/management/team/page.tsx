@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { CheckCircle, Copy, Link2, Send, Users, Waves } from 'lucide-react';
+import { getStoredSession } from '@/lib/appAccounts';
+import { useDevCompanyScope } from '@/lib/useDevCompanyScope';
 import { EmptyState, PageHeader, SectionCard, StatusBadge, buttonClass } from '../../../components/OperationsUI';
 
 type GuardMember = {
@@ -18,6 +20,7 @@ type PoolOption = {
 };
 
 export default function ManagementTeamPage() {
+  const { companyId, query } = useDevCompanyScope();
   const [guards, setGuards] = useState<GuardMember[]>([]);
   const [pools, setPools] = useState<PoolOption[]>([]);
   const [assignments, setAssignments] = useState<Record<string, string[]>>({});
@@ -30,9 +33,10 @@ export default function ManagementTeamPage() {
   const [sendingInvite, setSendingInvite] = useState(false);
 
   const loadTeam = async () => {
+    const fetchOptions = { cache: 'no-store' as const, credentials: 'same-origin' as const };
     const [teamResponse, inviteResponse] = await Promise.all([
-      fetch('/api/pool-assignments', { cache: 'no-store' }),
-      fetch('/api/team-invite', { cache: 'no-store' }),
+      fetch(`/api/pool-assignments${query}`, fetchOptions),
+      fetch(`/api/team-invite${query}`, fetchOptions),
     ]);
     const result = await teamResponse.json().catch(() => null);
     const inviteResult = await inviteResponse.json().catch(() => null);
@@ -61,7 +65,9 @@ export default function ManagementTeamPage() {
       void loadTeam();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [companyId, query]);
+
+  const scopeBody = () => ({ companyId });
 
   const toggleAssignment = (guardId: string, poolId: string) => {
     setAssignments((current) => {
@@ -78,10 +84,12 @@ export default function ManagementTeamPage() {
   const saveAssignments = async (guardId: string) => {
     setSavingGuardId(guardId);
     setMessage('');
-    const response = await fetch('/api/pool-assignments', {
+    const response = await fetch(`/api/pool-assignments${query}`, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        ...scopeBody(),
         guard_id: guardId,
         pool_ids: assignments[guardId] ?? [],
       }),
@@ -93,10 +101,11 @@ export default function ManagementTeamPage() {
 
   const updateMemberStatus = async (userId: string, status: 'active' | 'pending' | 'inactive') => {
     setMessage('');
-    const response = await fetch('/api/pool-assignments', {
+    const response = await fetch(`/api/pool-assignments${query}`, {
       method: 'PATCH',
+      credentials: 'same-origin',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ user_id: userId, status }),
+      body: JSON.stringify({ ...scopeBody(), user_id: userId, status }),
     });
     const result = await response.json().catch(() => null);
     if (!response.ok || !result?.ok) {
@@ -108,18 +117,28 @@ export default function ManagementTeamPage() {
   };
 
   const copyInviteLink = async () => {
-    if (!inviteLinks.signup_link) return;
-    await navigator.clipboard.writeText(inviteLinks.signup_link);
-    setMessage('Invite link copied to clipboard.');
+    const link = inviteLinks.signup_link || inviteLinks.join_link;
+    if (!link) {
+      setMessage('Invite link is not ready yet. Reload the page after selecting a company.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(link);
+      setMessage('Invite link copied to clipboard.');
+    } catch {
+      setMessage(`Copy this link manually: ${link}`);
+    }
   };
 
   const sendInviteEmail = async () => {
     setSendingInvite(true);
     setMessage('');
-    const response = await fetch('/api/team-invite', {
+    const response = await fetch(`/api/team-invite${query}`, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email: inviteEmail }),
+      body: JSON.stringify({ ...scopeBody(), email: inviteEmail }),
     });
     const result = await response.json().catch(() => null);
     setSendingInvite(false);
@@ -163,7 +182,7 @@ export default function ManagementTeamPage() {
         </p>
 
         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-          <button type="button" onClick={() => void copyInviteLink()} className={buttonClass.secondary} disabled={!inviteLinks.signup_link}>
+          <button type="button" onClick={() => void copyInviteLink()} className={buttonClass.secondary} disabled={!inviteLinks.signup_link && !inviteLinks.join_link}>
             <Copy className="mr-2 h-4 w-4" />
             Copy invite link
           </button>

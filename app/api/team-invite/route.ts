@@ -1,47 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { buildJoinInviteLink } from '@/lib/inviteLinks';
+import { resolveManagerApiScope } from '@/lib/managerApiScope';
 
 export const dynamic = 'force-dynamic';
 
-const managerRoles = new Set(['boss', 'manager', 'admin', 'supervisor', 'owner']);
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const getManagerContext = async () => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    return { error: NextResponse.json({ ok: false, message: 'Unauthorized.' }, { status: 401 }) };
-  }
-
-  const db = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase;
-  const { data: account } = await db
-    .from('users')
-    .select('id, role, company_id, full_name')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  const companyId = account?.company_id ?? null;
-  const role = String(account?.role ?? '').toLowerCase();
-
-  if (!companyId || !managerRoles.has(role)) {
-    return { error: NextResponse.json({ ok: false, message: 'Manager access required.' }, { status: 403 }) };
-  }
-
-  return { user, companyId, db, inviterName: account?.full_name || user.email || 'Your manager' };
-};
-
 export async function GET(request: NextRequest) {
-  const context = await getManagerContext();
-  if ('error' in context && context.error) return context.error;
+  const context = await resolveManagerApiScope(request);
+  if (!context.ok) return context.response;
 
-  const { companyId, db } = context;
-  const { data: company, error } = await db
+  const { companyId, accountDb } = context.scope;
+  const { data: company, error } = await accountDb
     .from('companies')
     .select('company_code, company_name')
     .eq('id', companyId)
@@ -62,10 +33,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const context = await getManagerContext();
-  if ('error' in context && context.error) return context.error;
+  const context = await resolveManagerApiScope(request);
+  if (!context.ok) return context.response;
 
-  const body = await request.json().catch(() => null) as { email?: string } | null;
+  const body = await request.json().catch(() => null) as { email?: string; companyId?: string } | null;
   const email = body?.email?.trim().toLowerCase() ?? '';
 
   if (!emailPattern.test(email)) {
@@ -76,8 +47,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, message: 'Email invites require server configuration.' }, { status: 503 });
   }
 
-  const { companyId, db, inviterName } = context;
-  const { data: company, error: companyError } = await db
+  const { companyId, accountDb, inviterName } = context.scope;
+  const { data: company, error: companyError } = await accountDb
     .from('companies')
     .select('company_code, company_name')
     .eq('id', companyId)
