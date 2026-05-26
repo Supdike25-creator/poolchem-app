@@ -652,15 +652,6 @@ export default function ManagementSettingsPage() {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleLogout}
-              data-sound="click"
-              className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
-            >
-              <LogOut className="h-4 w-4" />
-              Log Out
-            </button>
           </div>
         </div>
 
@@ -742,6 +733,18 @@ export default function ManagementSettingsPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className={`${cardClass} lg:col-span-2`}>
+        <button
+          type="button"
+          onClick={handleLogout}
+          data-sound="click"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
+        >
+          <LogOut className="h-4 w-4" />
+          Log out
+        </button>
       </div>
     </div>
   );

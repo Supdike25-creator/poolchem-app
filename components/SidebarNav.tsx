@@ -35,6 +35,68 @@ export const mainNavItems: SidebarNavItem[] = [
   { label: 'Settings', href: '/management/settings', icon: Settings, match: ['/management/settings', '/dashboard/settings'] },
 ];
 
+export const buildManagerNavItems = (companyId?: string | null): SidebarNavItem[] => {
+  const query = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
+  const overviewHref = companyId ? `/boss-view${query}` : '/management/dashboard';
+
+  return [
+    {
+      label: 'Overview',
+      href: overviewHref,
+      icon: LayoutDashboard,
+      match: ['/dashboard', '/management/dashboard', '/boss-view'],
+    },
+    {
+      label: 'Submit Log',
+      href: `/log${query}`,
+      icon: ClipboardPlus,
+      match: ['/log', '/guard/log'],
+    },
+    {
+      label: 'Review Logs',
+      href: `/management/logs${query}`,
+      icon: ClipboardList,
+      match: ['/management/logs', '/guard/review'],
+    },
+    {
+      label: 'Alerts',
+      href: `/management/alerts${query}`,
+      icon: Bell,
+      match: ['/management/alerts'],
+    },
+    {
+      label: 'Compliance',
+      href: `/management/compliance${query}`,
+      icon: FileSpreadsheet,
+      match: ['/management/compliance'],
+    },
+    {
+      label: 'Pools',
+      href: `/management/pools${query}`,
+      icon: Waves,
+      match: ['/management/pools'],
+    },
+    {
+      label: 'Team',
+      href: `/management/team${query}`,
+      icon: Users,
+      match: ['/management/team'],
+    },
+    {
+      label: 'Announcements',
+      href: `/management/announcements${query}`,
+      icon: Megaphone,
+      match: ['/management/announcements'],
+    },
+    {
+      label: 'Settings',
+      href: `/management/settings${query}`,
+      icon: Settings,
+      match: ['/management/settings', '/dashboard/settings'],
+    },
+  ];
+};
+
 export const buildGuardNavItems = (companyId?: string | null): SidebarNavItem[] => {
   const query = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
 

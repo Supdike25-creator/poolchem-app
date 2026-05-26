@@ -17,9 +17,10 @@ import {
 } from '@/lib/auth/accountAccess';
 import { getStoredSession } from '@/lib/appAccounts';
 import { createClient } from '@/utils/supabase/client';
-import { SidebarNav, buildDevPreviewNavItems, buildGuardNavItems } from './SidebarNav';
+import { SidebarNav, buildDevPreviewNavItems, buildGuardNavItems, buildManagerNavItems } from './SidebarNav';
 import InstallAppBanner from './InstallAppBanner';
 import AlertsBell from './AlertsBell';
+import WorkspaceBackLink from './WorkspaceBackLink';
 
 type Profile = {
   full_name?: string | null;
@@ -58,8 +59,12 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
       }
       return guardItems;
     }
-    if (isDevPreview) {
-      return buildDevPreviewNavItems(companyId);
+    if (role === 'manager') {
+      const managerItems = buildManagerNavItems(companyId);
+      if (isDevPreview) {
+        return [...managerItems, ...buildDevPreviewNavItems(companyId)];
+      }
+      return undefined;
     }
     return undefined;
   }, [isDevPreview, role, companyId]);
@@ -347,6 +352,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
               </div>
             </div>
           ) : null}
+          <WorkspaceBackLink role={role === 'manager' ? 'manager' : 'guard'} />
           {children}
         </div>
         {role === 'guard' ? <InstallAppBanner /> : null}
