@@ -97,8 +97,11 @@ async function loadSnapshot(selectedCompanyId?: string): Promise<DevSnapshot> {
       .limit(8);
     if (selectedCompanyId) errorLogsQuery.eq('company_id', selectedCompanyId);
 
+    const usersQuery = supabase.from('users').select('id', { count: 'exact', head: true });
+    if (selectedCompanyId) usersQuery.eq('company_id', selectedCompanyId);
+
     const [usersResult, logsResult, alertsResult, errorLogsResult, flags, rawLogs, apiRequests, tables] = await Promise.all([
-      supabase.from('users').select('id', { count: 'exact', head: true }),
+      usersQuery,
       logsQuery,
       alertsQuery,
       errorLogsQuery,
@@ -167,6 +170,10 @@ export default async function DevDashboardPage({
     readDevCompanies(),
   ]);
 
+  const selectedCompany = selectedCompanyId
+    ? companies.find((company) => company.id === selectedCompanyId) ?? null
+    : null;
+
   return (
     <DevShell>
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
@@ -177,6 +184,13 @@ export default async function DevDashboardPage({
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
               System-wide status for ChemDeck accounts, pool operations, chemistry logging, API routes, and database connectivity.
             </p>
+            {selectedCompany ? (
+              <p className="mt-3 inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-800">
+                Scoped to {selectedCompany.company_name} ({selectedCompany.company_code})
+              </p>
+            ) : (
+              <p className="mt-3 text-sm font-semibold text-amber-700">Select a company below to scope tools and POV previews.</p>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <HardstylePlayer />

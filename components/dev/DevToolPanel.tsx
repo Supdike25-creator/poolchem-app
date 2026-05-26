@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, Database, FlaskConical, ListTree, Radio, RotateCcw, ShieldCheck, ToggleLeft, Trash2 } from 'lucide-react';
 import type { DevApiRequest, DevFeatureFlag, DevRawLog, DevTableSummary } from '@/lib/devTools';
 
@@ -29,9 +29,15 @@ export default function DevToolPanel({
   const [result, setResult] = useState<ApiResult>({ message: 'Tools ready.' });
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
+  useEffect(() => {
+    setFlags(initialFlags);
+    setRawLogs(initialLogs);
+    setApiRequests(initialRequests);
+  }, [initialFlags, initialLogs, initialRequests, selectedCompanyId]);
+
   const refreshActivity = async () => {
     const query = selectedCompanyId ? `?companyId=${encodeURIComponent(selectedCompanyId)}` : '';
-    const response = await fetch(`/api/dev/activity${query}`);
+    const response = await fetch(`/api/dev/activity${query}`, { credentials: 'same-origin' });
     const data = await response.json();
     if (data.flags) setFlags(data.flags);
     if (data.logs) setRawLogs(data.logs);
@@ -46,6 +52,7 @@ export default function DevToolPanel({
       const response = await fetch('/api/dev/feature-flags', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify({ key: flag.key, enabled: nextEnabled, companyId: selectedCompanyId || null }),
       });
       const data = (await response.json()) as ApiResult & { flags?: DevFeatureFlag[] };
@@ -66,6 +73,7 @@ export default function DevToolPanel({
       const query = selectedCompanyId ? `?companyId=${encodeURIComponent(selectedCompanyId)}` : '';
       const response = await fetch(`${endpoint}${query}`, {
         method: endpoint.endsWith('/health') ? 'GET' : 'POST',
+        credentials: 'same-origin',
         headers: endpoint.endsWith('/health') ? undefined : { 'content-type': 'application/json' },
         body: endpoint.endsWith('/health') ? undefined : JSON.stringify({ companyId: selectedCompanyId || null }),
       });

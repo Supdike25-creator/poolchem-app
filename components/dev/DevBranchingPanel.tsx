@@ -1,9 +1,23 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Building2, Edit3, Plus, Shield, Waves } from 'lucide-react';
+import Link from 'next/link';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import {
+  Building2,
+  ClipboardCopy,
+  Edit3,
+  ExternalLink,
+  Plus,
+  RefreshCw,
+  Shield,
+  Trash2,
+  Users,
+  Waves,
+} from 'lucide-react';
 import { useDevCompany } from '@/components/dev/DevCompanyContext';
+import { isUuid } from '@/lib/devCompanyScope';
+import type { DevCompanySummary } from '@/lib/devCompanySummary';
 
 export type DevCompanyOption = {
   id: string;
@@ -11,7 +25,19 @@ export type DevCompanyOption = {
   company_code?: string | null;
 };
 
-export default function DevBranchingPanel({
+function resolveCompanyId(raw: string | null | undefined, companies: DevCompanyOption[]) {
+  const value = raw?.trim();
+  if (!value) return '';
+  const byId = companies.find((company) => company.id === value);
+  if (byId) return byId.id;
+  const byCode = companies.find(
+    (company) => company.company_code?.trim().toUpperCase() === value.toUpperCase(),
+  );
+  if (byCode) return byCode.id;
+  return isUuid(value) ? value : '';
+}
+
+function DevBranchingPanelInner({
   companies,
   initialCompanyId,
 }: {
@@ -19,41 +45,106 @@ export default function DevBranchingPanel({
   initialCompanyId?: string;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { selectedCompanyId, setSelectedCompanyId, hydrated } = useDevCompany();
+
+  const urlCompanyId = searchParams.get('companyId');
+  const resolvedInitial = resolveCompanyId(initialCompanyId || urlCompanyId, companies);
+  const [activeCompanyId, setActiveCompanyId] = useState(resolvedInitial);
   const [perspective, setPerspective] = useState<'boss' | 'lifeguard' | ''>('');
   const [companyName, setCompanyName] = useState('');
   const [companyCode, setCompanyCode] = useState('');
-  const renameRef = useRef<HTMLInputElement>(null);
-  const codeRef = useRef<HTMLInputElement>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [codeValue, setCodeValue] = useState('');
+  const [filter, setFilter] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [savingAction, setSavingAction] = useState<string | null>(null);
-
-  const activeCompanyId = initialCompanyId || (hydrated ? selectedCompanyId : '');
-
-  useEffect(() => {
-    if (!hydrated) return;
-
-    if (initialCompanyId) {
-      if (selectedCompanyId !== initialCompanyId) {
-        setSelectedCompanyId(initialCompanyId);
-      }
-      return;
-    }
-
-    if (selectedCompanyId) {
-      router.replace(`/dev-dashboard?companyId=${encodeURIComponent(selectedCompanyId)}`, { scroll: false });
-    }
-  }, [hydrated, initialCompanyId, selectedCompanyId, router, setSelectedCompanyId]);
+  const [summary, setSummary] = useState<DevCompanySummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
   const selectedCompany = useMemo(
     () => companies.find((company) => company.id === activeCompanyId) ?? null,
     [activeCompanyId, companies],
   );
 
+  const filteredCompanies = useMemo(() => {
+    const query = filter.trim().toLowerCase();
+    if (!query) return companies;
+    return companies.filter(
+      (company) =>
+        company.company_name.toLowerCase().includes(query) ||
+        company.company_code?.toLowerCase().includes(query) ||
+        company.id.toLowerCase().includes(query),
+    );
+  }, [companies, filter]);
+
+  const syncSelection = useCallback(
+    (companyId: string, updateUrl = true) => {
+      if (!companyId) return;
+      setActiveCompanyId(companyId);
+      setPerspective('');
+      setSelectedCompanyId(companyId);
+      if (updateUrl) {
+        router.push(`/dev-dashboard?companyId=${encodeURIComponent(companyId)}`, { scroll: false });
+      }
+    },
+    [router, setSelectedCompanyId],
+  );
+
+  useEffect(() => {
+    if (!hydrated) return;
+
+    const fromUrl = resolveCompanyId(urlCompanyId, companies);
+    const fromInitial = resolveCompanyId(initialCompanyId, companies);
+    const fromStorage = resolveCompanyId(selectedCompanyId, companies);
+    const nextId = fromUrl || fromInitial || fromStorage;
+
+    if (!nextId) return;
+
+    setActiveCompanyId((current) => (current === nextId ? current : nextId));
+    if (fromStorage !== nextId) {
+      setSelectedCompanyId(nextId);
+    }
+  }, [hydrated, urlCompanyId, initialCompanyId, selectedCompanyId, companies, setSelectedCompanyId]);
+
+  useEffect(() => {
+    setRenameValue(selectedCompany?.company_name ?? '');
+    setCodeValue(selectedCompany?.company_code ?? '');
+  }, [selectedCompany?.company_name, selectedCompany?.company_code, activeCompanyId]);
+
+  const loadSummary = useCallback(async () => {
+    if (!activeCompanyId) {
+      setSummary(null);
+      return;
+    }
+
+    setSummaryLoading(true);
+    try {
+      const response = await fetch(`/api/dev/company-summary?companyId=${encodeURIComponent(activeCompanyId)}`, {
+        cache: 'no-store',
+        credentials: 'same-origin',
+      });
+      const data = await response.json().catch(() => null);
+      if (response.ok && data?.ok) {
+        setSummary(data.summary as DevCompanySummary);
+      } else {
+        setSummary(null);
+      }
+    } catch {
+      setSummary(null);
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, [activeCompanyId]);
+
+  useEffect(() => {
+    void loadSummary();
+  }, [loadSummary]);
+
   const runCompanyAction = async (
-    action: 'create-company' | 'rename-company' | 'change-code',
-    payload: Record<string, string | null>,
+    action: 'create-company' | 'rename-company' | 'change-code' | 'delete-company' | 'add-pool',
+    payload: Record<string, string | null> = {},
   ) => {
     setSavingAction(action);
     setError('');
@@ -63,6 +154,7 @@ export default function DevBranchingPanel({
       const response = await fetch('/api/dev/admin', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify({
           scope: 'company',
           action,
@@ -71,7 +163,11 @@ export default function DevBranchingPanel({
         }),
       });
       const raw = await response.text();
-      let data: { ok?: boolean; message?: string; details?: { id?: string } } | null = null;
+      let data: {
+        ok?: boolean;
+        message?: string;
+        details?: { id?: string; company_name?: string; company_code?: string };
+      } | null = null;
       try {
         data = raw ? JSON.parse(raw) : null;
       } catch {
@@ -83,19 +179,36 @@ export default function DevBranchingPanel({
       }
 
       setMessage(data?.message || 'Company updated.');
+
       if (action === 'create-company') {
         setCompanyName('');
         setCompanyCode('');
         const createdId = data?.details?.id;
         if (createdId) {
-          setSelectedCompanyId(createdId);
-          router.replace(`/dev-dashboard?companyId=${encodeURIComponent(createdId)}`, { scroll: false });
-        } else {
-          router.refresh();
+          syncSelection(createdId);
         }
-      } else {
         router.refresh();
+        return;
       }
+
+      if (action === 'delete-company') {
+        setActiveCompanyId('');
+        setSelectedCompanyId('');
+        setSummary(null);
+        router.push('/dev-dashboard');
+        router.refresh();
+        return;
+      }
+
+      if (data?.details?.company_name) {
+        setRenameValue(data.details.company_name);
+      }
+      if (data?.details?.company_code) {
+        setCodeValue(data.details.company_code);
+      }
+
+      await loadSummary();
+      router.refresh();
     } catch (caughtError) {
       setError((caughtError as Error).message);
     } finally {
@@ -110,33 +223,49 @@ export default function DevBranchingPanel({
     router.push(`${route}?companyId=${encodeURIComponent(activeCompanyId)}`);
   };
 
+  const copyText = async (label: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setMessage(`${label} copied to clipboard.`);
+      setError('');
+    } catch {
+      setError(`Unable to copy ${label.toLowerCase()}.`);
+    }
+  };
+
   return (
     <section className="mb-6 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
       <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center gap-2">
-          <Building2 className="h-5 w-5 text-slate-500" />
-          <h2 className="text-lg font-semibold text-slate-950">Choose a company to inspect</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-slate-500" />
+            <h2 className="text-lg font-semibold text-slate-950">Choose a company to inspect</h2>
+          </div>
+          <input
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+            placeholder="Search companies"
+            className="h-9 w-full max-w-xs rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+          />
         </div>
+
         <div className="mt-4 grid gap-2 md:grid-cols-2">
-          {companies.length === 0 ? (
+          {filteredCompanies.length === 0 ? (
             <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500 md:col-span-2">
-              No companies found.
+              No companies match your search.
             </p>
           ) : (
-            companies.map((company) => {
+            filteredCompanies.map((company) => {
               const selected = company.id === activeCompanyId;
               return (
                 <button
                   key={company.id}
                   type="button"
-                  onClick={() => {
-                    setSelectedCompanyId(company.id);
-                    setPerspective('');
-                    router.replace(`/dev-dashboard?companyId=${encodeURIComponent(company.id)}`, { scroll: false });
-                  }}
+                  onClick={() => syncSelection(company.id)}
+                  aria-pressed={selected}
                   className={`rounded-md border px-3 py-3 text-left transition ${
                     selected
-                      ? 'border-blue-300 bg-blue-50 text-blue-950 shadow-sm'
+                      ? 'border-blue-400 bg-blue-50 text-blue-950 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.15)]'
                       : 'border-slate-200 bg-slate-50 text-slate-800 hover:border-slate-300 hover:bg-white'
                   }`}
                 >
@@ -147,6 +276,95 @@ export default function DevBranchingPanel({
             })
           )}
         </div>
+
+        {selectedCompany ? (
+          <div className="mt-4 rounded-md border border-blue-200 bg-blue-50/70 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Selected company</p>
+                <p className="mt-1 text-lg font-semibold text-slate-950">{selectedCompany.company_name}</p>
+                <p className="mt-1 font-mono text-sm text-slate-700">Code: {selectedCompany.company_code}</p>
+                <p className="mt-1 font-mono text-xs text-slate-500">{selectedCompany.id}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void copyText('Company code', selectedCompany.company_code ?? '')}
+                  className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold"
+                >
+                  <ClipboardCopy className="h-3.5 w-3.5" />
+                  Copy code
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void loadSummary()}
+                  disabled={summaryLoading}
+                  className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${summaryLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+              </div>
+            </div>
+
+            {summary ? (
+              <div className="mt-4 grid gap-2 sm:grid-cols-4">
+                {[
+                  ['Users', summary.user_count],
+                  ['Guards', summary.guard_count],
+                  ['Managers', summary.manager_count],
+                  ['Pools', summary.pool_count],
+                  ['Logs', summary.log_count],
+                  ['News', summary.announcement_count],
+                  ['Alerts', summary.alert_count],
+                ].map(([label, value]) => (
+                  <div key={label as string} className="rounded-md border border-white/80 bg-white px-3 py-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+                    <p className="text-lg font-semibold text-slate-950">{value}</p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link
+                href={`/boss-view?companyId=${encodeURIComponent(activeCompanyId)}`}
+                className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Boss POV
+              </Link>
+              <Link
+                href={`/worker-view?companyId=${encodeURIComponent(activeCompanyId)}`}
+                className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Lifeguard POV
+              </Link>
+              <Link
+                href="/dev-admin/companies"
+                className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold"
+              >
+                <Building2 className="h-3.5 w-3.5" />
+                Admin companies
+              </Link>
+              <Link
+                href="/dev-admin/pools"
+                className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold"
+              >
+                <Waves className="h-3.5 w-3.5" />
+                Admin pools
+              </Link>
+              <Link
+                href="/dev-admin/profiles"
+                className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold"
+              >
+                <Users className="h-3.5 w-3.5" />
+                Admin profiles
+              </Link>
+            </div>
+          </div>
+        ) : null}
 
         <div className="mt-5 grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
           <div className="flex items-center gap-2">
@@ -169,7 +387,12 @@ export default function DevBranchingPanel({
             <button
               type="button"
               disabled={savingAction === 'create-company' || !companyName.trim()}
-              onClick={() => runCompanyAction('create-company', { company_name: companyName, company_code: companyCode || null })}
+              onClick={() =>
+                void runCompanyAction('create-company', {
+                  company_name: companyName,
+                  company_code: companyCode || null,
+                })
+              }
               className="inline-flex h-10 items-center justify-center rounded-md bg-slate-950 px-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               {savingAction === 'create-company' ? 'Creating' : 'Create'}
@@ -184,9 +407,8 @@ export default function DevBranchingPanel({
           </div>
           <div className="grid gap-2 md:grid-cols-[1fr_auto]">
             <input
-              key={`rename-${activeCompanyId}`}
-              ref={renameRef}
-              defaultValue={selectedCompany?.company_name ?? ''}
+              value={renameValue}
+              onChange={(event) => setRenameValue(event.target.value)}
               placeholder="Rename selected company"
               disabled={!selectedCompany}
               className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
@@ -194,7 +416,7 @@ export default function DevBranchingPanel({
             <button
               type="button"
               disabled={!selectedCompany || savingAction === 'rename-company'}
-              onClick={() => runCompanyAction('rename-company', { company_name: renameRef.current?.value ?? '' })}
+              onClick={() => void runCompanyAction('rename-company', { company_name: renameValue })}
               className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
             >
               {savingAction === 'rename-company' ? 'Renaming' : 'Rename'}
@@ -202,24 +424,55 @@ export default function DevBranchingPanel({
           </div>
           <div className="grid gap-2 md:grid-cols-[1fr_auto]">
             <input
-              key={`code-${activeCompanyId}`}
-              ref={codeRef}
-              defaultValue={selectedCompany?.company_code ?? ''}
+              value={codeValue}
+              onChange={(event) => setCodeValue(event.target.value.toUpperCase())}
               placeholder="Change selected company code"
               disabled={!selectedCompany}
-              className="h-10 rounded-md border border-slate-200 bg-white px-3 font-mono text-sm text-slate-950 uppercase outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+              className="h-10 rounded-md border border-slate-200 bg-white px-3 font-mono text-sm uppercase text-slate-950 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
             />
             <button
               type="button"
               disabled={!selectedCompany || savingAction === 'change-code'}
-              onClick={() => runCompanyAction('change-code', { company_code: (codeRef.current?.value ?? '').toUpperCase() })}
-              className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
+              onClick={() => void runCompanyAction('change-code', { company_code: codeValue.trim().toUpperCase() })}
+              className="inline-flex h-10 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-800 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-45"
             >
               {savingAction === 'change-code' ? 'Saving' : 'Change code'}
             </button>
           </div>
-          {message ? <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm font-semibold text-green-700">{message}</p> : null}
-          {error ? <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</p> : null}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={!selectedCompany || savingAction === 'add-pool'}
+              onClick={() => void runCompanyAction('add-pool')}
+              className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {savingAction === 'add-pool' ? 'Adding pool…' : 'Add pool'}
+            </button>
+            <button
+              type="button"
+              disabled={!selectedCompany || savingAction === 'delete-company'}
+              onClick={() => {
+                if (!selectedCompany) return;
+                if (!window.confirm(`Delete ${selectedCompany.company_name}? This cannot be undone.`)) return;
+                void runCompanyAction('delete-company');
+              }}
+              className="inline-flex h-9 items-center gap-1 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {savingAction === 'delete-company' ? 'Deleting…' : 'Delete company'}
+            </button>
+          </div>
+          {message ? (
+            <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm font-semibold text-green-700">
+              {message}
+            </p>
+          ) : null}
+          {error ? (
+            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+              {error}
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -259,7 +512,36 @@ export default function DevBranchingPanel({
             Lifeguard POV
           </button>
         </div>
+
+        {selectedCompany ? (
+          <div className="mt-5 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+            <p className="font-semibold text-slate-900">Quick test checklist</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>Open Boss POV and verify dashboard loads.</li>
+              <li>Open Lifeguard POV and submit a test log.</li>
+              <li>Use Tool Actions below for simulate alert / test chem log.</li>
+              <li>Confirm company code works on the join-company screen.</li>
+            </ul>
+          </div>
+        ) : null}
       </div>
     </section>
+  );
+}
+
+export default function DevBranchingPanel(props: {
+  companies: DevCompanyOption[];
+  initialCompanyId?: string;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="mb-6 rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">
+          Loading company controls…
+        </div>
+      }
+    >
+      <DevBranchingPanelInner {...props} />
+    </Suspense>
   );
 }

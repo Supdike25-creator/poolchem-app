@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/utils/supabase/server';
 import { assertDevRequest, logDevMessage, logDevRequest } from '@/lib/devTools';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -10,6 +11,35 @@ const jsonError = (message: string, status = 400) =>
   NextResponse.json({ ok: false, message }, { status });
 
 const dbError = (error: { message: string }, status = 500) => jsonError(error.message, status);
+
+const assertDevAdminAccess = async (request: NextRequest) => {
+  const cookieForbidden = assertDevRequest(request);
+  if (!cookieForbidden) return null;
+
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return cookieForbidden;
+
+    const admin = createAdminClient();
+    const { data: account } = await admin
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (String(account?.role ?? '').toLowerCase() === 'dev') {
+      return null;
+    }
+  } catch {
+    return cookieForbidden;
+  }
+
+  return cookieForbidden;
+};
 
 type AdminBody = {
   scope?: string;
@@ -31,7 +61,7 @@ type AdminBody = {
 };
 
 export async function POST(request: NextRequest) {
-  const forbidden = assertDevRequest(request);
+  const forbidden = await assertDevAdminAccess(request);
   if (forbidden) return forbidden;
 
   let body: AdminBody | null = null;
@@ -168,9 +198,15 @@ export async function POST(request: NextRequest) {
         if (!companyName) {
           return jsonError('Enter a company name.');
         }
-        const { error } = await supabase.from('companies').update({ company_name: companyName }).eq('id', body.id);
+        const { data, error } = await supabase
+          .from('companies')
+          .update({ company_name: companyName })
+          .eq('id', body.id)
+          .select('id, company_name, company_code')
+          .maybeSingle();
         if (error) return dbError(error);
-        response = { ok: true, message: 'Company renamed.' };
+        if (!data) return jsonError('Company not found.');
+        response = { ok: true, message: 'Company renamed.', details: data };
       }
 
       if (body.action === 'change-code') {
@@ -178,12 +214,33 @@ export async function POST(request: NextRequest) {
         if (!code) {
           return jsonError('Enter a company code.');
         }
-        const { error } = await supabase.from('companies').update({ company_code: code }).eq('id', body.id);
+        const { data: existing } = await supabase
+          .from('companies')
+          .select('id, company_code')
+          .eq('id', body.id)
+          .maybeSingle();
+        if (!existing) {
+          return jsonError('Company not found.');
+        }
+        if (existing.company_code === code) {
+          return jsonError('That is already the current company code.');
+        }
+        const { data, error } = await supabase
+          .from('companies')
+          .update({ company_code: code })
+          .eq('id', body.id)
+          .select('id, company_name, company_code')
+          .maybeSingle();
         if (error?.code === '23505') {
           return jsonError('That company code is already in use.');
         }
         if (error) return dbError(error);
-        response = { ok: true, message: 'Company code updated.' };
+        if (!data) return jsonError('Company code could not be updated.');
+        response = {
+          ok: true,
+          message: `Company code updated to ${data.company_code}.`,
+          details: data,
+        };
       }
 
       if (body.action === 'delete-company') {

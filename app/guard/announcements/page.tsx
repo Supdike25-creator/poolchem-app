@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Info } from 'lucide-react';
 import { EmptyState, PageHeader, SectionCard, StatusBadge } from '../../../components/OperationsUI';
 
@@ -21,13 +22,16 @@ const priorityTone = (priority: Announcement['priority']) => {
 };
 
 export default function GuardAnnouncementsPage() {
+  const searchParams = useSearchParams();
+  const companyId = searchParams.get('companyId');
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     const load = async () => {
-      const response = await fetch('/api/announcements', { cache: 'no-store', credentials: 'same-origin' });
+      const query = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
+      const response = await fetch(`/api/announcements${query}`, { cache: 'no-store', credentials: 'same-origin' });
       const result = await response.json().catch(() => null);
       if (!response.ok || !result?.ok) {
         setError(result?.message || 'Unable to load announcements.');
@@ -39,7 +43,7 @@ export default function GuardAnnouncementsPage() {
     };
 
     void load();
-  }, []);
+  }, [companyId]);
 
   return (
     <div className="pb-24 lg:pb-8">

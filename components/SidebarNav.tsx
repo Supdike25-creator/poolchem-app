@@ -35,12 +35,45 @@ export const mainNavItems: SidebarNavItem[] = [
   { label: 'Settings', href: '/management/settings', icon: Settings, match: ['/management/settings', '/dashboard/settings'] },
 ];
 
-export const guardNavItems: SidebarNavItem[] = [
-  { label: 'Overview', href: '/guard', icon: LayoutDashboard, match: ['/guard', '/worker-view'] },
-  { label: 'Submit Log', href: '/guard/log', icon: ClipboardPlus, match: ['/guard/log'] },
-  { label: 'Review Logs', href: '/guard/review', icon: ClipboardList, match: ['/guard/review'] },
-  { label: 'News', href: '/guard/announcements', icon: Megaphone, match: ['/guard/announcements'] },
-];
+export const buildGuardNavItems = (companyId?: string | null): SidebarNavItem[] => {
+  const query = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
+
+  return [
+    {
+      label: 'Overview',
+      href: `/guard${query}`,
+      icon: LayoutDashboard,
+      match: ['/guard', '/worker-view'],
+    },
+    {
+      label: 'Submit Log',
+      href: `/guard/log${query}`,
+      icon: ClipboardPlus,
+      match: ['/guard/log'],
+    },
+    {
+      label: 'Review Logs',
+      href: `/guard/review${query}`,
+      icon: ClipboardList,
+      match: ['/guard/review'],
+    },
+    {
+      label: 'News',
+      href: `/guard/announcements${query}`,
+      icon: Megaphone,
+      match: ['/guard/announcements'],
+    },
+    {
+      label: 'Settings',
+      href: `/guard/settings${query}`,
+      icon: Settings,
+      match: ['/guard/settings'],
+    },
+  ];
+};
+
+/** @deprecated use buildGuardNavItems() */
+export const guardNavItems = buildGuardNavItems();
 
 export const buildDevPreviewNavItems = (companyId?: string | null): SidebarNavItem[] => [
   {
@@ -80,7 +113,7 @@ function NavLink({ item, compact = false }: { item: SidebarNavItem; compact?: bo
     >
       <Icon className={compact ? 'h-4 w-4 shrink-0' : 'h-5 w-5 shrink-0'} />
       <span className={compact ? 'truncate' : 'sidebar-label truncate whitespace-nowrap'}>
-        {compact && item.label === 'Announcements' ? 'News' : item.label}
+        {compact && item.label === 'Announcements' ? 'News' : compact && item.label === 'Settings' ? 'Prefs' : item.label}
       </span>
     </Link>
   );
@@ -108,7 +141,7 @@ export function SidebarNav({
           {header ? <div className="mb-5">{header}</div> : null}
           <nav className="space-y-1" aria-label="Primary navigation">
             {items.map((item) => (
-              <NavLink key={item.href} item={item} />
+              <NavLink key={`${item.label}-${item.href}`} item={item} />
             ))}
           </nav>
           {footer ? <div className="mt-auto pt-5">{footer}</div> : null}

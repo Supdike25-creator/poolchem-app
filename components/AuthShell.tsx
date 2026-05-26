@@ -17,7 +17,7 @@ import {
 } from '@/lib/auth/accountAccess';
 import { getStoredSession } from '@/lib/appAccounts';
 import { createClient } from '@/utils/supabase/client';
-import { SidebarNav, buildDevPreviewNavItems, guardNavItems } from './SidebarNav';
+import { SidebarNav, buildDevPreviewNavItems, buildGuardNavItems } from './SidebarNav';
 import InstallAppBanner from './InstallAppBanner';
 import AlertsBell from './AlertsBell';
 
@@ -49,10 +49,20 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState<string>('');
   const isDevPreview = profile?.role === 'dev' && role !== 'dev';
-  const devNavItems = useMemo(
-    () => buildDevPreviewNavItems(searchParams.get('companyId')),
-    [searchParams],
-  );
+  const companyId = searchParams.get('companyId');
+  const sidebarItems = useMemo(() => {
+    if (role === 'guard') {
+      const guardItems = buildGuardNavItems(companyId);
+      if (isDevPreview) {
+        return [...guardItems, ...buildDevPreviewNavItems(companyId)];
+      }
+      return guardItems;
+    }
+    if (isDevPreview) {
+      return buildDevPreviewNavItems(companyId);
+    }
+    return undefined;
+  }, [isDevPreview, role, companyId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -229,7 +239,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   return (
     <div className="min-h-screen w-full bg-slate-50 pb-24 lg:pb-0">
       <SidebarNav
-        items={isDevPreview ? devNavItems : role === 'guard' ? guardNavItems : undefined}
+        items={sidebarItems}
         header={(
           <div className="min-h-[74px] overflow-visible">
             <ChemDeckLogo variant="mark" className="h-10 w-10 group-hover:hidden group-focus-within:hidden" />

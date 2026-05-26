@@ -571,3 +571,16 @@ a:active {
 :root[data-style="soft"] .shadow-xl {
   box-shadow: 0 14px 34px rgb(27 45 79 / 0.08);
 }
+
+:root[data-larger-text="true"] {
+  font-size: 125%;
+}
+
+:root[data-larger-text="true"] body {
+  font-size: 1.125rem;
+  line-height: 1.65;
+}
+
+:root[data-larger-text="true"][data-style="compact"] body {
+  font-size: 1rem;
+}

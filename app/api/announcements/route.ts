@@ -1,42 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { resolveApiCompanyScope } from '@/lib/apiCompanyScope';
 
 export const dynamic = 'force-dynamic';
 
 const managerRoles = new Set(['boss', 'manager', 'admin', 'supervisor', 'owner']);
 
-const getContext = async () => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+export async function GET(request: NextRequest) {
+  const context = await resolveApiCompanyScope(request);
+  if (!context.ok) return context.response;
 
-  if (error || !user) {
-    return { error: NextResponse.json({ ok: false, message: 'Unauthorized.' }, { status: 401 }) };
-  }
-
-  const accountDb = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase;
-  const { data: account } = await accountDb
-    .from('users')
-    .select('id, role, company_id, full_name, email')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  const companyId = account?.company_id ?? null;
-  if (!companyId) {
-    return { error: NextResponse.json({ ok: false, message: 'Join a company before viewing announcements.' }, { status: 400 }) };
-  }
-
-  return { user, account, companyId, accountDb };
-};
-
-export async function GET() {
-  const context = await getContext();
-  if ('error' in context && context.error) return context.error;
-
-  const { companyId, user, accountDb } = context;
+  const { companyId, userId, accountDb } = context.scope;
   const { data: rows, error } = await accountDb
     .from('announcements')
     .select('id, title, message, priority, audience, pool_id, created_by, send_notification, require_acknowledgment, created_at')
@@ -72,7 +47,7 @@ export async function GET() {
 
   for (const ack of acks ?? []) {
     ackCounts.set(ack.announcement_id, (ackCounts.get(ack.announcement_id) ?? 0) + 1);
-    if (ack.user_id === user.id) userAcks.add(ack.announcement_id);
+    if (userId && ack.user_id === userId) userAcks.add(ack.announcement_id);
   }
 
   const announcements = (rows ?? []).map((row) => ({
@@ -87,8 +62,34 @@ export async function GET() {
   return NextResponse.json({ ok: true, announcements });
 }
 
+const getManagerContext = async () => {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    return { error: NextResponse.json({ ok: false, message: 'Unauthorized.' }, { status: 401 }) };
+  }
+
+  const accountDb = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase;
+  const { data: account } = await accountDb
+    .from('users')
+    .select('id, role, company_id, full_name, email')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  const companyId = account?.company_id ?? null;
+  if (!companyId) {
+    return { error: NextResponse.json({ ok: false, message: 'Join a company before viewing announcements.' }, { status: 400 }) };
+  }
+
+  return { user, account, companyId, accountDb };
+};
+
 export async function POST(request: NextRequest) {
-  const context = await getContext();
+  const context = await getManagerContext();
   if ('error' in context && context.error) return context.error;
 
   const { user, account, companyId, accountDb } = context;
@@ -145,7 +146,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const context = await getContext();
+  const context = await getManagerContext();
   if ('error' in context && context.error) return context.error;
 
   const { user, companyId, accountDb } = context;

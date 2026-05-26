@@ -41,13 +41,23 @@ const applyStyle = (stylePreset: StylePreset) => {
   document.documentElement.dataset.style = stylePreset;
 };
 
+const applyLargerText = (enabled: boolean) => {
+  if (enabled) {
+    document.documentElement.dataset.largerText = 'true';
+  } else {
+    delete document.documentElement.dataset.largerText;
+  }
+};
+
 export default function ThemeManager() {
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
     const syncTheme = () => {
+      const settings = getStoredSettings();
       applyTheme(getStoredTheme());
       applyStyle(getStoredStyle());
+      applyLargerText(Boolean(settings.largerTextMode));
     };
 
     syncTheme();

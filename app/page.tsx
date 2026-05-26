@@ -22,7 +22,7 @@ const navLinks = [
   { label: 'Features', href: '#features' },
   { label: 'Pricing', href: '#pricing' },
   { label: 'About', href: '#about' },
-  { label: 'Contact', href: 'mailto:hello@chemdeck.com' },
+  { label: 'Contact', href: 'mailto:ChemdeckCo@gmail.com' },
 ];
 
 const features = [
@@ -87,8 +87,8 @@ const footerColumns = [
     title: 'Company',
     links: [
       { label: 'About', href: '#about' },
-      { label: 'Contact', href: 'mailto:hello@chemdeck.com' },
-      { label: 'Careers', href: 'mailto:hello@chemdeck.com' },
+      { label: 'Contact', href: 'mailto:ChemdeckCo@gmail.com' },
+      { label: 'Careers', href: 'mailto:ChemdeckCo@gmail.com' },
       { label: 'Blog', href: '#' },
     ],
   },
@@ -319,7 +319,7 @@ export default function Home() {
           </p>
           <div className="mb-16 inline-block rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
             Early access is open —{' '}
-            <a href="mailto:hello@chemdeck.com?subject=ChemDeck%20early%20access" className="font-semibold underline">
+            <a href="mailto:ChemdeckCo@gmail.com?subject=ChemDeck%20early%20access" className="font-semibold underline">
               contact us to get started
             </a>
           </div>
@@ -361,7 +361,7 @@ export default function Home() {
               <div className="my-6 border-t border-slate-800" />
               <SkeletonLines count={5} dark />
               <Link
-                href="mailto:hello@chemdeck.com"
+                href="mailto:ChemdeckCo@gmail.com"
                 className="mt-8 inline-flex w-full justify-center rounded-xl border border-slate-700 py-3 text-sm font-semibold text-slate-300 transition hover:bg-slate-800"
               >
                 Contact Us
@@ -388,7 +388,7 @@ export default function Home() {
               Get Started Free
             </Link>
             <Link
-              href="mailto:hello@chemdeck.com"
+              href="mailto:ChemdeckCo@gmail.com"
               className="rounded-xl border border-slate-700 px-8 py-3 font-semibold text-slate-300 transition hover:bg-slate-800"
             >
               Contact Us

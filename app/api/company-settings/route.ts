@@ -1,48 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { mergeCompanySettings, type CompanySettings } from '@/lib/companySettings';
+import { resolveApiCompanyScope } from '@/lib/apiCompanyScope';
 
 export const dynamic = 'force-dynamic';
 
 const managerRoles = new Set(['boss', 'manager', 'admin', 'supervisor', 'owner']);
 
-const getSessionContext = async () => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+const getManagerSessionContext = async () => {
+  const context = await resolveApiCompanyScope();
+  if (!context.ok) return { error: context.response };
 
-  if (error || !user) {
+  const { companyId, account, accountDb } = context.scope;
+  if (!account) {
     return { error: NextResponse.json({ ok: false, message: 'Unauthorized.' }, { status: 401 }) };
   }
 
-  const accountDb = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase;
-  const { data: account } = await accountDb
-    .from('users')
-    .select('id, role, company_id')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  const companyId = account?.company_id ?? null;
-  if (!companyId) {
-    return { error: NextResponse.json({ ok: false, message: 'Join a company before loading settings.' }, { status: 400 }) };
-  }
-
   return {
-    user,
     companyId,
-    role: account?.role ?? '',
+    role: account.role ?? '',
     accountDb,
   };
 };
 
-export async function GET() {
-  const context = await getSessionContext();
-  if ('error' in context && context.error) return context.error;
+export async function GET(request: NextRequest) {
+  const context = await resolveApiCompanyScope(request);
+  if (!context.ok) return context.response;
 
-  const { companyId, accountDb } = context;
+  const { companyId, accountDb } = context.scope;
   const { data, error } = await accountDb
     .from('companies')
     .select('id, company_name, company_code, settings')
@@ -65,7 +49,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: NextRequest) {
-  const context = await getSessionContext();
+  const context = await getManagerSessionContext();
   if ('error' in context && context.error) return context.error;
 
   const { companyId, role, accountDb } = context;

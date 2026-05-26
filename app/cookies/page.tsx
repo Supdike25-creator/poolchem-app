@@ -87,8 +87,8 @@ export default function CookiesPage() {
           <h2 className="mt-8 text-lg font-semibold">Contact</h2>
           <p className="mt-3 text-sm leading-7 text-slate-600">
             Questions about cookies or browser storage can be sent to{' '}
-            <a href="mailto:hello@chemdeck.com" className="font-medium text-blue-700 hover:text-blue-800">
-              hello@chemdeck.com
+            <a href="mailto:ChemdeckCo@gmail.com" className="font-medium text-blue-700 hover:text-blue-800">
+              ChemdeckCo@gmail.com
             </a>.
           </p>
         </div>
