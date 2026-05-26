@@ -17,10 +17,24 @@ const spotifyScopes = [
   'user-read-email',
 ].join(' ');
 
+const normalizeOrigin = (value: string) => value.trim().replace(/\/$/, '');
+
+export const resolveSpotifyRedirectUri = (requestOrigin: string) => {
+  const explicitRedirect = process.env.SPOTIFY_REDIRECT_URI?.trim();
+  if (explicitRedirect) return explicitRedirect;
+
+  const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (configuredAppUrl) {
+    return `${normalizeOrigin(configuredAppUrl)}/api/spotify/callback`;
+  }
+
+  return `${normalizeOrigin(requestOrigin)}/api/spotify/callback`;
+};
+
 export const getSpotifyConfig = (origin: string) => {
   const clientId = process.env.SPOTIFY_CLIENT_ID?.trim();
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET?.trim();
-  const redirectUri = process.env.SPOTIFY_REDIRECT_URI?.trim() || `${origin.replace(/\/$/, '')}/api/spotify/callback`;
+  const redirectUri = resolveSpotifyRedirectUri(origin);
 
   return { clientId, clientSecret, redirectUri, scopes: spotifyScopes };
 };

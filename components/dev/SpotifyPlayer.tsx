@@ -342,9 +342,9 @@ export default function SpotifyPlayer() {
               </div>
             ) : !configured ? (
               <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                Add `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` in Vercel, then set the redirect URI to
+                Add `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` in Vercel. Set `NEXT_PUBLIC_APP_URL` to your live app URL and add the same redirect URI in Spotify:
                 {' '}
-                <code className="rounded bg-white px-1 py-0.5 text-xs">/api/spotify/callback</code>.
+                <code className="rounded bg-white px-1 py-0.5 text-xs">{'{APP_URL}'}/api/spotify/callback</code>
               </p>
             ) : !connected ? (
               <div className="space-y-3">
