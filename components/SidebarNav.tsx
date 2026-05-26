@@ -35,6 +35,13 @@ export const mainNavItems: SidebarNavItem[] = [
   { label: 'Settings', href: '/management/settings', icon: Settings, match: ['/management/settings', '/dashboard/settings'] },
 ];
 
+export const guardNavItems: SidebarNavItem[] = [
+  { label: 'Overview', href: '/guard', icon: LayoutDashboard, match: ['/guard', '/worker-view'] },
+  { label: 'Submit Log', href: '/guard/log', icon: ClipboardPlus, match: ['/guard/log'] },
+  { label: 'Review Logs', href: '/guard/review', icon: ClipboardList, match: ['/guard/review'] },
+  { label: 'News', href: '/guard/announcements', icon: Megaphone, match: ['/guard/announcements'] },
+];
+
 export const buildDevPreviewNavItems = (companyId?: string | null): SidebarNavItem[] => [
   {
     label: 'Dev Dashboard',

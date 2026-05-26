@@ -2,10 +2,23 @@ import React from 'react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { AlertCircle, Camera, CheckCircle2, ClipboardCheck, Clock3, Eye, FileSpreadsheet, Info, Plus, Users, Waves } from 'lucide-react';
+import { AlertCircle, Camera, CheckCircle2, ClipboardCheck, ClipboardList, Clock3, Eye, FileSpreadsheet, Info, Megaphone, Plus, Users, Waves } from 'lucide-react';
 import { EmptyState, StatCard, StatusBadge, buttonClass, type StatusTone } from '../../components/OperationsUI';
 import { loadCompanyAlerts, syncMissedTestAlerts } from '@/lib/alerts';
 import { mergeCompanySettings } from '@/lib/companySettings';
+import { loadGuardPools } from '@/lib/guardPools';
+import GuardHomeExtras from '../../components/GuardHomeExtras';
+import {
+  formatDateTime,
+  formatRelativeDue,
+  getPoolStatus,
+  getStatusText,
+  outOfRangeStatuses,
+  statusPriority,
+  urgentStatuses,
+  type ChemicalLogSummary,
+  type PoolStatus,
+} from '@/lib/poolDashboard';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,64 +29,13 @@ interface Pool {
   is_baby_pool?: boolean | null;
 }
 
-interface ChemicalLog {
-  id: string;
-  pool_id: string;
-  submitted_by?: string | null;
-  free_chlorine: number;
-  ph: number;
-  notes: string | null;
-  photo_url: string | null;
-  created_at: string;
-}
+type ChemicalLog = ChemicalLogSummary;
 
 interface ProfileSummary {
   id: string;
   full_name?: string | null;
   email?: string | null;
 }
-
-type PoolStatus = 'good' | 'due_soon' | 'overdue' | 'high_chlorine' | 'low_chlorine' | 'ph_low' | 'ph_high' | 'closed' | 'needs_retest' | 'no_data';
-
-const getPoolStatus = (latestLog?: ChemicalLog): PoolStatus => {
-  if (!latestLog) {
-    return 'no_data';
-  }
-
-  // Check if test is overdue (no test in last 60 minutes)
-  const testTime = new Date(latestLog.created_at);
-  const now = new Date();
-  const minutesSinceTest = (now.getTime() - testTime.getTime()) / (1000 * 60);
-
-  if (minutesSinceTest > 60) {
-    return 'overdue';
-  }
-
-  if (minutesSinceTest > 45) {
-    return 'due_soon';
-  }
-
-  const chlorine = latestLog.free_chlorine;
-  const ph = latestLog.ph;
-
-  if (chlorine > 4) {
-    return 'high_chlorine';
-  }
-
-  if (chlorine < 1) {
-    return 'low_chlorine';
-  }
-
-  if (ph < 7.2) {
-    return 'ph_low';
-  }
-
-  if (ph > 7.8) {
-    return 'ph_high';
-  }
-
-  return 'good';
-};
 
 const getStatusColor = (status: PoolStatus): StatusTone => {
   switch (status) {
@@ -97,62 +59,14 @@ const getStatusColor = (status: PoolStatus): StatusTone => {
   }
 };
 
-const getStatusText = (status: PoolStatus) => {
-  switch (status) {
-    case 'good':
-      return 'Good';
-    case 'due_soon':
-      return 'Due Soon';
-    case 'high_chlorine':
-      return 'High Chlorine';
-    case 'low_chlorine':
-      return 'Low Chlorine';
-    case 'ph_low':
-      return 'pH Low';
-    case 'ph_high':
-      return 'pH High';
-    case 'overdue':
-      return 'Overdue';
-    case 'closed':
-      return 'Closed';
-    case 'needs_retest':
-      return 'Needs Retest';
-    case 'no_data':
-      return 'No Data';
-    default:
-      return 'Unknown';
-  }
-};
-
-const formatDateTime = (value: string) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short'
-  });
-};
-
-const formatRelativeDue = (latestLog?: ChemicalLog) => {
-  if (!latestLog) {
-    return 'Start today';
-  }
-
-  const latest = new Date(latestLog.created_at).getTime();
-  const dueAt = latest + 60 * 60 * 1000;
-  const minutes = Math.round((dueAt - Date.now()) / (1000 * 60));
-
-  if (minutes <= 0) {
-    return `${Math.abs(minutes)} min overdue`;
-  }
-
-  return `Due in ${minutes} min`;
-};
-
-export default async function Dashboard({ devCompanyId }: { devCompanyId?: string } = {}) {
+export default async function Dashboard({
+  devCompanyId,
+  variant = 'manager',
+}: {
+  devCompanyId?: string;
+  variant?: 'manager' | 'guard';
+} = {}) {
+  const isGuardView = variant === 'guard';
   let poolsWithStatus: Array<{
     id: string;
     name: string;
@@ -173,6 +87,17 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
   let submitterMap = new Map<string, string>();
   let unreadAlertCount = 0;
   let dbAlertActions: Array<{ tone: StatusTone; title: string; detail: string }> = [];
+  let guardId: string | null = null;
+
+  const logHref = isGuardView ? '/guard/log' : '/log';
+  const reviewHref = isGuardView ? '/guard/review' : '/management/logs';
+  const announcementsHref = isGuardView ? '/guard/announcements' : '/management/announcements';
+  const poolLogHref = (poolId: string) =>
+    isGuardView ? `/guard/log?poolId=${poolId}` : `/log?poolId=${poolId}`;
+  const poolHistoryHref = (poolId: string) =>
+    isGuardView ? `/guard/review?poolId=${poolId}` : `/management/pools/${poolId}`;
+  const withCompanyQuery = (href: string) =>
+    devCompanyId ? `${href}${href.includes('?') ? '&' : '?'}companyId=${encodeURIComponent(devCompanyId)}` : href;
 
   try {
     const supabase = devCompanyId ? createAdminClient() : await createClient();
@@ -185,26 +110,48 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
       if (user) {
         const { data: account } = await supabase
           .from('users')
-          .select('company_id')
+          .select('company_id, id, role')
           .eq('id', user.id)
           .maybeSingle();
         companyId = account?.company_id ?? null;
+        guardId = account?.id ?? null;
       }
     }
 
-    // Fetch all pools
-    const poolsQuery = supabase
-      .from('pools')
-      .select('id, name, pool_type, is_baby_pool')
-      .order('name');
-    if (devCompanyId) poolsQuery.eq('company_id', devCompanyId);
-    const { data: pools, error: poolsError } = await poolsQuery;
+    let poolList: Pool[] = [];
 
-    if (poolsError) {
-      throw new Error(`Failed to fetch pools: ${poolsError.message}`);
+    if (isGuardView && companyId) {
+      const db = devCompanyId || process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase;
+      if (!guardId && !devCompanyId) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        guardId = user?.id ?? null;
+      }
+      const guardRole = guardId
+        ? (await db.from('users').select('role').eq('id', guardId).maybeSingle()).data?.role ?? null
+        : null;
+      poolList = await loadGuardPools(db, {
+        companyId,
+        guardId,
+        guardRole,
+        devPreview: Boolean(devCompanyId),
+        select: 'id,name,pool_type,is_baby_pool',
+      });
+    } else {
+      const poolsQuery = supabase
+        .from('pools')
+        .select('id, name, pool_type, is_baby_pool')
+        .order('name');
+      if (devCompanyId) poolsQuery.eq('company_id', devCompanyId);
+      const { data: pools, error: poolsError } = await poolsQuery;
+
+      if (poolsError) {
+        throw new Error(`Failed to fetch pools: ${poolsError.message}`);
+      }
+
+      poolList = pools ?? [];
     }
-
-    const poolList: Pool[] = pools ?? [];
 
     if (poolList.length === 0) {
       hasNoPools = true;
@@ -217,7 +164,11 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
         .from('chemical_logs')
         .select('id, pool_id, submitted_by, free_chlorine, ph, notes, photo_url, created_at')
         .order('created_at', { ascending: false });
-      if (devCompanyId) logsQuery.in('pool_id', poolIds.length ? poolIds : ['__no_pools_for_company__']);
+      if (poolIds.length) {
+        logsQuery.in('pool_id', poolIds);
+      } else if (devCompanyId || isGuardView) {
+        logsQuery.in('pool_id', ['__no_pools__']);
+      }
       const { data: recentLogs, error: logsError } = await logsQuery;
 
       if (logsError) {
@@ -244,7 +195,11 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
       // Count tests from today
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      testsToday = allLogs.filter(log => new Date(log.created_at) >= todayStart).length;
+      testsToday = allLogs.filter((log) => {
+        if (new Date(log.created_at) < todayStart) return false;
+        if (isGuardView && guardId) return log.submitted_by === guardId;
+        return true;
+      }).length;
 
       // Group logs by pool and get the latest for each
       const latestLogByPool = new Map<string, ChemicalLog>();
@@ -254,7 +209,7 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
         }
       }
 
-      if (companyId) {
+      if (companyId && !isGuardView) {
         const { data: companyRow } = await supabase
           .from('companies')
           .select('settings')
@@ -297,25 +252,13 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
 
       // Calculate summary stats
       totalPools = poolsWithStatus.length;
-      outOfRangePools = poolsWithStatus.filter(p => ['high_chlorine', 'low_chlorine', 'ph_low', 'ph_high'].includes(p.status)).length;
+      outOfRangePools = poolsWithStatus.filter((p) => outOfRangeStatuses.includes(p.status)).length;
       overduePools = poolsWithStatus.filter(p => p.status === 'overdue').length;
       dueSoonPools = poolsWithStatus.filter(p => p.status === 'due_soon').length;
       goodPools = poolsWithStatus.filter(p => p.status === 'good').length;
-      photosWaitingReview = allLogs.filter((log) => Boolean(log.photo_url)).length;
-
-      // Sort pools: Overdue and unsafe first, then by status priority
-      const statusPriority = {
-        overdue: 0,
-        high_chlorine: 1,
-        low_chlorine: 1,
-        ph_low: 1,
-        ph_high: 1,
-        due_soon: 2,
-        needs_retest: 3,
-        no_data: 4,
-        closed: 5,
-        good: 6
-      };
+      photosWaitingReview = isGuardView
+        ? allLogs.filter((log) => Boolean(log.photo_url) && (!guardId || log.submitted_by === guardId)).length
+        : allLogs.filter((log) => Boolean(log.photo_url)).length;
 
       poolsWithStatus.sort((a, b) => {
         const priorityA = statusPriority[a.status];
@@ -330,18 +273,26 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
     errorMessage = error instanceof Error ? error.message : String(error);
   }
 
-  const urgentPools = poolsWithStatus.filter((pool) => ['overdue', 'high_chlorine', 'low_chlorine', 'ph_low', 'ph_high'].includes(pool.status));
+  const urgentPools = poolsWithStatus.filter((pool) => urgentStatuses.includes(pool.status));
   const priorityActions = [
     ...dbAlertActions,
     ...poolsWithStatus
       .filter((pool) => pool.status === 'overdue')
-      .map((pool) => ({ tone: 'overdue' as StatusTone, title: `${pool.name} is overdue`, detail: 'Submit a chemical test or assign a guard.' })),
+      .map((pool) => ({
+        tone: 'overdue' as StatusTone,
+        title: `${pool.name} is overdue`,
+        detail: isGuardView ? 'Submit a chemical test for this pool now.' : 'Submit a chemical test or assign a guard.',
+      })),
     ...poolsWithStatus
-      .filter((pool) => pool.is_baby_pool && ['high_chlorine', 'low_chlorine', 'ph_low', 'ph_high'].includes(pool.status))
+      .filter((pool) => pool.is_baby_pool && outOfRangeStatuses.includes(pool.status))
       .map((pool) => ({ tone: 'critical' as StatusTone, title: `${pool.name} baby pool needs review`, detail: getStatusText(pool.status) })),
     ...poolsWithStatus
-      .filter((pool) => pool.latestLog && ['high_chlorine', 'low_chlorine', 'ph_low', 'ph_high'].includes(pool.status) && !pool.latestLog.photo_url)
-      .map((pool) => ({ tone: 'warning' as StatusTone, title: `${pool.name} is missing a review photo`, detail: 'Ask staff to attach verification on the next check.' })),
+      .filter((pool) => pool.latestLog && outOfRangeStatuses.includes(pool.status) && !pool.latestLog.photo_url)
+      .map((pool) => ({
+        tone: 'warning' as StatusTone,
+        title: `${pool.name} is missing a review photo`,
+        detail: isGuardView ? 'Attach a verification photo on your next log.' : 'Ask staff to attach verification on the next check.',
+      })),
     ...poolsWithStatus
       .filter((pool) => pool.status === 'due_soon')
       .map((pool) => ({ tone: 'warning' as StatusTone, title: `${pool.name} is due soon`, detail: formatRelativeDue(pool.latestLog) })),
@@ -374,21 +325,40 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
     return (
       <>
           <div className="mb-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Today&apos;s Pool Status</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Pool Operations Dashboard</h1>
-            <p className="mt-2 text-sm leading-6 text-slate-500">Real-time pool chemistry monitoring and management</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+              {isGuardView ? 'Your Assigned Pools' : "Today's Pool Status"}
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+              {isGuardView ? 'Guard Workbench' : 'Pool Operations Dashboard'}
+            </h1>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              {isGuardView
+                ? 'Monitor your pools, submit tests, and review your logs.'
+                : 'Real-time pool chemistry monitoring and management'}
+            </p>
           </div>
 
           <EmptyState
             icon={<Waves className="h-6 w-6" />}
-            title="No pools configured"
-            description="Create your first pool to start tracking tests, exceptions, and daily operations."
-            action={(
-              <Link href="/management/pools/new" className={buttonClass.primary}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Pool
-              </Link>
-            )}
+            title={isGuardView ? 'No pools assigned yet' : 'No pools configured'}
+            description={
+              isGuardView
+                ? 'Ask your manager to assign pools in Management → Team, or log any company pool if none are assigned yet.'
+                : 'Create your first pool to start tracking tests, exceptions, and daily operations.'
+            }
+            action={
+              isGuardView ? (
+                <Link href={withCompanyQuery('/guard/log')} className={buttonClass.primary}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Submit Log
+                </Link>
+              ) : (
+                <Link href="/management/pools/new" className={buttonClass.primary}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Pool
+                </Link>
+              )
+            }
           />
       </>
     );
@@ -397,15 +367,25 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
   return (
 
     <>
+        {isGuardView ? <GuardHomeExtras /> : null}
+
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Today&apos;s Pool Status</p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Pool Operations Dashboard</h1>
-              <p className="mt-2 text-sm leading-6 text-slate-500">Real-time pool chemistry monitoring and management</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                {isGuardView ? 'Your Assigned Pools' : "Today's Pool Status"}
+              </p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+                {isGuardView ? 'Guard Workbench' : 'Pool Operations Dashboard'}
+              </h1>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                {isGuardView
+                  ? 'Monitor your pools, submit tests, and review your logs.'
+                  : 'Real-time pool chemistry monitoring and management'}
+              </p>
             </div>
             <Link
-              href="/log"
+              href={withCompanyQuery(logHref)}
               data-sound="click"
               className="inline-flex h-9 items-center justify-center rounded-lg bg-blue-600 px-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
             >
@@ -416,18 +396,33 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
         </div>
 
         <div className="mb-6 flex flex-wrap gap-2">
-          <Link href="/management/team" className={buttonClass.secondary}>
-            <Users className="mr-2 h-4 w-4" />
-            Team
-          </Link>
-          <Link href="/management/compliance" className={buttonClass.secondary}>
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            Compliance
-          </Link>
-          <Link href="/management/alerts" className={buttonClass.secondary}>
-            <AlertCircle className="mr-2 h-4 w-4" />
-            Alerts{unreadAlertCount > 0 ? ` (${unreadAlertCount})` : ''}
-          </Link>
+          {isGuardView ? (
+            <>
+              <Link href={withCompanyQuery(reviewHref)} className={buttonClass.secondary}>
+                <ClipboardList className="mr-2 h-4 w-4" />
+                Review Logs
+              </Link>
+              <Link href={withCompanyQuery(announcementsHref)} className={buttonClass.secondary}>
+                <Megaphone className="mr-2 h-4 w-4" />
+                Announcements
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/management/team" className={buttonClass.secondary}>
+                <Users className="mr-2 h-4 w-4" />
+                Team
+              </Link>
+              <Link href="/management/compliance" className={buttonClass.secondary}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Compliance
+              </Link>
+              <Link href="/management/alerts" className={buttonClass.secondary}>
+                <AlertCircle className="mr-2 h-4 w-4" />
+                Alerts{unreadAlertCount > 0 ? ` (${unreadAlertCount})` : ''}
+              </Link>
+            </>
+          )}
         </div>
 
         <div className={`mb-6 rounded-xl border p-4 ${urgentPools.length > 0 ? 'border-red-200 bg-red-50 text-red-800' : 'border-green-200 bg-green-50 text-green-800'}`}>
@@ -441,13 +436,20 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
                     : 'All pools on track'}
                 </p>
                 <p className="mt-1 text-sm opacity-85">
-                  {urgentPools.length > 0 ? 'Review priority actions before the next guard rotation.' : 'No urgent pool chemistry issues are currently flagged.'}
+                  {urgentPools.length > 0
+                    ? isGuardView
+                      ? 'Submit tests for overdue or out-of-range pools first.'
+                      : 'Review priority actions before the next guard rotation.'
+                    : 'No urgent pool chemistry issues are currently flagged.'}
                 </p>
               </div>
             </div>
-            {urgentPools.length > 0 || unreadAlertCount > 0 ? (
-              <Link href="/management/alerts" className="inline-flex h-9 items-center justify-center rounded-lg bg-white px-3 text-sm font-semibold text-red-700 shadow-sm ring-1 ring-red-200 hover:bg-red-50">
-                View Alerts{unreadAlertCount > 0 ? ` (${unreadAlertCount})` : ''}
+            {urgentPools.length > 0 || (!isGuardView && unreadAlertCount > 0) ? (
+              <Link
+                href={isGuardView ? withCompanyQuery(reviewHref) : '/management/alerts'}
+                className="inline-flex h-9 items-center justify-center rounded-lg bg-white px-3 text-sm font-semibold text-red-700 shadow-sm ring-1 ring-red-200 hover:bg-red-50"
+              >
+                {isGuardView ? 'Review Pools' : `View Alerts${unreadAlertCount > 0 ? ` (${unreadAlertCount})` : ''}`}
               </Link>
             ) : null}
           </div>
@@ -460,7 +462,12 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
           <StatCard label="Overdue" value={overduePools} icon={<Clock3 className="h-5 w-5" />} tone="overdue" />
           <StatCard label="Out of Range" value={outOfRangePools} icon={<AlertCircle className="h-5 w-5" />} tone="critical" />
           <StatCard label="Tests Today" value={testsToday} icon={<ClipboardCheck className="h-5 w-5" />} tone="info" />
-          <StatCard label="Photos Waiting Review" value={photosWaitingReview || '0'} icon={<Camera className="h-5 w-5" />} tone="neutral" />
+          <StatCard
+            label={isGuardView ? 'My Photos' : 'Photos Waiting Review'}
+            value={photosWaitingReview || '0'}
+            icon={<Camera className="h-5 w-5" />}
+            tone="neutral"
+          />
         </div>
 
         <div id="priority-actions" className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
@@ -498,7 +505,7 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
             </div>
             <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
               <span className="rounded-md bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white">Card View</span>
-              <Link href="/management/logs" className="rounded-md px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-900">
+              <Link href={withCompanyQuery(reviewHref)} className="rounded-md px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-900">
                 Table View
               </Link>
             </div>
@@ -532,10 +539,10 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
                   </div>
                 </dl>
                 <div className="mt-4 flex gap-2">
-                  <Link href={`/log?poolId=${pool.id}`} className={buttonClass.primary}>Log Test</Link>
-                  <Link href={`/management/pools/${pool.id}`} className={buttonClass.secondary}>
+                  <Link href={withCompanyQuery(poolLogHref(pool.id))} className={buttonClass.primary}>Log Test</Link>
+                  <Link href={withCompanyQuery(poolHistoryHref(pool.id))} className={buttonClass.secondary}>
                     <Eye className="mr-2 h-4 w-4" />
-                    View History
+                    {isGuardView ? 'My Logs' : 'View History'}
                   </Link>
                 </div>
               </div>
@@ -557,7 +564,7 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
               <h3 className="mt-4 text-sm font-medium text-slate-900">No tests recorded yet</h3>
               <p className="mt-2 text-sm text-slate-500">Start by submitting a chemical log from the pools.</p>
               <Link
-                href="/log"
+                href={withCompanyQuery(logHref)}
                 data-sound="click"
                 className="mt-4 inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700"
               >
@@ -621,7 +628,7 @@ export default async function Dashboard({ devCompanyId }: { devCompanyId?: strin
                           {latestLog?.submitted_by ? submitterMap.get(latestLog.submitted_by) || 'Unknown' : 'Not recorded'}
                         </td>
                         <td className="px-4 sm:px-6 py-4 text-right">
-                          <Link href={`/log?poolId=${pool.id}`} className={buttonClass.secondary}>
+                          <Link href={withCompanyQuery(poolLogHref(pool.id))} className={buttonClass.secondary}>
                             Log
                           </Link>
                         </td>
