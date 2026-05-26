@@ -18,6 +18,7 @@ export default function ChemDeckLogo({
     : scheme === "dark" ? "/chemdeck-mark-dark.svg" : "/chemdeck-mark.svg";
   const width = variant === "full" ? 176 : 40;
   const height = variant === "full" ? 40 : 40;
+  const defaultClassName = variant === "full" ? "h-auto w-44 max-w-full" : "h-10 w-10";
 
   return (
     <Image
@@ -25,8 +26,7 @@ export default function ChemDeckLogo({
       alt={alt}
       width={width}
       height={height}
-      className={`${variant === "full" ? "h-auto w-44 max-w-full" : "h-10 w-10"} shrink-0 object-contain ${className}`}
-      style={{ width: variant === "full" ? "auto" : undefined, height: "auto" }}
+      className={`shrink-0 object-contain ${className || defaultClassName}`}
       draggable={false}
       priority={variant === "full"}
     />

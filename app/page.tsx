@@ -123,7 +123,7 @@ export default function Home() {
       <header className="fixed inset-x-0 top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur">
         <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Link href="/" aria-label="ChemDeck home">
-            <ChemDeckLogo variant="full" className="w-36" />
+            <ChemDeckLogo variant="full" className="h-8 w-auto" />
           </Link>
 
           <div className="hidden items-center gap-8 md:flex">
