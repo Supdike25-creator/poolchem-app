@@ -107,8 +107,9 @@ export default function AdminActionPanel({
           defaultValue=""
         >
           <option value="" disabled>Change role</option>
-          <option value="boss">boss</option>
-          <option value="guard">guard</option>
+          <option value="guard">lifeguard</option>
+          <option value="manager">manager</option>
+          <option value="supervisor">supervisor</option>
           <option value="dev">dev</option>
         </select>
         <select

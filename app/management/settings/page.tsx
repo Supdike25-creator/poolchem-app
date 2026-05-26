@@ -238,7 +238,14 @@ export default function ManagementSettingsPage() {
   };
 
   const rawRole = profile?.role?.toLowerCase().trim() || '';
-  const isBoss = ['boss', 'manager', 'admin', 'supervisor', 'owner'].includes(rawRole);
+  const isManager = ['boss', 'manager', 'admin', 'supervisor', 'owner'].includes(rawRole);
+  const roleDisplayName = (() => {
+    if (rawRole === 'supervisor') return 'Supervisor';
+    if (isManager) return 'Manager';
+    if (['guard', 'worker', 'lifeguard'].includes(rawRole)) return 'Lifeguard';
+    if (rawRole === 'dev') return 'Dev';
+    return rawRole || 'User';
+  })();
   const displayCompanyName = companyDetails?.company_name || settings.companyName;
 
   if (loading) {
@@ -548,7 +555,7 @@ export default function ManagementSettingsPage() {
           <SectionHeader
             icon={<Building2 className="h-4 w-4" />}
             title="Company / Workspace"
-            description={isBoss ? "Share the company code with staff joining this workspace." : "Your assigned ChemDeck company workspace."}
+            description={isManager ? "Share the company code with staff joining this workspace." : "Your assigned ChemDeck company workspace."}
           />
 
           <div className="space-y-3">
@@ -559,7 +566,7 @@ export default function ManagementSettingsPage() {
               </div>
             </div>
 
-            {isBoss ? (
+            {isManager ? (
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Company Code</p>
                 <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -603,11 +610,11 @@ export default function ManagementSettingsPage() {
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center gap-2 text-sm text-slate-700">
                 <Users className="h-4 w-4 text-slate-500" />
-                <span>Current role: {isBoss ? 'Manager / Supervisor' : 'Guard / Technician'}</span>
+                <span>Current role: {roleDisplayName}</span>
               </div>
               <p className="mt-3 text-sm text-slate-600">
-                {isBoss
-                  ? 'Invite guards from the Team page and approve pending members there.'
+                {isManager
+                  ? 'Invite lifeguards from the Team page and approve pending members there.'
                   : 'Contact your manager if you need to switch companies.'}
               </p>
             </div>

@@ -27,6 +27,7 @@ const DEV_ALLOWED_PATHS = [
   "/dev-dashboard",
   "/dev-admin",
   "/worker-view",
+  "/manager-view",
   "/boss-view",
   "/guard",
   "/management",

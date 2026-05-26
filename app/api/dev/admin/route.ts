@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
       if (!body.id) return jsonError('Missing user id.');
 
       if (body.action === 'change-role') {
-        if (!['boss', 'guard', 'dev'].includes(body.role ?? '')) {
+        if (!['manager', 'supervisor', 'guard', 'dev', 'boss'].includes(body.role ?? '')) {
           return jsonError('Invalid role.');
         }
         const { error } = await supabase.from('users').update({ role: body.role }).eq('id', body.id);

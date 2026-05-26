@@ -51,7 +51,7 @@ function DevBranchingPanelInner({
   const urlCompanyId = searchParams.get('companyId');
   const resolvedInitial = resolveCompanyId(initialCompanyId || urlCompanyId, companies);
   const [activeCompanyId, setActiveCompanyId] = useState(resolvedInitial);
-  const [perspective, setPerspective] = useState<'boss' | 'lifeguard' | ''>('');
+  const [perspective, setPerspective] = useState<'manager' | 'lifeguard' | ''>('');
   const [companyName, setCompanyName] = useState('');
   const [companyCode, setCompanyCode] = useState('');
   const [renameValue, setRenameValue] = useState('');
@@ -216,10 +216,10 @@ function DevBranchingPanelInner({
     }
   };
 
-  const choosePerspective = (nextPerspective: 'boss' | 'lifeguard') => {
+  const choosePerspective = (nextPerspective: 'manager' | 'lifeguard') => {
     if (!activeCompanyId) return;
     setPerspective(nextPerspective);
-    const route = nextPerspective === 'boss' ? '/boss-view' : '/worker-view';
+    const route = nextPerspective === 'manager' ? '/manager-view' : '/worker-view';
     router.push(`${route}?companyId=${encodeURIComponent(activeCompanyId)}`);
   };
 
@@ -328,11 +328,11 @@ function DevBranchingPanelInner({
 
             <div className="mt-4 flex flex-wrap gap-2">
               <Link
-                href={`/boss-view?companyId=${encodeURIComponent(activeCompanyId)}`}
+                href={`/manager-view?companyId=${encodeURIComponent(activeCompanyId)}`}
                 className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-                Boss POV
+                Manager POV
               </Link>
               <Link
                 href={`/worker-view?companyId=${encodeURIComponent(activeCompanyId)}`}
@@ -488,15 +488,15 @@ function DevBranchingPanelInner({
           <button
             type="button"
             disabled={!activeCompanyId}
-            onClick={() => choosePerspective('boss')}
+            onClick={() => choosePerspective('manager')}
             className={`inline-flex h-11 items-center justify-center gap-2 rounded-md border px-3 text-sm font-semibold transition ${
-              perspective === 'boss'
+              perspective === 'manager'
                 ? 'border-blue-300 bg-blue-50 text-blue-800'
                 : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45'
             }`}
           >
             <Shield className="h-4 w-4" />
-            Boss POV
+            Manager POV
           </button>
           <button
             type="button"
@@ -517,7 +517,7 @@ function DevBranchingPanelInner({
           <div className="mt-5 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
             <p className="font-semibold text-slate-900">Quick test checklist</p>
             <ul className="mt-2 list-disc space-y-1 pl-5">
-              <li>Open Boss POV and verify dashboard loads.</li>
+              <li>Open Manager POV and verify dashboard loads.</li>
               <li>Open Lifeguard POV and submit a test log.</li>
               <li>Use Tool Actions below for simulate alert / test chem log.</li>
               <li>Confirm company code works on the join-company screen.</li>

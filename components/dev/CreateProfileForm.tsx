@@ -21,7 +21,7 @@ export default function CreateProfileForm({ companies }: { companies: AdminCompa
   const [passcode, setPasscode] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState('worker');
+  const [role, setRole] = useState('guard');
   const [companyId, setCompanyId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<CreateResult | null>(null);
@@ -124,8 +124,9 @@ export default function CreateProfileForm({ companies }: { companies: AdminCompa
         <label className="block text-sm">
           <span className="mb-1 block font-semibold text-slate-700">Role</span>
           <select value={role} onChange={(event) => setRole(event.target.value)} className="h-10 w-full rounded-lg border border-slate-300 px-3">
-            <option value="worker">worker / guard</option>
-            <option value="boss">boss / manager</option>
+            <option value="guard">lifeguard</option>
+            <option value="manager">manager</option>
+            <option value="supervisor">supervisor</option>
             <option value="dev">dev</option>
           </select>
         </label>

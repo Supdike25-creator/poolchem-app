@@ -23,9 +23,9 @@ import { isDevCredentials } from '@/lib/auth/devSession';
 import { createClient } from '@/utils/supabase/client';
 
 const roleLabels: Record<AppRole, string> = {
-  manager: 'Manager / Supervisor',
-  guard: 'Guard / Technician',
-  dev: 'Developer',
+  manager: 'Manager',
+  guard: 'Lifeguard',
+  dev: 'Dev',
 };
 
 const devAccount: AppAccount = {

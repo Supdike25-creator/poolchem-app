@@ -29,9 +29,9 @@ type Profile = {
 };
 
 const roleLabels: Record<AppRole, string> = {
-  manager: 'Manager / Supervisor',
-  guard: 'Guard / Technician',
-  dev: 'Developer',
+  manager: 'Manager',
+  guard: 'Lifeguard',
+  dev: 'Dev',
 };
 
 const clearLegacyAppSession = () => {
@@ -250,7 +250,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
             <ChemDeckLogo variant="mark" className="h-10 w-10 group-hover:hidden group-focus-within:hidden" />
             <div className="sidebar-label hidden min-w-0 group-hover:block group-focus-within:block">
               <ChemDeckLogo variant="full" className="w-40" />
-              <p className="mt-1 truncate text-sm font-semibold text-slate-950">{role === 'manager' ? 'Management' : 'Guard'}</p>
+              <p className="mt-1 truncate text-sm font-semibold text-slate-950">{role === 'manager' ? 'Management' : 'Lifeguard'}</p>
             </div>
           </div>
         )}
@@ -279,7 +279,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
                   <ChemDeckLogo variant="full" className="hidden w-40 sm:block" />
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{roleLabels[role]}</p>
-                    <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{role === 'manager' ? 'Management Workspace' : 'Guard Workbench'}</h1>
+                    <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{role === 'manager' ? 'Management Workspace' : 'Lifeguard Workbench'}</h1>
                   </div>
                 </div>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">

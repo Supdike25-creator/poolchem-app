@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const toDateInputValue = (date: Date) => {
@@ -39,9 +39,12 @@ const formatSelectedDate = (value: string) => {
 
 export default function LogDateSlider({ selectedDate }: { selectedDate: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const updateDate = (value: string) => {
-    router.push(`/management/logs?date=${value}`);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('date', value);
+    router.push(`/management/logs?${params.toString()}`);
   };
 
   const presets = [

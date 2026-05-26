@@ -37,14 +37,14 @@ export const mainNavItems: SidebarNavItem[] = [
 
 export const buildManagerNavItems = (companyId?: string | null): SidebarNavItem[] => {
   const query = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
-  const overviewHref = companyId ? `/boss-view${query}` : '/management/dashboard';
+  const overviewHref = companyId ? `/manager-view${query}` : '/management/dashboard';
 
   return [
     {
       label: 'Overview',
       href: overviewHref,
       icon: LayoutDashboard,
-      match: ['/dashboard', '/management/dashboard', '/boss-view'],
+      match: ['/dashboard', '/management/dashboard', '/manager-view', '/boss-view'],
     },
     {
       label: 'Submit Log',

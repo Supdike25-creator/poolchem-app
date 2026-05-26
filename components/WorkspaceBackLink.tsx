@@ -8,7 +8,7 @@ export function getWorkspaceHome(role: 'manager' | 'guard', companyId?: string |
     return companyId ? `/worker-view?companyId=${encodeURIComponent(companyId)}` : '/guard';
   }
 
-  return companyId ? `/boss-view?companyId=${encodeURIComponent(companyId)}` : '/management/dashboard';
+  return companyId ? `/manager-view?companyId=${encodeURIComponent(companyId)}` : '/management/dashboard';
 }
 
 function isWorkspaceHome(pathname: string, role: 'manager' | 'guard') {
@@ -16,7 +16,7 @@ function isWorkspaceHome(pathname: string, role: 'manager' | 'guard') {
     return pathname === '/guard' || pathname === '/worker-view';
   }
 
-  return pathname === '/management/dashboard' || pathname === '/boss-view' || pathname === '/dashboard';
+  return pathname === '/management/dashboard' || pathname === '/manager-view' || pathname === '/boss-view' || pathname === '/dashboard';
 }
 
 function pageHasOwnBack(pathname: string) {

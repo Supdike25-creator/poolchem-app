@@ -5,6 +5,8 @@ import LogDateSlider from '../../../components/LogDateSlider';
 import ManagementLogFilters from '../../../components/ManagementLogFilters';
 import { getServerAppSession } from '../../../lib/serverAppSession';
 import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { resolveCompanyScopeId } from '@/lib/resolveCompanyScopeId';
 import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
 import { EmptyState, PageHeader, SectionCard, StatCard, StatusBadge, buttonClass, type StatusTone } from '../../../components/OperationsUI';
 import { ClipboardList, Clock3, Filter, FileSpreadsheet, Rows3, Waves } from 'lucide-react';
@@ -78,39 +80,54 @@ const getLogStatusKey = (log: ChemicalLogRow) => {
   return 'legacy';
 };
 
-export default async function ManagementLogsPage({ searchParams }: { searchParams: Promise<{ date?: string; q?: string; status?: string; logger?: string; photo?: string }> }) {
+export default async function ManagementLogsPage({ searchParams }: { searchParams: Promise<{ date?: string; q?: string; status?: string; logger?: string; photo?: string; companyId?: string }> }) {
   const params = await searchParams;
   const selectedDate = getSelectedDate(params?.date);
   const dayStart = new Date(`${selectedDate}T00:00:00`);
   const dayEnd = new Date(dayStart);
   dayEnd.setDate(dayEnd.getDate() + 1);
 
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
   const appSession = await getServerAppSession();
+  const isDevPreview = appSession?.role === 'dev';
+  const resolvedDevCompanyId = isDevPreview ? await resolveCompanyScopeId(params?.companyId) : undefined;
 
-  if (!temporaryLoginBypass && !session?.user && appSession?.role !== 'manager') {
-    redirect('/login');
-  }
-
-  let companyId: string | null = null;
-  if (session?.user) {
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('company_id, role')
-      .eq('id', session.user.id)
-      .single();
-
-    companyId = profileData?.company_id || null;
-
-    if (!companyId) {
-      redirect('/enter-company-code');
-    }
-
-    if (!['boss', 'manager', 'supervisor', 'admin'].includes(profileData?.role ?? '')) {
-      redirect('/guard');
+  if (!temporaryLoginBypass && !isDevPreview && appSession?.role !== 'manager') {
+    const supabase = await createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      redirect('/login');
     }
   }
+
+  if (isDevPreview && !resolvedDevCompanyId) {
+    redirect('/dev-dashboard');
+  }
+
+  const supabase = resolvedDevCompanyId ? createAdminClient() : await createClient();
+  let companyId: string | null = resolvedDevCompanyId ?? null;
+
+  if (!companyId) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('company_id, role')
+        .eq('id', session.user.id)
+        .single();
+
+      companyId = profileData?.company_id || null;
+
+      if (!companyId) {
+        redirect('/enter-company-code');
+      }
+
+      if (!['boss', 'manager', 'supervisor', 'admin'].includes(profileData?.role ?? '')) {
+        redirect('/guard');
+      }
+    }
+  }
+
+  const companyQuery = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
 
   let poolsQuery = supabase
     .from('pools')
@@ -180,11 +197,11 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
           icon={<ClipboardList className="h-4 w-4" />}
           actions={(
             <>
-              <Link href="/management/compliance" className={buttonClass.secondary}>
+              <Link href={`/management/compliance${companyQuery}`} className={buttonClass.secondary}>
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
                 Compliance report
               </Link>
-              <Link href="/management/team" className={buttonClass.secondary}>
+              <Link href={`/management/team${companyQuery}`} className={buttonClass.secondary}>
                 Team invites
               </Link>
             </>
@@ -196,7 +213,9 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
           </div>
         ) : null}
 
-        <LogDateSlider selectedDate={selectedDate} />
+        <Suspense fallback={<div className="h-24 rounded-xl bg-slate-100" />}>
+          <LogDateSlider selectedDate={selectedDate} />
+        </Suspense>
 
         <div className="grid gap-3 sm:grid-cols-3">
           <StatCard label="Rows" value={filteredLogs.length} icon={<Rows3 className="h-5 w-5" />} tone="info" />
