@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
+import { getStoredSession } from '@/lib/appAccounts';
+import { useDevCompanyScope } from '@/lib/useDevCompanyScope';
 import BackButton from '../../../../../components/BackButton';
 
 interface PoolData {
@@ -21,6 +23,8 @@ interface PoolData {
 export default function EditPoolPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const router = useRouter();
+  const { companyId, query } = useDevCompanyScope();
+  const poolsHref = `/management/pools${query}`;
   const [pool, setPool] = useState<PoolData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -44,11 +48,41 @@ export default function EditPoolPage({ params }: { params: { id: string } }) {
 
     const loadPool = async () => {
       setLoading(true);
-      const supabase = createClient();
-      const { data, error } = await supabase.from('pools').select('*').eq('id', id).single();
+      const devSession = getStoredSession()?.role === 'dev';
 
-      if (error) {
-        setError(error.message);
+      if (devSession || companyId) {
+        const response = await fetch(`/api/management/pools/${id}${query}`, {
+          cache: 'no-store',
+          credentials: 'same-origin',
+        });
+        const result = await response.json().catch(() => null);
+
+        if (!response.ok || !result?.ok) {
+          setError(result?.message || 'Unable to load pool.');
+          setLoading(false);
+          return;
+        }
+
+        const data = result.pool as PoolData;
+        setPool(data);
+        setName(data.name || '');
+        setPoolType(data.pool_type || '');
+        setVolume(data.volume_gallons?.toString() || '');
+        setChlorineMin(data.target_chlorine_min?.toString() || '');
+        setChlorineMax(data.target_chlorine_max?.toString() || '');
+        setPhMin(data.target_ph_min?.toString() || '');
+        setPhMax(data.target_ph_max?.toString() || '');
+        setChlorineStrength(data.default_chlorine_strength?.toString() || '');
+        setNotes(data.notes || '');
+        setLoading(false);
+        return;
+      }
+
+      const supabase = createClient();
+      const { data, error: loadError } = await supabase.from('pools').select('*').eq('id', id).single();
+
+      if (loadError) {
+        setError(loadError.message);
         setLoading(false);
         return;
       }
@@ -70,7 +104,7 @@ export default function EditPoolPage({ params }: { params: { id: string } }) {
     };
 
     loadPool();
-  }, [id, router]);
+  }, [id, router, companyId, query]);
 
   const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -78,6 +112,38 @@ export default function EditPoolPage({ params }: { params: { id: string } }) {
 
     setSaving(true);
     setError('');
+
+    const devSession = getStoredSession()?.role === 'dev';
+
+    if (devSession || companyId) {
+      const response = await fetch(`/api/management/pools/${id}${query}`, {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          pool_type: poolType,
+          volume_gallons: Number(volume) || null,
+          target_chlorine_min: Number(chlorineMin) || null,
+          target_chlorine_max: Number(chlorineMax) || null,
+          target_ph_min: Number(phMin) || null,
+          target_ph_max: Number(phMax) || null,
+          default_chlorine_strength: Number(chlorineStrength) || null,
+          notes,
+        }),
+      });
+
+      const result = await response.json().catch(() => null);
+      setSaving(false);
+
+      if (!response.ok || !result?.ok) {
+        setError(result?.message || 'Unable to save pool.');
+        return;
+      }
+
+      router.push(poolsHref);
+      return;
+    }
 
     const supabase = createClient();
     const { error: updateError } = await supabase
@@ -101,7 +167,7 @@ export default function EditPoolPage({ params }: { params: { id: string } }) {
       return;
     }
 
-    router.push('/management/pools');
+    router.push(poolsHref);
   };
 
   return (
@@ -119,7 +185,7 @@ export default function EditPoolPage({ params }: { params: { id: string } }) {
         </div>
         <p className="mt-2 text-sm text-slate-600">Update the pool configuration and dosing targets.</p>
         </div>
-        <BackButton fallbackHref="/management/pools" label="Back" />
+        <BackButton fallbackHref={poolsHref} label="Back" />
       </div>
 
       {loading ? (
@@ -251,7 +317,7 @@ export default function EditPoolPage({ params }: { params: { id: string } }) {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-4 border-t border-slate-200">
             <button
               type="button"
-              onClick={() => router.push('/management/pools')}
+              onClick={() => router.push(poolsHref)}
               className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
