@@ -35,32 +35,39 @@ export default function NewPoolForm() {
 
     setSubmitting(true);
 
-    const response = await fetch(`/api/management/pools${query}`, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name,
-        pool_type: poolType,
-        volume_gallons: Number(volume) || null,
-        target_chlorine_min: Number(chlorineMin) || 0,
-        target_chlorine_max: Number(chlorineMax) || 0,
-        target_ph_min: Number(phMin) || 0,
-        target_ph_max: Number(phMax) || 0,
-        default_chlorine_strength: Number(chlorineStrength) || null,
-        notes,
-      }),
-    });
+    try {
+      const response = await fetch(`/api/management/pools${query}`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId,
+          name,
+          pool_type: poolType,
+          volume_gallons: Number(volume) || null,
+          target_chlorine_min: Number(chlorineMin) || 0,
+          target_chlorine_max: Number(chlorineMax) || 0,
+          target_ph_min: Number(phMin) || 0,
+          target_ph_max: Number(phMax) || 0,
+          default_chlorine_strength: Number(chlorineStrength) || null,
+          notes,
+        }),
+      });
 
-    const result = await response.json().catch(() => null);
-    setSubmitting(false);
+      const result = await response.json().catch(() => null);
 
-    if (!response.ok || !result?.ok) {
-      setError(result?.message || 'Unable to create pool.');
-      return;
+      if (!response.ok || !result?.ok) {
+        setError(result?.message || 'Unable to create pool.');
+        return;
+      }
+
+      router.push(poolsHref);
+      router.refresh();
+    } catch {
+      setError('Network error while creating pool. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
-
-    router.push(poolsHref);
   };
 
   return (

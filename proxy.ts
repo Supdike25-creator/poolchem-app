@@ -47,6 +47,10 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL("/dev-dashboard", request.url));
     }
 
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.next({ request });
+    }
+
     if (DEV_ALLOWED_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
       return NextResponse.next({ request });
     }

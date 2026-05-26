@@ -40,23 +40,30 @@ export default function ManagementPoolsView() {
           return;
         }
 
-        const response = await fetch(`/api/company-pools${query}`, {
-          cache: 'no-store',
-          credentials: 'same-origin',
-        });
-        const result = await response.json().catch(() => null);
+        try {
+          const response = await fetch(`/api/company-pools${query}`, {
+            cache: 'no-store',
+            credentials: 'same-origin',
+          });
+          const result = await response.json().catch(() => null);
 
-        if (!active) return;
+          if (!active) return;
 
-        if (!response.ok || !result?.ok) {
-          setPoolList([]);
-          setError(result?.message || 'Unable to load pools.');
-          setLoading(false);
-          return;
+          if (!response.ok || !result?.ok) {
+            setPoolList([]);
+            setError(result?.message || 'Unable to load pools.');
+            return;
+          }
+
+          setPoolList(result.pools ?? []);
+        } catch {
+          if (active) {
+            setPoolList([]);
+            setError('Network error while loading pools.');
+          }
+        } finally {
+          if (active) setLoading(false);
         }
-
-        setPoolList(result.pools ?? []);
-        setLoading(false);
         return;
       }
 
@@ -80,8 +87,17 @@ export default function ManagementPoolsView() {
 
     void loadPools();
 
+    const refresh = () => {
+      void loadPools();
+    };
+
+    window.addEventListener('focus', refresh);
+    window.addEventListener('chemdeck-dev-company-change', refresh);
+
     return () => {
       active = false;
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('chemdeck-dev-company-change', refresh);
     };
   }, [companyId, query]);
 

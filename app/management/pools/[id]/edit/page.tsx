@@ -121,6 +121,7 @@ export default function EditPoolPage({ params }: { params: { id: string } }) {
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          companyId,
           name,
           pool_type: poolType,
           volume_gallons: Number(volume) || null,

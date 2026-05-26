@@ -23,6 +23,19 @@ export type ApiCompanyScope = {
 type ScopeSuccess = { ok: true; scope: ApiCompanyScope };
 type ScopeFailure = { ok: false; response: NextResponse };
 
+const readDevCompanyIdFromBody = async (request: NextRequest) => {
+  if (request.method === 'GET' || request.method === 'HEAD') {
+    return null;
+  }
+
+  try {
+    const body = (await request.clone().json()) as { companyId?: string | null } | null;
+    return body?.companyId?.trim() || null;
+  } catch {
+    return null;
+  }
+};
+
 export async function resolveApiCompanyScope(request?: NextRequest): Promise<ScopeSuccess | ScopeFailure> {
   const supabase = await createClient();
   const {
@@ -34,7 +47,7 @@ export async function resolveApiCompanyScope(request?: NextRequest): Promise<Sco
   const accountDb = adminClient ?? supabase;
 
   const rawDevCompanyId = request && isDevRequest(request)
-    ? request.nextUrl.searchParams.get('companyId')
+    ? request.nextUrl.searchParams.get('companyId') ?? (await readDevCompanyIdFromBody(request))
     : null;
 
   const devCompanyId = rawDevCompanyId && adminClient
