@@ -401,7 +401,7 @@ export default function Home() {
         <div className="mx-auto max-w-6xl px-6">
           <div className="mb-16 grid grid-cols-2 gap-12 md:grid-cols-4">
             <div>
-              <ChemDeckLogo variant="full" className="w-36 brightness-0 invert" />
+              <ChemDeckLogo variant="full" scheme="dark" className="h-10 w-auto" />
               <p className="mt-4 max-w-xs text-sm leading-relaxed text-slate-400">
                 Pool chemistry management for modern aquatic facilities and operations teams.
               </p>
