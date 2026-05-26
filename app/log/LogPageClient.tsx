@@ -297,8 +297,11 @@ export default function LogPageClient() {
     const payload = new FormData();
     payload.append('file', formData.photo);
     payload.append('pool_id', poolId);
+    if (companyId) {
+      payload.append('companyId', companyId);
+    }
 
-    const response = await fetch('/api/upload-log-photo', {
+    const response = await fetch(`/api/upload-log-photo${query}`, {
       method: 'POST',
       body: payload,
       credentials: 'same-origin',
@@ -319,22 +322,26 @@ export default function LogPageClient() {
     try {
       if (!formData.poolId) {
         setSubmitError('Select a pool before submitting.');
-        setIsSubmitting(false);
+        return;
+      }
+
+      if (!companyId && getStoredSession()?.role === 'dev') {
+        setSubmitError('Select a company from Dev Dashboard before submitting logs.');
         return;
       }
 
       if (activePhotoRequirementMessage) {
         setSubmitError(activePhotoRequirementMessage);
-        setIsSubmitting(false);
         return;
       }
 
       const photoUrl = await uploadPhotoIfNeeded(formData.poolId);
-      const response = await fetch('/api/guard-log', {
+      const response = await fetch(`/api/guard-log${query}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         credentials: 'same-origin',
         body: JSON.stringify({
+          companyId,
           pool_id: formData.poolId,
           free_chlorine: Number(formData.freeChlorine),
           ph: Number(formData.ph),
@@ -367,11 +374,10 @@ export default function LogPageClient() {
         setCurrentStep('pool');
         setTimeout(() => setSubmitMessage(''), 3000);
       }
-
-      setIsSubmitting(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setSubmitError(`Unable to submit chemical log: ${message}`);
+    } finally {
       setIsSubmitting(false);
     }
   };

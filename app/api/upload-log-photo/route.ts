@@ -1,23 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { resolveApiCompanyScope } from '@/lib/apiCompanyScope';
+import { isUuid } from '@/lib/devCompanyScope';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  const context = await resolveApiCompanyScope(request);
+  if (!context.ok) return context.response;
 
-  if (authError || !user) {
-    return NextResponse.json({ ok: false, message: 'Unauthorized.' }, { status: 401 });
-  }
+  const { companyId, userId, accountDb } = context.scope;
+  const submitterKey = userId && isUuid(userId) ? userId : 'dev-preview';
 
   const formData = await request.formData().catch(() => null);
   const file = formData?.get('file');
   const poolId = String(formData?.get('pool_id') ?? '').trim();
+  const rawCompanyId = String(formData?.get('companyId') ?? '').trim();
 
   if (!(file instanceof File) || !poolId) {
     return NextResponse.json({ ok: false, message: 'Photo file and pool are required.' }, { status: 400 });
@@ -31,17 +28,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, message: 'Photo must be 8 MB or smaller.' }, { status: 400 });
   }
 
-  const accountDb = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase;
-  const { data: account } = await accountDb
-    .from('users')
-    .select('company_id')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  const companyId = account?.company_id ?? null;
-  if (!companyId) {
-    return NextResponse.json({ ok: false, message: 'Join a company before uploading photos.' }, { status: 400 });
-  }
+  const scopedCompanyId = rawCompanyId || companyId;
 
   const { data: pool } = await accountDb
     .from('pools')
@@ -49,12 +36,12 @@ export async function POST(request: NextRequest) {
     .eq('id', poolId)
     .maybeSingle();
 
-  if (!pool || pool.company_id !== companyId) {
+  if (!pool || pool.company_id !== scopedCompanyId) {
     return NextResponse.json({ ok: false, message: 'That pool does not belong to your company.' }, { status: 403 });
   }
 
   const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-  const objectPath = `${companyId}/${poolId}/${user.id}-${Date.now()}.${extension}`;
+  const objectPath = `${scopedCompanyId}/${poolId}/${submitterKey}-${Date.now()}.${extension}`;
   const buffer = Buffer.from(await file.arrayBuffer());
 
   const { error: uploadError } = await accountDb.storage

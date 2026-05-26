@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { resolveApiCompanyScope } from '@/lib/apiCompanyScope';
+import { isUuid } from '@/lib/devCompanyScope';
 import { mergeCompanySettings, getPhotoRequirementMessage } from '@/lib/companySettings';
 import { createAlertsForLog } from '@/lib/alerts';
 
@@ -8,34 +9,20 @@ export const dynamic = 'force-dynamic';
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-const getAuthContext = async () => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return { error: NextResponse.json({ ok: false, message: 'Unauthorized.' }, { status: 401 }) };
+const getLogContext = async (request: NextRequest) => {
+  const context = await resolveApiCompanyScope(request);
+  if (!context.ok) {
+    return { error: context.response };
   }
 
-  const accountDb = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase;
-  const { data: account } = await accountDb
-    .from('users')
-    .select('company_id')
-    .eq('id', user.id)
-    .maybeSingle();
+  const { companyId, userId, accountDb, isDevPreview } = context.scope;
+  const submitterId = userId && isUuid(userId) ? userId : null;
 
-  const companyId = account?.company_id ?? null;
-  if (!companyId) {
-    return { error: NextResponse.json({ ok: false, message: 'Join a company before submitting logs.' }, { status: 400 }) };
-  }
-
-  return { user, companyId, accountDb };
+  return { companyId, accountDb, submitterId, isDevPreview };
 };
 
 export async function GET(request: NextRequest) {
-  const context = await getAuthContext();
+  const context = await getLogContext(request);
   if ('error' in context && context.error) return context.error;
 
   const logId = request.nextUrl.searchParams.get('logId')?.trim();
@@ -43,7 +30,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, message: 'Log id is required.' }, { status: 400 });
   }
 
-  const { user, accountDb } = context;
+  const { submitterId, accountDb, isDevPreview } = context;
   const { data: log, error } = await accountDb
     .from('chemical_logs')
     .select('id, pool_id, submitted_by, free_chlorine, ph, notes, photo_url, created_at')
@@ -54,7 +41,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, message: error?.message || 'Log not found.' }, { status: 404 });
   }
 
-  if (log.submitted_by !== user.id) {
+  if (!isDevPreview && submitterId && log.submitted_by !== submitterId) {
     return NextResponse.json({ ok: false, message: 'You can only edit your own logs.' }, { status: 403 });
   }
 
@@ -62,7 +49,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const context = await getAuthContext();
+  const context = await getLogContext(request);
   if ('error' in context && context.error) return context.error;
 
   const body = await request.json().catch(() => null) as {
@@ -75,6 +62,7 @@ export async function POST(request: NextRequest) {
     dosing_unit?: string | null;
     dosing_chemical?: string | null;
     dosing_recommendation?: string | null;
+    companyId?: string | null;
   } | null;
 
   const poolId = body?.pool_id?.trim();
@@ -88,7 +76,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, message: 'Enter valid chlorine and pH values.' }, { status: 400 });
   }
 
-  const { user, companyId, accountDb } = context;
+  const { companyId, submitterId, accountDb } = context;
   const validation = await validatePhotoRules(accountDb, companyId, poolId, freeChlorine, ph, body?.photo_url?.trim() || null);
   if ('error' in validation) return validation.error;
 
@@ -97,7 +85,7 @@ export async function POST(request: NextRequest) {
     .from('chemical_logs')
     .insert({
       pool_id: poolId,
-      submitted_by: user.id,
+      submitted_by: submitterId,
       free_chlorine: freeChlorine,
       ph,
       notes: body?.notes?.trim() || null,
@@ -132,7 +120,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const context = await getAuthContext();
+  const context = await getLogContext(request);
   if ('error' in context && context.error) return context.error;
 
   const body = await request.json().catch(() => null) as {
@@ -146,6 +134,7 @@ export async function PATCH(request: NextRequest) {
     dosing_unit?: string | null;
     dosing_chemical?: string | null;
     dosing_recommendation?: string | null;
+    companyId?: string | null;
   } | null;
 
   const logId = body?.log_id?.trim();
@@ -160,7 +149,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ ok: false, message: 'Enter valid chlorine and pH values.' }, { status: 400 });
   }
 
-  const { user, companyId, accountDb } = context;
+  const { companyId, submitterId, accountDb, isDevPreview } = context;
   const { data: existing, error: existingError } = await accountDb
     .from('chemical_logs')
     .select('id, submitted_by, created_at, photo_url')
@@ -171,12 +160,12 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ ok: false, message: existingError?.message || 'Log not found.' }, { status: 404 });
   }
 
-  if (existing.submitted_by !== user.id) {
+  if (!isDevPreview && submitterId && existing.submitted_by !== submitterId) {
     return NextResponse.json({ ok: false, message: 'You can only edit your own logs.' }, { status: 403 });
   }
 
   const ageMs = Date.now() - new Date(existing.created_at).getTime();
-  if (ageMs > EDIT_WINDOW_MS) {
+  if (!isDevPreview && ageMs > EDIT_WINDOW_MS) {
     return NextResponse.json({ ok: false, message: 'This log is older than 24 hours and can no longer be edited.' }, { status: 400 });
   }
 
@@ -218,7 +207,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 async function validatePhotoRules(
-  accountDb: ReturnType<typeof createAdminClient>,
+  accountDb: SupabaseClient,
   companyId: string,
   poolId: string,
   freeChlorine: number,
@@ -264,7 +253,7 @@ async function validatePhotoRules(
 }
 
 async function maybeCreateAlerts(
-  accountDb: ReturnType<typeof createAdminClient>,
+  accountDb: SupabaseClient,
   input: {
     companyId: string;
     pool: {
