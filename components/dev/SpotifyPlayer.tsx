@@ -72,6 +72,7 @@ export default function SpotifyPlayer() {
   const [results, setResults] = useState<SpotifyTrack[]>([]);
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [redirectUri, setRedirectUri] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [volume, setVolume] = useState(0.7);
   const [nowPlaying, setNowPlaying] = useState<SpotifyTrack | null>(null);
@@ -103,6 +104,7 @@ export default function SpotifyPlayer() {
       const payload = await response.json().catch(() => null);
       setConfigured(Boolean(payload?.configured));
       setConnected(Boolean(payload?.connected));
+      setRedirectUri(typeof payload?.redirectUri === 'string' ? payload.redirectUri : null);
     } finally {
       setLoading(false);
     }
@@ -351,6 +353,12 @@ export default function SpotifyPlayer() {
                 <p className="text-sm text-slate-600">
                   Connect your Spotify account to search and play any track from the dev dashboard. Premium is required for in-browser playback.
                 </p>
+                {redirectUri ? (
+                  <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                    ChemDeck will send this redirect URI to Spotify. It must match your Spotify app exactly:
+                    <code className="mt-2 block break-all rounded bg-white px-2 py-1 text-[11px] text-slate-800">{redirectUri}</code>
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   onClick={connectSpotify}
