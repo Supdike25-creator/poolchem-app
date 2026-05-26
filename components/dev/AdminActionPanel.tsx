@@ -20,6 +20,7 @@ const RELOAD_ACTIONS = new Set([
   'change-code',
   'rename-company',
   'create-company',
+  'create-user',
 ]);
 
 export default function AdminActionPanel({

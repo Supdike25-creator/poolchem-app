@@ -1,5 +1,6 @@
 import DevShell from '@/components/dev/DevShell';
 import AdminActionPanel from '@/components/dev/AdminActionPanel';
+import CreateProfileForm from '@/components/dev/CreateProfileForm';
 import { loadCompanies, loadProfiles, requireDev } from '@/lib/devAdmin';
 
 export const dynamic = 'force-dynamic';
@@ -7,16 +8,20 @@ export const dynamic = 'force-dynamic';
 export default async function DevAdminProfilesPage() {
   await requireDev();
   const [profiles, companies] = await Promise.all([loadProfiles(), loadCompanies()]);
+  const companyNameById = new Map(companies.map((company) => [company.id, company.company_name]));
 
   return (
     <DevShell>
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <h1 className="text-2xl font-semibold text-slate-950">Admin Panel: Profiles</h1>
-        <div className="mt-5 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <CreateProfileForm companies={companies} />
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <tr>
+                  <th className="px-3 py-3">Name</th>
+                  <th className="px-3 py-3">Username</th>
                   <th className="px-3 py-3">Email</th>
                   <th className="px-3 py-3">Role</th>
                   <th className="px-3 py-3">Company</th>
@@ -29,9 +34,11 @@ export default async function DevAdminProfilesPage() {
               <tbody className="divide-y divide-slate-200">
                 {profiles.map((profile) => (
                   <tr key={profile.id}>
-                    <td className="px-3 py-3 font-semibold text-slate-900">{profile.email ?? '-'}</td>
+                    <td className="px-3 py-3 font-semibold text-slate-900">{profile.full_name ?? '-'}</td>
+                    <td className="px-3 py-3 font-mono text-xs">{profile.username ?? '-'}</td>
+                    <td className="px-3 py-3">{profile.email ?? '-'}</td>
                     <td className="px-3 py-3">{profile.role ?? '-'}</td>
-                    <td className="px-3 py-3 font-mono text-xs">{profile.company_id ?? '-'}</td>
+                    <td className="px-3 py-3">{profile.company_id ? companyNameById.get(profile.company_id) ?? profile.company_id : '-'}</td>
                     <td className="px-3 py-3">{profile.active === false || profile.status === 'inactive' ? 'Inactive' : 'Active'}</td>
                     <td className="px-3 py-3">{profile.last_login ? new Date(profile.last_login).toLocaleString() : '-'}</td>
                     <td className="px-3 py-3 font-mono text-xs">{profile.id}</td>

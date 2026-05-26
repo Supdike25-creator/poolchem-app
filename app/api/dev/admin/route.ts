@@ -58,6 +58,9 @@ type AdminBody = {
   target_ph_max?: number | null;
   default_chlorine_strength?: number | null;
   notes?: string;
+  passcode?: string;
+  username?: string;
+  email?: string;
 };
 
 export async function POST(request: NextRequest) {
@@ -87,6 +90,40 @@ export async function POST(request: NextRequest) {
     let response: Record<string, unknown> = { ok: true, message: 'Action complete.' };
 
     if (body.scope === 'profile') {
+      if (body.action === 'create-user') {
+        const displayName = body.name?.trim();
+        const passcode = body.passcode?.trim();
+
+        if (!displayName) {
+          return jsonError('Enter a name.');
+        }
+        if (!passcode || passcode.length < 4) {
+          return jsonError('Passcode must be at least 4 characters.');
+        }
+
+        const { data, error } = await supabase.rpc('dev_admin_create_user', {
+          p_name: displayName,
+          p_passcode: passcode,
+          p_role: body.role ?? 'worker',
+          p_company_id: body.company_id ?? null,
+          p_email: body.email?.trim().toLowerCase() ?? null,
+          p_username: body.username?.trim() ?? null,
+        });
+
+        if (error) {
+          const message = error.message.includes('dev_admin_create_user')
+            ? 'Run SUPABASE_DEV_CREATE_USER.sql in Supabase first.'
+            : error.message;
+          return dbError({ message });
+        }
+
+        const details = (data ?? {}) as Record<string, string>;
+        response = {
+          ok: true,
+          message: `Created ${details.name ?? displayName}. Share the username and passcode for login.`,
+          details,
+        };
+      } else {
       if (!body.id) return jsonError('Missing user id.');
 
       if (body.action === 'change-role') {
@@ -128,6 +165,7 @@ export async function POST(request: NextRequest) {
           message: 'Impersonation token prepared for DEV audit.',
           details: { userId: body.id, mode: 'dev-only-preview' },
         };
+      }
       }
     }
 

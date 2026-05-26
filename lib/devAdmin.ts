@@ -5,6 +5,8 @@ import { getServerAppSession } from '@/lib/serverAppSession';
 export type AdminProfile = {
   id: string;
   email: string | null;
+  full_name: string | null;
+  username: string | null;
   role: string | null;
   company_id: string | null;
   active: boolean | null;
@@ -72,10 +74,17 @@ export const loadCompanies = async (): Promise<AdminCompany[]> => {
 
 export const loadProfiles = async (): Promise<AdminProfile[]> => {
   const supabase = createAdminClient();
-  const [{ data: users }, authUsers] = await Promise.all([
-    supabase.from('users').select('id,email,role,company_id,active,status').order('email'),
+  const [{ data: users }, { data: appAccounts }, authUsers] = await Promise.all([
+    supabase.from('users').select('id,email,full_name,role,company_id,active,status').order('email'),
+    supabase.from('app_accounts').select('username,email,name'),
     supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }),
   ]);
+
+  const usernameByEmail = new Map(
+    (appAccounts ?? [])
+      .filter((account) => account.email)
+      .map((account) => [String(account.email).toLowerCase(), account.username as string]),
+  );
 
   const lastLoginById = new Map(
     (authUsers.data.users ?? []).map((user) => [user.id, user.last_sign_in_at ?? null]),
@@ -84,6 +93,8 @@ export const loadProfiles = async (): Promise<AdminProfile[]> => {
   return (users ?? []).map((user) => ({
     id: user.id,
     email: user.email,
+    full_name: user.full_name,
+    username: user.email ? usernameByEmail.get(String(user.email).toLowerCase()) ?? null : null,
     role: user.role,
     company_id: user.company_id,
     active: user.active,
