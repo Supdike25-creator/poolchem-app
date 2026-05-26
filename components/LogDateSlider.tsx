@@ -2,38 +2,25 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
-
-const toDateInputValue = (date: Date) => {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const parseDate = (value: string) => {
-  const date = new Date(`${value}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? new Date() : date;
-};
+import { toOperatingDateInputValue } from '@/lib/operatingDayBounds';
 
 const addDays = (value: string, days: number) => {
-  const date = parseDate(value);
-  date.setDate(date.getDate() + days);
-  return toDateInputValue(date);
+  const [year, month, day] = value.split('-').map(Number);
+  const next = new Date(Date.UTC(year, month - 1, day + days, 12));
+  return toOperatingDateInputValue(next);
 };
 
-const getPresetDate = (offset: number) => {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() + offset);
-  return toDateInputValue(date);
-};
+const getPresetDate = (offset: number) => addDays(toOperatingDateInputValue(), offset);
 
 const formatSelectedDate = (value: string) => {
-  return parseDate(value).toLocaleDateString('en-US', {
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day, 12));
+  return date.toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    timeZone: 'America/Los_Angeles',
   });
 };
 

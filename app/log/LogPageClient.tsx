@@ -52,7 +52,7 @@ interface FormData {
   photo: File | null;
 }
 
-type Step = 'pool' | 'chlorine' | 'ph' | 'photo' | 'review' | 'submit';
+type Step = 'pool' | 'chlorine' | 'ph' | 'photo' | 'review' | 'submit' | 'done';
 
 const getDefaultPoolVolume = () => {
   if (typeof window === 'undefined') {
@@ -201,7 +201,7 @@ export default function LogPageClient() {
 
   useEffect(() => {
     const loadSettings = async () => {
-      const response = await fetch('/api/company-settings', { cache: 'no-store' });
+      const response = await fetch(`/api/company-settings${query}`, { cache: 'no-store', credentials: 'same-origin' });
       const result = await response.json().catch(() => null);
       if (response.ok && result?.ok) {
         setCompanySettings(mergeCompanySettings(result.company?.settings));
@@ -209,7 +209,7 @@ export default function LogPageClient() {
     };
 
     void loadSettings();
-  }, []);
+  }, [query]);
 
   useEffect(() => {
     const syncDefaultPoolVolume = () => setDefaultPoolVolume(getDefaultPoolVolume());
@@ -322,16 +322,19 @@ export default function LogPageClient() {
     try {
       if (!formData.poolId) {
         setSubmitError('Select a pool before submitting.');
+        setCurrentStep('submit');
         return;
       }
 
       if (!companyId && getStoredSession()?.role === 'dev') {
         setSubmitError('Select a company from Dev Dashboard before submitting logs.');
+        setCurrentStep('submit');
         return;
       }
 
       if (activePhotoRequirementMessage) {
         setSubmitError(activePhotoRequirementMessage);
+        setCurrentStep('submit');
         return;
       }
 
@@ -361,27 +364,35 @@ export default function LogPageClient() {
 
       if (!response.ok || !result?.ok) {
         setSubmitError(result?.message || 'Unable to submit chemical log.');
+        setCurrentStep('submit');
       } else {
         setSubmitMessage('Chemical log submitted successfully!');
-        setFormData({
-          poolId: '',
-          freeChlorine: '',
-          ph: '',
-          notes: '',
-          photo: null
-        });
-        setPhotoKey((prev) => prev + 1);
-        setCurrentStep('pool');
-        setTimeout(() => setSubmitMessage(''), 3000);
+        setCurrentStep('done');
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setSubmitError(`Unable to submit chemical log: ${message}`);
+      setCurrentStep('submit');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const startAnotherLog = () => {
+    setFormData({
+      poolId: '',
+      freeChlorine: '',
+      ph: '',
+      notes: '',
+      photo: null,
+    });
+    setPhotoKey((prev) => prev + 1);
+    setSubmitMessage('');
+    setSubmitError('');
+    setCurrentStep('pool');
+  };
+
+  const reviewLogsHref = companyId ? `/management/logs?companyId=${encodeURIComponent(companyId)}` : '/management/logs';
   const selectedPool = pools.find((p) => p.id === formData.poolId);
   const chlorineValue = parseFloat(formData.freeChlorine) || 0;
   const phValue = parseFloat(formData.ph) || 0;
@@ -905,6 +916,37 @@ export default function LogPageClient() {
     </div>
   );
 
+  const renderDoneStep = () => (
+    <div className="space-y-6">
+      <div className="text-center">
+        <CheckCircle2 className="mx-auto mb-4 h-14 w-14 text-green-600" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Log Submitted</h2>
+        <p className="text-gray-600">
+          Chemical log for <strong>{selectedPool?.name}</strong> was saved. It should appear on the Daily Log Sheet for today.
+        </p>
+      </div>
+
+      <div className="grid gap-3">
+        <button
+          type="button"
+          onClick={() => router.push(reviewLogsHref)}
+          data-sound="click"
+          className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:bg-blue-700 transition-colors"
+        >
+          View Daily Log Sheet
+        </button>
+        <button
+          type="button"
+          onClick={startAnotherLog}
+          data-sound="click"
+          className="w-full bg-green-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:bg-green-700 transition-colors"
+        >
+          Submit Another Log
+        </button>
+      </div>
+    </div>
+  );
+
   const renderSubmitStep = () => (
     <div className="space-y-6">
       <div className="text-center">
@@ -982,6 +1024,7 @@ export default function LogPageClient() {
           {currentStep === 'photo' && renderPhotoStep()}
           {currentStep === 'review' && renderReviewStep()}
           {currentStep === 'submit' && renderSubmitStep()}
+          {currentStep === 'done' && renderDoneStep()}
         </div>
       </div>
     </div>

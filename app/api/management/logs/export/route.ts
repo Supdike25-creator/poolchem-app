@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { DEFAULT_OPERATING_TIME_ZONE, getOperatingDayBounds, toOperatingDateInputValue } from '@/lib/operatingDayBounds';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,10 +44,8 @@ export async function GET(request: NextRequest) {
   }
 
   const params = request.nextUrl.searchParams;
-  const selectedDate = params.get('date') || new Date().toISOString().slice(0, 10);
-  const dayStart = new Date(`${selectedDate}T00:00:00`);
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayEnd.getDate() + 1);
+  const selectedDate = params.get('date') || toOperatingDateInputValue();
+  const { start: dayStart, end: dayEnd } = getOperatingDayBounds(selectedDate, DEFAULT_OPERATING_TIME_ZONE);
 
   const { data: pools } = await accountDb
     .from('pools')

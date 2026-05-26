@@ -8,6 +8,15 @@ import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveCompanyScopeId } from '@/lib/resolveCompanyScopeId';
 import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
+import {
+  DEFAULT_OPERATING_TIME_ZONE,
+  formatOperatingTime,
+  getOperatingDayBounds,
+  getOperatingHour,
+  getOperatingHourLabel,
+  getOperatingHourSlots,
+  toOperatingDateInputValue,
+} from '@/lib/operatingDayBounds';
 import { EmptyState, PageHeader, SectionCard, StatCard, StatusBadge, buttonClass, type StatusTone } from '../../../components/OperationsUI';
 import { ClipboardList, Clock3, Filter, FileSpreadsheet, Rows3, Waves } from 'lucide-react';
 
@@ -34,24 +43,12 @@ interface ProfileSummary {
   email?: string | null;
 }
 
-const toDateInputValue = (date: Date) => {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 const getSelectedDate = (value?: string) => {
   if (!value || Number.isNaN(new Date(`${value}T00:00:00`).getTime())) {
-    return toDateInputValue(new Date());
+    return toOperatingDateInputValue();
   }
   return value;
-};
-
-const getHourLabel = (hour: number) => {
-  const date = new Date();
-  date.setHours(hour, 0, 0, 0);
-  return date.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
 };
 
 const getLogTime = (log: ChemicalLogRow) => new Date(log.created_at);
@@ -71,7 +68,7 @@ const getLogStatus = (log: ChemicalLogRow) => {
   return { label: 'In Range', tone: 'good' as StatusTone };
 };
 
-const formatTime = (date: Date) => date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+const formatTime = (date: Date) => formatOperatingTime(date);
 
 const getLogStatusKey = (log: ChemicalLogRow) => {
   const status = getLogStatus(log);
@@ -83,9 +80,7 @@ const getLogStatusKey = (log: ChemicalLogRow) => {
 export default async function ManagementLogsPage({ searchParams }: { searchParams: Promise<{ date?: string; q?: string; status?: string; logger?: string; photo?: string; companyId?: string }> }) {
   const params = await searchParams;
   const selectedDate = getSelectedDate(params?.date);
-  const dayStart = new Date(`${selectedDate}T00:00:00`);
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayEnd.getDate() + 1);
+  const { start: dayStart, end: dayEnd } = getOperatingDayBounds(selectedDate, DEFAULT_OPERATING_TIME_ZONE);
 
   const appSession = await getServerAppSession();
   const isDevPreview = appSession?.role === 'dev';
@@ -186,7 +181,7 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
       profile.full_name || profile.email || profile.id,
     ])
   );
-  const hours = Array.from({ length: 12 }, (_, index) => 9 + index);
+  const hours = getOperatingHourSlots();
 
   return (
     <div className="space-y-5">
@@ -271,7 +266,7 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
               </thead>
               <tbody>
                 {hours.map((hour) => {
-                  const slotLogs = filteredLogs.filter((log) => getLogTime(log).getHours() === hour);
+                  const slotLogs = filteredLogs.filter((log) => getOperatingHour(log.created_at) === hour);
                   const rows = slotLogs.length > 0 ? slotLogs : [null];
 
                   return rows.map((log, index) => {
@@ -281,7 +276,7 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
                       <tr key={`${hour}-${log?.id || 'empty'}-${index}`} className="hover:bg-slate-50">
                         {index === 0 ? (
                           <td rowSpan={rows.length} className="sticky left-0 z-10 border-b border-slate-200 bg-white px-4 py-3 align-top text-sm font-bold text-slate-900">
-                            {getHourLabel(hour)}
+                            {getOperatingHourLabel(hour)}
                           </td>
                         ) : null}
                         <td className="border-b border-slate-200 px-4 py-3 text-sm font-semibold text-slate-900">{log ? poolMap.get(log.pool_id) || log.pool_id : <span className="text-slate-400">No entry</span>}</td>
