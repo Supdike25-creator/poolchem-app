@@ -270,6 +270,11 @@ insert into public.user_company_memberships (user_id, company_id, role)
 select u.id, u.company_id, coalesce(u.role, 'guard')
 from public.users u
 where u.company_id is not null
+  and exists (
+    select 1
+    from auth.users au
+    where au.id = u.id
+  )
 on conflict (user_id, company_id) do update
 set role = excluded.role;
 
