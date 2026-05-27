@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeProfileRole, routeForRole, routeForAccess, getAccountAccess } from "@/lib/auth/accountAccess";
+import { appSessionCanAccessPath, getAppSessionFromRequest, appSessionRole } from "@/lib/auth/appSession";
 import { isDevRequest } from "@/lib/auth/devSession";
 
 const PUBLIC_PATHS = [
@@ -55,6 +56,27 @@ export async function proxy(request: NextRequest) {
 
     if (DEV_ALLOWED_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
       return NextResponse.next({ request });
+    }
+  }
+
+  const appSession = getAppSessionFromRequest(request);
+  const appRole = appSessionRole(appSession);
+
+  if (appSession && appRole) {
+    if (pathname === "/login") {
+      return NextResponse.redirect(new URL(routeForRole(appRole), request.url));
+    }
+
+    if (appSessionCanAccessPath(appRole, pathname)) {
+      return NextResponse.next({ request });
+    }
+
+    if (appRole === "guard" && (pathname === "/management" || pathname.startsWith("/management/"))) {
+      return NextResponse.redirect(new URL(guardDashboardPath, request.url));
+    }
+
+    if (appRole === "manager" && pathname.startsWith("/guard/")) {
+      return NextResponse.redirect(new URL(managerDashboardPath, request.url));
     }
   }
 

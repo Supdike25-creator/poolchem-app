@@ -120,8 +120,7 @@ export default function LoginPage() {
         if (account) {
           await supabase?.auth.signOut().catch(() => undefined);
           setAppSession(account);
-          router.replace(routeForRole(account.role));
-          router.refresh();
+          window.location.assign(routeForRole(account.role));
           return;
         }
       } catch (accountError) {

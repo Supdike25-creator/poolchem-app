@@ -85,6 +85,21 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
           return;
         }
 
+        if (appSession && (appSession.role === 'guard' || appSession.role === 'manager')) {
+          if (appSession.role !== role) {
+            router.replace(routeForRole(appSession.role));
+            return;
+          }
+
+          setProfile({
+            full_name: appSession.name || appSession.username || 'User',
+            email: appSession.email || appSession.username || '',
+            role: appSession.role,
+          });
+          setStatus('authenticated');
+          return;
+        }
+
         const supabase = createClient();
         const {
           data: { session },

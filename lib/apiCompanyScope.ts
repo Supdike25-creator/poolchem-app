@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { isDevRequest, getDevSessionFromRequest } from '@/lib/auth/devSession';
+import { getAppSessionFromRequest } from '@/lib/auth/appSession';
 import { resolveDevCompanyId } from '@/lib/devTools';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/utils/supabase/server';
@@ -54,12 +55,7 @@ export async function resolveApiCompanyScope(request?: NextRequest): Promise<Sco
     ? await resolveDevCompanyId(adminClient, rawDevCompanyId)
     : rawDevCompanyId;
 
-  if ((userError || !user) && !devCompanyId) {
-    return {
-      ok: false,
-      response: NextResponse.json({ ok: false, message: 'Unauthorized.' }, { status: 401 }),
-    };
-  }
+  const appSession = request ? getAppSessionFromRequest(request) : null;
 
   let account: AccountRow | null = null;
   if (user) {
@@ -69,9 +65,33 @@ export async function resolveApiCompanyScope(request?: NextRequest): Promise<Sco
       .eq('id', user.id)
       .maybeSingle();
     account = data;
+  } else if (appSession?.id && adminClient) {
+    const { data: appAccount } = await accountDb
+      .from('app_accounts')
+      .select('id, role, company_id, name, email')
+      .eq('id', appSession.id)
+      .maybeSingle();
+
+    if (appAccount) {
+      account = {
+        id: appAccount.id,
+        role: appAccount.role,
+        company_id: appAccount.company_id,
+        full_name: appAccount.name,
+        email: appAccount.email,
+      };
+    }
   }
 
   const companyId = devCompanyId ?? account?.company_id ?? null;
+
+  if ((userError || !user) && !devCompanyId && !appSession) {
+    return {
+      ok: false,
+      response: NextResponse.json({ ok: false, message: 'Unauthorized.' }, { status: 401 }),
+    };
+  }
+
   if (!companyId) {
     return {
       ok: false,
@@ -83,7 +103,7 @@ export async function resolveApiCompanyScope(request?: NextRequest): Promise<Sco
   }
 
   const devSession = request ? getDevSessionFromRequest(request) : null;
-  const userId = user?.id ?? devSession?.id ?? null;
+  const userId = user?.id ?? devSession?.id ?? appSession?.id ?? null;
 
   return {
     ok: true,
