@@ -1,24 +1,56 @@
--- Run in Supabase SQL Editor if Admin Panel "Create user" fails with app_accounts_role_check.
+-- Dev admin: store viewable passcodes for test accounts + reset helper.
+-- Run in Supabase SQL Editor after SUPABASE_DEV_CREATE_USER.sql.
 
 create extension if not exists pgcrypto with schema extensions;
 
-do $$
+alter table public.app_accounts
+  add column if not exists passcode_plain text;
+
+create or replace function public.dev_admin_set_passcode(
+  p_email text,
+  p_passcode text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_email text := lower(trim(coalesce(p_email, '')));
+  v_passcode text := trim(coalesce(p_passcode, ''));
+  v_account public.app_accounts%rowtype;
 begin
-  if exists (
-    select 1
-    from pg_constraint
-    where conname = 'app_accounts_role_check'
-      and conrelid = 'public.app_accounts'::regclass
-  ) then
-    alter table public.app_accounts drop constraint app_accounts_role_check;
+  if v_email = '' then
+    raise exception 'Email is required';
   end if;
 
-  alter table public.app_accounts
-    add constraint app_accounts_role_check check (
-      lower(role) in ('boss', 'guard', 'dev', 'manager', 'supervisor', 'worker')
-    );
-end $$;
+  if length(v_passcode) < 4 then
+    raise exception 'Passcode must be at least 4 characters';
+  end if;
 
+  update public.app_accounts
+  set
+    passcode_hash = extensions.crypt(v_passcode, extensions.gen_salt('bf')),
+    passcode_plain = v_passcode
+  where lower(email) = v_email
+  returning * into v_account;
+
+  if v_account.id is null then
+    raise exception 'App account not found for that email';
+  end if;
+
+  return jsonb_build_object(
+    'app_account_id', v_account.id,
+    'username', v_account.username,
+    'email', v_account.email,
+    'passcode', v_passcode
+  );
+end;
+$$;
+
+grant execute on function public.dev_admin_set_passcode(text, text) to service_role;
+
+-- Keep create-user in sync so new accounts are viewable in Dev Admin.
 create or replace function public.dev_admin_create_user(
   p_name text,
   p_passcode text,

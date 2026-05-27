@@ -8,6 +8,8 @@ export const dynamic = 'force-dynamic';
 
 const tempPassword = () => `ChemDeck-${Math.random().toString(36).slice(2, 8)}-${Date.now().toString(36)}`;
 
+const tempPasscode = () => String(Math.floor(100000 + Math.random() * 900000));
+
 const jsonError = (message: string, status = 400) =>
   NextResponse.json({ ok: false, message }, { status });
 
@@ -163,16 +165,65 @@ export async function POST(request: NextRequest) {
       }
 
       if (body.action === 'move-company') {
+        const { data: userRow } = await supabase.from('users').select('email').eq('id', body.id).maybeSingle();
         const { error } = await supabase.from('users').update({ company_id: body.company_id ?? null }).eq('id', body.id);
         if (error) return dbError(error);
+        if (userRow?.email) {
+          await supabase.from('app_accounts').update({ company_id: body.company_id ?? null }).eq('email', userRow.email);
+        }
         response = { ok: true, message: 'User moved to company.' };
       }
 
       if (body.action === 'reset-password') {
-        const password = tempPassword();
-        const { error } = await supabase.auth.admin.updateUserById(body.id, { password });
-        if (error) return dbError(error);
-        response = { ok: true, message: 'Temporary password generated.', details: { temporaryPassword: password } };
+        const { data: userRow, error: readError } = await supabase
+          .from('users')
+          .select('email')
+          .eq('id', body.id)
+          .maybeSingle();
+
+        if (readError || !userRow?.email) {
+          return dbError(readError ?? { message: 'User not found.' }, readError ? 500 : 404);
+        }
+
+        const { data: appAccount } = await supabase
+          .from('app_accounts')
+          .select('id, username, email')
+          .eq('email', userRow.email)
+          .maybeSingle();
+
+        if (appAccount) {
+          const passcode = tempPasscode();
+          const { data: resetData, error: resetError } = await supabase.rpc('dev_admin_set_passcode', {
+            p_email: userRow.email,
+            p_passcode: passcode,
+          });
+
+          if (resetError) {
+            const message = resetError.message.includes('dev_admin_set_passcode')
+              ? 'Run SUPABASE_DEV_PASSCODE_PLAIN.sql in Supabase first.'
+              : resetError.message;
+            return dbError({ message });
+          }
+
+          const details = (resetData ?? {}) as Record<string, string>;
+          response = {
+            ok: true,
+            message: `Passcode reset for ${details.username ?? appAccount.username ?? userRow.email}.`,
+            details: {
+              username: details.username ?? appAccount.username,
+              passcode: details.passcode ?? passcode,
+            },
+          };
+        } else {
+          const password = tempPassword();
+          const { error } = await supabase.auth.admin.updateUserById(body.id, { password });
+          if (error) return dbError(error);
+          response = {
+            ok: true,
+            message: 'Temporary Supabase password generated.',
+            details: { temporaryPassword: password },
+          };
+        }
       }
 
       if (body.action === 'toggle-active') {

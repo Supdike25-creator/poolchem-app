@@ -2,6 +2,7 @@ import { formatWorkplaceRoleLabel } from '@/lib/devRoleMapping';
 import AdminActionPanel from '@/components/dev/AdminActionPanel';
 import CreateProfileForm from '@/components/dev/CreateProfileForm';
 import DevShell from '@/components/dev/DevShell';
+import ProfilePasscodeCell from '@/components/dev/ProfilePasscodeCell';
 import { loadCompanies, loadProfiles, requireDev } from '@/lib/devAdmin';
 
 export const dynamic = 'force-dynamic';
@@ -23,6 +24,7 @@ export default async function DevAdminProfilesPage() {
                 <tr>
                   <th className="px-3 py-3">Name</th>
                   <th className="px-3 py-3">Username</th>
+                  <th className="px-3 py-3">Passcode</th>
                   <th className="px-3 py-3">Email</th>
                   <th className="px-3 py-3">Role</th>
                   <th className="px-3 py-3">Company</th>
@@ -37,6 +39,12 @@ export default async function DevAdminProfilesPage() {
                   <tr key={profile.id}>
                     <td className="px-3 py-3 font-semibold text-slate-900">{profile.full_name ?? '-'}</td>
                     <td className="px-3 py-3 font-mono text-xs">{profile.username ?? '-'}</td>
+                    <td className="px-3 py-3">
+                      <ProfilePasscodeCell
+                        passcode={profile.passcode}
+                        hint={profile.username ? 'Reset to reveal' : 'Supabase login'}
+                      />
+                    </td>
                     <td className="px-3 py-3">{profile.email ?? '-'}</td>
                     <td className="px-3 py-3">{formatWorkplaceRoleLabel(profile.role)}</td>
                     <td className="px-3 py-3">{profile.company_id ? companyNameById.get(profile.company_id) ?? profile.company_id : '-'}</td>

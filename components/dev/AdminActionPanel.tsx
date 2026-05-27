@@ -21,6 +21,7 @@ const RELOAD_ACTIONS = new Set([
   'rename-company',
   'create-company',
   'create-user',
+  'reset-password',
 ]);
 
 export default function AdminActionPanel({
@@ -123,7 +124,7 @@ export default function AdminActionPanel({
           ))}
         </select>
         <button className="h-9 rounded-md border border-slate-200 px-2 text-xs font-semibold" disabled={busy === 'reset-password'} onClick={() => run('reset-password')}>
-          Reset password
+          {busy === 'reset-password' ? 'Resetting…' : 'Reset password'}
         </button>
         <button className="h-9 rounded-md border border-slate-200 px-2 text-xs font-semibold" disabled={busy === 'toggle-active'} onClick={() => run('toggle-active')}>
           Toggle active
@@ -133,9 +134,41 @@ export default function AdminActionPanel({
         </button>
         {result.message ? (
           <div className="w-full space-y-2">
-            <span className="text-xs font-semibold text-slate-500">{result.message}</span>
-            {result.details ? (
-              <pre className="max-h-48 overflow-auto rounded-md bg-slate-950 p-3 text-xs text-slate-100">{JSON.stringify(result.details, null, 2)}</pre>
+            <div
+              className={`rounded-lg border px-3 py-2 text-xs font-semibold ${
+                result.ok
+                  ? 'border-green-200 bg-green-50 text-green-800'
+                  : 'border-red-200 bg-red-50 text-red-800'
+              }`}
+            >
+              {result.message}
+            </div>
+            {result.details && typeof result.details === 'object' ? (
+              (() => {
+                const details = result.details as Record<string, string>;
+                if (details.passcode) {
+                  return (
+                    <p className="text-xs text-slate-700">
+                      Username: <span className="font-mono font-semibold">{details.username ?? '—'}</span>
+                      {' · '}
+                      Passcode: <span className="font-mono font-semibold">{details.passcode}</span>
+                    </p>
+                  );
+                }
+                if (details.temporaryPassword) {
+                  return (
+                    <p className="text-xs text-slate-700">
+                      Temporary password:{' '}
+                      <span className="font-mono font-semibold">{details.temporaryPassword}</span>
+                    </p>
+                  );
+                }
+                return (
+                  <pre className="max-h-48 overflow-auto rounded-md bg-slate-950 p-3 text-xs text-slate-100">
+                    {JSON.stringify(result.details, null, 2)}
+                  </pre>
+                );
+              })()
             ) : null}
           </div>
         ) : null}

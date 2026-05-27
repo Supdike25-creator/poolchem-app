@@ -7,6 +7,7 @@ export type AdminProfile = {
   email: string | null;
   full_name: string | null;
   username: string | null;
+  passcode: string | null;
   role: string | null;
   company_id: string | null;
   active: boolean | null;
@@ -76,7 +77,7 @@ export const loadProfiles = async (): Promise<AdminProfile[]> => {
   const supabase = createAdminClient();
   const [{ data: users }, { data: appAccounts }, authUsers] = await Promise.all([
     supabase.from('users').select('id,email,full_name,role,company_id,active,status').order('email'),
-    supabase.from('app_accounts').select('username,email,name'),
+    supabase.from('app_accounts').select('username,email,name,passcode_plain'),
     supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }),
   ]);
 
@@ -84,6 +85,12 @@ export const loadProfiles = async (): Promise<AdminProfile[]> => {
     (appAccounts ?? [])
       .filter((account) => account.email)
       .map((account) => [String(account.email).toLowerCase(), account.username as string]),
+  );
+
+  const passcodeByEmail = new Map(
+    (appAccounts ?? [])
+      .filter((account) => account.email && account.passcode_plain)
+      .map((account) => [String(account.email).toLowerCase(), String(account.passcode_plain)]),
   );
 
   const lastLoginById = new Map(
@@ -95,6 +102,7 @@ export const loadProfiles = async (): Promise<AdminProfile[]> => {
     email: user.email,
     full_name: user.full_name,
     username: user.email ? usernameByEmail.get(String(user.email).toLowerCase()) ?? null : null,
+    passcode: user.email ? passcodeByEmail.get(String(user.email).toLowerCase()) ?? null : null,
     role: user.role,
     company_id: user.company_id,
     active: user.active,
