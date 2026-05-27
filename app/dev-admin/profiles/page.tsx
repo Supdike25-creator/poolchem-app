@@ -1,6 +1,7 @@
-import DevShell from '@/components/dev/DevShell';
+import { formatWorkplaceRoleLabel } from '@/lib/devRoleMapping';
 import AdminActionPanel from '@/components/dev/AdminActionPanel';
 import CreateProfileForm from '@/components/dev/CreateProfileForm';
+import DevShell from '@/components/dev/DevShell';
 import { loadCompanies, loadProfiles, requireDev } from '@/lib/devAdmin';
 
 export const dynamic = 'force-dynamic';
@@ -37,7 +38,7 @@ export default async function DevAdminProfilesPage() {
                     <td className="px-3 py-3 font-semibold text-slate-900">{profile.full_name ?? '-'}</td>
                     <td className="px-3 py-3 font-mono text-xs">{profile.username ?? '-'}</td>
                     <td className="px-3 py-3">{profile.email ?? '-'}</td>
-                    <td className="px-3 py-3">{profile.role ?? '-'}</td>
+                    <td className="px-3 py-3">{formatWorkplaceRoleLabel(profile.role)}</td>
                     <td className="px-3 py-3">{profile.company_id ? companyNameById.get(profile.company_id) ?? profile.company_id : '-'}</td>
                     <td className="px-3 py-3">{profile.active === false || profile.status === 'inactive' ? 'Inactive' : 'Active'}</td>
                     <td className="px-3 py-3">{profile.last_login ? new Date(profile.last_login).toLocaleString() : '-'}</td>

@@ -59,7 +59,7 @@ export default function CreateProfileForm({ companies }: { companies: AdminCompa
       setPasscode('');
       setUsername('');
       setEmail('');
-      setRole('worker');
+      setRole('guard');
       setCompanyId('');
       window.setTimeout(() => window.location.reload(), 1200);
     } catch (error) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { assertDevRequest, logDevMessage, logDevRequest } from '@/lib/devTools';
+import { resolveDevUserRoles } from '@/lib/devRoleMapping';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
@@ -101,10 +102,12 @@ export async function POST(request: NextRequest) {
           return jsonError('Passcode must be at least 4 characters.');
         }
 
+        const { workplaceRole } = resolveDevUserRoles(body.role ?? 'guard');
+
         const { data, error } = await supabase.rpc('dev_admin_create_user', {
           p_name: displayName,
           p_passcode: passcode,
-          p_role: body.role ?? 'worker',
+          p_role: workplaceRole,
           p_company_id: body.company_id ?? null,
           p_email: body.email?.trim().toLowerCase() ?? null,
           p_username: body.username?.trim() ?? null,
@@ -113,6 +116,8 @@ export async function POST(request: NextRequest) {
         if (error) {
           const message = error.message.includes('dev_admin_create_user')
             ? 'Run SUPABASE_DEV_CREATE_USER.sql in Supabase first.'
+            : error.message.includes('app_accounts_role_check')
+            ? 'Run SUPABASE_DEV_CREATE_USER.sql in Supabase to update role rules, then try again.'
             : error.message;
           return dbError({ message });
         }
@@ -127,12 +132,34 @@ export async function POST(request: NextRequest) {
       if (!body.id) return jsonError('Missing user id.');
 
       if (body.action === 'change-role') {
-        if (!['manager', 'supervisor', 'guard', 'dev', 'boss'].includes(body.role ?? '')) {
+        const { workplaceRole, loginRole } = resolveDevUserRoles(body.role ?? '');
+        if (!['manager', 'supervisor', 'guard', 'dev'].includes(workplaceRole)) {
           return jsonError('Invalid role.');
         }
-        const { error } = await supabase.from('users').update({ role: body.role }).eq('id', body.id);
-        if (error) return dbError(error);
-        response = { ok: true, message: `Role changed to ${body.role}.` };
+
+        const { data: userRow, error: readError } = await supabase
+          .from('users')
+          .select('email')
+          .eq('id', body.id)
+          .maybeSingle();
+
+        if (readError || !userRow?.email) {
+          return dbError(readError ?? { message: 'User not found.' }, readError ? 500 : 404);
+        }
+
+        const { error: userError } = await supabase
+          .from('users')
+          .update({ role: workplaceRole })
+          .eq('id', body.id);
+        if (userError) return dbError(userError);
+
+        const { error: accountError } = await supabase
+          .from('app_accounts')
+          .update({ role: loginRole })
+          .eq('email', userRow.email);
+        if (accountError) return dbError(accountError);
+
+        response = { ok: true, message: `Role changed to ${workplaceRole}.` };
       }
 
       if (body.action === 'move-company') {

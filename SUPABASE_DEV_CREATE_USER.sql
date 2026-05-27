@@ -1,11 +1,28 @@
--- Run in Supabase SQL Editor to enable Admin Panel user creation with name + passcode.
+-- Run in Supabase SQL Editor if Admin Panel "Create user" fails with app_accounts_role_check.
 
 create extension if not exists pgcrypto with schema extensions;
+
+do $$
+begin
+  if exists (
+    select 1
+    from pg_constraint
+    where conname = 'app_accounts_role_check'
+      and conrelid = 'public.app_accounts'::regclass
+  ) then
+    alter table public.app_accounts drop constraint app_accounts_role_check;
+  end if;
+
+  alter table public.app_accounts
+    add constraint app_accounts_role_check check (
+      lower(role) in ('boss', 'guard', 'dev', 'manager', 'supervisor', 'worker')
+    );
+end $$;
 
 create or replace function public.dev_admin_create_user(
   p_name text,
   p_passcode text,
-  p_role text default 'worker',
+  p_role text default 'guard',
   p_company_id uuid default null,
   p_email text default null,
   p_username text default null
@@ -20,8 +37,9 @@ declare
   v_username text;
   v_email text;
   v_role text;
-  v_passcode text;
+  v_workplace_role text;
   v_app_role text;
+  v_passcode text;
   v_app_account_id uuid;
   v_base text;
   v_suffix int := 0;
@@ -35,14 +53,18 @@ begin
     raise exception 'Passcode must be at least 4 characters';
   end if;
 
-  v_role := lower(trim(coalesce(p_role, 'worker')));
-  if v_role not in ('worker', 'boss', 'dev', 'guard', 'manager', 'admin', 'supervisor', 'owner') then
-    v_role := 'worker';
-  end if;
+  v_role := lower(trim(coalesce(p_role, 'guard')));
+
+  v_workplace_role := case
+    when v_role = 'dev' then 'dev'
+    when v_role = 'supervisor' then 'supervisor'
+    when v_role in ('boss', 'manager', 'admin', 'owner') then 'manager'
+    else 'guard'
+  end;
 
   v_app_role := case
-    when v_role = 'dev' then 'dev'
-    when v_role in ('boss', 'manager', 'admin', 'supervisor', 'owner') then 'boss'
+    when v_workplace_role = 'dev' then 'dev'
+    when v_workplace_role in ('manager', 'supervisor') then 'boss'
     else 'guard'
   end;
 
@@ -70,7 +92,7 @@ begin
   end if;
 
   insert into public.users (id, email, full_name, role, company_id, status)
-  values (v_user_id, v_email, trim(p_name), v_role, p_company_id, 'active');
+  values (v_user_id, v_email, trim(p_name), v_workplace_role, p_company_id, 'active');
 
   insert into public.app_accounts (name, birthday, username, passcode_hash, role, email, provider, company_id)
   values (
@@ -92,7 +114,8 @@ begin
     'username', v_username,
     'email', v_email,
     'passcode', v_passcode,
-    'role', v_role
+    'role', v_workplace_role,
+    'login_role', v_app_role
   );
 exception
   when unique_violation then
