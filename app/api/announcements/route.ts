@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveApiCompanyScope } from '@/lib/apiCompanyScope';
 import { resolveManagerApiScope } from '@/lib/managerApiScope';
+import { isValidUuid } from '@/lib/teamMembers';
 
 export const dynamic = 'force-dynamic';
 
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
       priority: body?.priority || 'normal',
       audience: body?.audience || 'all_lifeguards',
       pool_id: body?.pool_id || null,
-      created_by: userId,
+      created_by: isValidUuid(userId) ? userId : null,
       send_notification: body?.send_notification ?? true,
       require_acknowledgment: body?.require_acknowledgment ?? false,
     })

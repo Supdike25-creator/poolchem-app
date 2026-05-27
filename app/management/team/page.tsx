@@ -27,12 +27,26 @@ export default function ManagementTeamPage() {
   const [pendingMembers, setPendingMembers] = useState<GuardMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
   const [savingGuardId, setSavingGuardId] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteLinks, setInviteLinks] = useState<{ signup_link?: string; join_link?: string; company_code?: string }>({});
   const [sendingInvite, setSendingInvite] = useState(false);
 
   const loadTeam = async () => {
+    setError('');
+    const devSession = getStoredSession()?.role === 'dev';
+
+    if (devSession && !companyId) {
+      setGuards([]);
+      setPools([]);
+      setAssignments({});
+      setPendingMembers([]);
+      setMessage('Select a company from Dev Dashboard before managing team assignments.');
+      setLoading(false);
+      return;
+    }
+
     const fetchOptions = { cache: 'no-store' as const, credentials: 'same-origin' as const };
     const [teamResponse, inviteResponse] = await Promise.all([
       fetch(`/api/pool-assignments${query}`, fetchOptions),
@@ -42,6 +56,7 @@ export default function ManagementTeamPage() {
     const inviteResult = await inviteResponse.json().catch(() => null);
     if (!teamResponse.ok || !result?.ok) {
       setMessage(result?.message || 'Unable to load team data.');
+      setError(result?.message || 'Unable to load team data.');
       setLoading(false);
       return;
     }
@@ -169,6 +184,10 @@ export default function ManagementTeamPage() {
 
       {message ? (
         <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">{message}</div>
+      ) : null}
+
+      {error && !message ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{error}</div>
       ) : null}
 
       <SectionCard className="p-5">

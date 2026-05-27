@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isGuardRole } from '@/lib/guardPools';
 import { resolveManagerApiScope } from '@/lib/managerApiScope';
+import { loadCompanyTeamMembers, splitCompanyGuards } from '@/lib/teamMembers';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,12 +11,8 @@ export async function GET(request: NextRequest) {
 
   const { companyId, accountDb } = context.scope;
 
-  const [{ data: members }, { data: pools }, { data: assignments }] = await Promise.all([
-    accountDb
-      .from('users')
-      .select('id, full_name, email, role, status')
-      .eq('company_id', companyId)
-      .order('full_name'),
+  const [members, { data: pools }, { data: assignments }] = await Promise.all([
+    loadCompanyTeamMembers(accountDb, companyId),
     accountDb.from('pools').select('id, name').eq('company_id', companyId).order('name'),
     accountDb
       .from('guard_pool_assignments')
@@ -23,7 +20,7 @@ export async function GET(request: NextRequest) {
       .eq('company_id', companyId),
   ]);
 
-  const guards = (members ?? []).filter((member) => isGuardRole(member.role));
+  const { guards, pendingMembers } = splitCompanyGuards(members);
   const assignmentMap = new Map<string, string[]>();
 
   for (const row of assignments ?? []) {
@@ -34,10 +31,10 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    guards,
+    guards: guards.sort((a, b) => (a.full_name || a.email || '').localeCompare(b.full_name || b.email || '')),
     pools: pools ?? [],
     assignments: Object.fromEntries(assignmentMap),
-    pendingMembers: (members ?? []).filter((member) => String(member.status).toLowerCase() === 'pending'),
+    pendingMembers,
   });
 }
 
@@ -59,13 +56,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, message: 'Select a guard.' }, { status: 400 });
   }
 
-  const { data: guard } = await accountDb
-    .from('users')
-    .select('id, company_id, role')
-    .eq('id', guardId)
-    .maybeSingle();
+  const members = await loadCompanyTeamMembers(accountDb, companyId);
+  const guard = members.find((member) => member.id === guardId && isGuardRole(member.role));
 
-  if (!guard || guard.company_id !== companyId || !isGuardRole(guard.role)) {
+  if (!guard) {
     return NextResponse.json({ ok: false, message: 'Guard not found in your company.' }, { status: 404 });
   }
 
@@ -115,22 +109,22 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ ok: false, message: 'Invalid approval request.' }, { status: 400 });
   }
 
-  const { data: member } = await accountDb
-    .from('users')
-    .select('id, company_id')
-    .eq('id', userId)
-    .maybeSingle();
+  const members = await loadCompanyTeamMembers(accountDb, companyId);
+  const member = members.find((row) => row.id === userId);
 
-  if (!member || member.company_id !== companyId) {
+  if (!member) {
     return NextResponse.json({ ok: false, message: 'Team member not found.' }, { status: 404 });
   }
 
   const { error } = await accountDb.from('users').update({ status }).eq('id', userId);
-  if (error) {
+  if (error && !error.message.toLowerCase().includes('does not exist')) {
     return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
   }
 
-  await accountDb.from('profiles').update({ status }).eq('id', userId);
+  const { error: profileError } = await accountDb.from('profiles').update({ status }).eq('id', userId);
+  if (profileError && !profileError.message.toLowerCase().includes('does not exist')) {
+    return NextResponse.json({ ok: false, message: profileError.message }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true, message: `Member marked ${status}.` });
 }

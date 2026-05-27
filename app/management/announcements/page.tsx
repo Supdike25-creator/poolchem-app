@@ -69,11 +69,21 @@ export default function AnnouncementsPage() {
     require_acknowledgment: false,
   });
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
   const [announcementNotifications, setAnnouncementNotifications] = useState(true);
 
   async function loadData() {
     const devSession = getStoredSession()?.role === 'dev';
     setIsManager(devSession);
+    setError('');
+
+    if (devSession && !companyId) {
+      setAnnouncements([]);
+      setPools([]);
+      setLoading(false);
+      setError('Select a company from Dev Dashboard before managing announcements.');
+      return;
+    }
 
     if (!devSession) {
       const response = await fetch('/api/current-account', { cache: 'no-store', credentials: 'same-origin' });
@@ -102,6 +112,9 @@ export default function AnnouncementsPage() {
       setAnnouncements(result.announcements ?? []);
     } else {
       setAnnouncements([]);
+      if (result?.message) {
+        setError(result.message);
+      }
     }
     setLoading(false);
 
@@ -119,7 +132,13 @@ export default function AnnouncementsPage() {
     e.preventDefault();
     if (!formData.title.trim() || !formData.message.trim()) return;
 
+    if (getStoredSession()?.role === 'dev' && !companyId) {
+      setError('Select a company from Dev Dashboard before posting announcements.');
+      return;
+    }
+
     setSubmitting(true);
+    setError('');
 
     const response = await fetch(`/api/announcements${query}`, {
       method: 'POST',
@@ -150,6 +169,8 @@ export default function AnnouncementsPage() {
         require_acknowledgment: false,
       });
       setShowCreateForm(false);
+    } else {
+      setError(result?.message || 'Unable to post announcement.');
     }
 
     setSubmitting(false);
@@ -238,6 +259,10 @@ export default function AnnouncementsPage() {
             </div>
         ) : undefined}
       />
+
+      {error ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{error}</div>
+      ) : null}
 
       {isManager && (
         <SectionCard className="p-4">
