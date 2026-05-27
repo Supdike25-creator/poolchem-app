@@ -397,14 +397,14 @@ export default function LoginClient({
 
             <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
               {mode === 'login'
-                ? 'Enter your username and passcode'
+                ? 'Enter your username or email and passcode'
                 : mode === 'create'
                   ? 'Create your account'
                   : 'Recover your account'}
             </h1>
             <p className="mt-3 text-sm leading-6 text-slate-600">
               {mode === 'login'
-                ? 'Use the username and passcode created for this workspace, or continue with Google.'
+                ? 'Use the username or email and passcode from your manager, or continue with Google.'
                 : mode === 'create'
                 ? 'Enter your name, birthday, and email. ChemDeck will email a magic link before creating the account.'
                   : 'Enter your account email. ChemDeck will send a magic link and create a new passcode.'}
@@ -413,12 +413,13 @@ export default function LoginClient({
             {mode === 'login' ? (
               <form className="mt-6 space-y-4" onSubmit={handleAccountLogin}>
                 <label className="block">
-                  <span className="text-sm font-semibold text-slate-700">Username</span>
+                  <span className="text-sm font-semibold text-slate-700">Username or email</span>
                   <input
                     value={loginForm.username}
                     onChange={(event) => setLoginForm((current) => ({ ...current, username: event.target.value }))}
                     className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                     autoComplete="username"
+                    placeholder="username or you@example.com"
                   />
                 </label>
                 <label className="block">

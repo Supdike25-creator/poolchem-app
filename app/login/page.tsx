@@ -8,6 +8,7 @@ import {
   routeForRole,
 } from "@/lib/auth/accountAccess";
 import { appSessionCookie, createDevSession, isDevCredentials } from "@/lib/auth/devSession";
+import { findAccount, setAppSession } from "@/lib/appAccounts";
 import ChemDeckLogo from "@/components/ChemDeckLogo";
 import { createClient } from "../../lib/supabase/client";
 
@@ -27,7 +28,7 @@ export default function LoginPage() {
     }
   }, []);
 
-  const [email, setEmail] = useState("");
+  const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -93,7 +94,7 @@ export default function LoginPage() {
     return { route: routeForRole(role), message: "" };
   };
 
-  const handleEmailSignIn = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSignIn = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     setNotice("");
@@ -101,13 +102,40 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      if (isDevCredentials(email, password)) {
+      if (isDevCredentials(loginId, password)) {
         await supabase?.auth.signOut().catch(() => undefined);
         const session = createDevSession();
         window.localStorage.setItem("chemdeck.session", JSON.stringify(session));
         document.cookie = `${appSessionCookie}=${encodeURIComponent(JSON.stringify(session))}; path=/; max-age=2592000; samesite=lax`;
         router.replace("/dev-dashboard");
         router.refresh();
+        return;
+      }
+
+      const trimmedLogin = loginId.trim();
+      const trimmedPassword = password.trim();
+
+      try {
+        const account = await findAccount(trimmedLogin, trimmedPassword);
+        if (account) {
+          await supabase?.auth.signOut().catch(() => undefined);
+          setAppSession(account);
+          router.replace(routeForRole(account.role));
+          router.refresh();
+          return;
+        }
+      } catch (accountError) {
+        const message = (accountError as Error).message;
+        if (!trimmedLogin.includes("@")) {
+          setError(message || "That username and passcode did not match an account.");
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (!trimmedLogin.includes("@")) {
+        setError("That username and passcode did not match an account.");
+        setLoading(false);
         return;
       }
 
@@ -118,8 +146,8 @@ export default function LoginPage() {
       }
 
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
+        email: trimmedLogin,
+        password: trimmedPassword,
       });
 
       if (signInError) {
@@ -211,15 +239,20 @@ export default function LoginPage() {
       return;
     }
 
-    if (!email.trim()) {
-      setError("Enter your email first, then select Forgot password.");
+    if (!loginId.trim()) {
+      setError("Enter your username or email first, then select Forgot password.");
+      return;
+    }
+
+    if (!loginId.trim().includes("@")) {
+      setError("Password reset requires an email address. Enter the account email or contact your manager.");
       return;
     }
 
     setLoading(true);
 
     try {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(loginId.trim(), {
         redirectTo: `${window.location.origin}/login?auth_action=reset_password`,
       });
 
@@ -259,34 +292,34 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form onSubmit={handleEmailSignIn} className="space-y-5">
+        <form onSubmit={handleSignIn} className="space-y-5">
           <div>
-            <label htmlFor="email" className="mb-2 block text-sm font-medium text-slate-700">
-              Email
+            <label htmlFor="login-id" className="mb-2 block text-sm font-medium text-slate-700">
+              Username or email
             </label>
             <input
-              id="email"
+              id="login-id"
               type="text"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              value={loginId}
+              onChange={(e) => setLoginId(e.target.value)}
+              placeholder="username or you@example.com"
               className="h-12 w-full rounded-md border border-slate-200 bg-slate-50 px-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               disabled={loading}
-              autoComplete="email"
+              autoComplete="username"
               required
             />
           </div>
 
           <div>
             <label htmlFor="password" className="mb-2 block text-sm font-medium text-slate-700">
-              Password
+              Password / passcode
             </label>
             <input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
+              placeholder="Enter your passcode or password"
               className="h-12 w-full rounded-md border border-slate-200 bg-slate-50 px-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               disabled={loading}
               autoComplete="current-password"

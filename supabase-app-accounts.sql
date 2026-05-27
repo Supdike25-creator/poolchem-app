@@ -274,7 +274,10 @@ begin
     account.email,
     account.provider
   from public.app_accounts account
-  where lower(account.username) = lower(trim(p_username))
+  where (
+    lower(account.username) = lower(trim(p_username))
+    or lower(account.email) = lower(trim(p_username))
+  )
     and account.passcode_hash = extensions.crypt(trim(p_passcode), account.passcode_hash)
   limit 1;
 end;

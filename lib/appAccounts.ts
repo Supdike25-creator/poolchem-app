@@ -206,10 +206,10 @@ export const createOrUpdateGoogleAccount = async ({
   return account;
 };
 
-export const findAccount = async (username: string, passcode: string) => {
+export const findAccount = async (identifier: string, passcode: string) => {
   const supabase = createClient();
   const { data, error } = await supabase.rpc('verify_app_account', {
-    p_username: username.trim(),
+    p_username: identifier.trim(),
     p_passcode: passcode.trim(),
   });
 
