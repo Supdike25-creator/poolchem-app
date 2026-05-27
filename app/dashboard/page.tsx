@@ -2,11 +2,12 @@ import React from 'react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { AlertCircle, Camera, CheckCircle2, ClipboardCheck, ClipboardList, Clock3, Eye, FileSpreadsheet, Info, Megaphone, Plus, Users, Waves } from 'lucide-react';
+import { AlertCircle, CalendarClock, Camera, CheckCircle2, ClipboardCheck, ClipboardList, Clock3, Eye, FileSpreadsheet, Info, Megaphone, Plus, Users, Waves } from 'lucide-react';
 import { EmptyState, StatCard, StatusBadge, buttonClass, type StatusTone } from '../../components/OperationsUI';
 import { loadCompanyAlerts, syncMissedTestAlerts } from '@/lib/alerts';
 import { mergeCompanySettings } from '@/lib/companySettings';
 import { loadGuardPools } from '@/lib/guardPools';
+import { withDevCompanyQuery } from '@/lib/withDevCompanyQuery';
 import GuardHomeExtras from '../../components/GuardHomeExtras';
 import {
   formatDateTime,
@@ -96,8 +97,8 @@ export default async function Dashboard({
     isGuardView ? `/guard/log?poolId=${poolId}` : `/log?poolId=${poolId}`;
   const poolHistoryHref = (poolId: string) =>
     isGuardView ? `/guard/review?poolId=${poolId}` : `/management/pools/${poolId}`;
-  const withCompanyQuery = (href: string) =>
-    devCompanyId ? `${href}${href.includes('?') ? '&' : '?'}companyId=${encodeURIComponent(devCompanyId)}` : href;
+  const poolScheduleHref = (poolId: string) => `/management/pools/${poolId}/schedule`;
+  const withCompanyQuery = (href: string) => withDevCompanyQuery(href, devCompanyId);
 
   try {
     const supabase = devCompanyId ? createAdminClient() : await createClient();
@@ -353,7 +354,7 @@ export default async function Dashboard({
                   Submit Log
                 </Link>
               ) : (
-                <Link href="/management/pools/new" className={buttonClass.primary}>
+                <Link href={withCompanyQuery('/management/pools/new')} className={buttonClass.primary}>
                   <Plus className="mr-2 h-4 w-4" />
                   Add Pool
                 </Link>
@@ -409,17 +410,21 @@ export default async function Dashboard({
             </>
           ) : (
             <>
-              <Link href="/management/team" className={buttonClass.secondary}>
+              <Link href={withCompanyQuery('/management/team')} className={buttonClass.secondary}>
                 <Users className="mr-2 h-4 w-4" />
                 Team
               </Link>
-              <Link href="/management/compliance" className={buttonClass.secondary}>
+              <Link href={withCompanyQuery('/management/compliance')} className={buttonClass.secondary}>
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
                 Compliance
               </Link>
-              <Link href="/management/alerts" className={buttonClass.secondary}>
+              <Link href={withCompanyQuery('/management/alerts')} className={buttonClass.secondary}>
                 <AlertCircle className="mr-2 h-4 w-4" />
                 Alerts{unreadAlertCount > 0 ? ` (${unreadAlertCount})` : ''}
+              </Link>
+              <Link href={withCompanyQuery('/management/pools')} className={buttonClass.secondary}>
+                <Waves className="mr-2 h-4 w-4" />
+                Pools
               </Link>
             </>
           )}
@@ -446,7 +451,7 @@ export default async function Dashboard({
             </div>
             {urgentPools.length > 0 || (!isGuardView && unreadAlertCount > 0) ? (
               <Link
-                href={isGuardView ? withCompanyQuery(reviewHref) : '/management/alerts'}
+                href={isGuardView ? withCompanyQuery(reviewHref) : withCompanyQuery('/management/alerts')}
                 className="inline-flex h-9 items-center justify-center rounded-lg bg-white px-3 text-sm font-semibold text-red-700 shadow-sm ring-1 ring-red-200 hover:bg-red-50"
               >
                 {isGuardView ? 'Review Pools' : `View Alerts${unreadAlertCount > 0 ? ` (${unreadAlertCount})` : ''}`}
@@ -538,8 +543,14 @@ export default async function Dashboard({
                     <dd className="mt-1 font-mono font-semibold text-slate-900">{pool.latestLog ? pool.latestLog.ph.toFixed(1) : 'No data'}</dd>
                   </div>
                 </dl>
-                <div className="mt-4 flex gap-2">
+                <div className="mt-4 flex flex-wrap gap-2">
                   <Link href={withCompanyQuery(poolLogHref(pool.id))} className={buttonClass.primary}>Log Test</Link>
+                  {!isGuardView ? (
+                    <Link href={withCompanyQuery(poolScheduleHref(pool.id))} className={buttonClass.secondary}>
+                      <CalendarClock className="mr-2 h-4 w-4" />
+                      Hours
+                    </Link>
+                  ) : null}
                   <Link href={withCompanyQuery(poolHistoryHref(pool.id))} className={buttonClass.secondary}>
                     <Eye className="mr-2 h-4 w-4" />
                     {isGuardView ? 'My Logs' : 'View History'}

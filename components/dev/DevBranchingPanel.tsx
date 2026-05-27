@@ -335,6 +335,13 @@ function DevBranchingPanelInner({
                 Manager POV
               </Link>
               <Link
+                href={`/management/pools?companyId=${encodeURIComponent(activeCompanyId)}`}
+                className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold"
+              >
+                <Waves className="h-3.5 w-3.5" />
+                Manager pools
+              </Link>
+              <Link
                 href={`/worker-view?companyId=${encodeURIComponent(activeCompanyId)}`}
                 className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold"
               >
