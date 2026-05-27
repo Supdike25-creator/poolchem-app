@@ -2,31 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { Building2, Mail } from "lucide-react";
 import ChemDeckLogo from "@/components/ChemDeckLogo";
 import { createClient } from "@/lib/supabase/client";
-
-type RoleChoice = "boss" | "guard";
-
-const roleOptions: Array<{
-  role: RoleChoice;
-  title: string;
-  description: string;
-  icon: typeof Building2;
-}> = [
-  {
-    role: "boss",
-    title: "Manager",
-    description: "Create and manage a company workspace.",
-    icon: Building2,
-  },
-  {
-    role: "guard",
-    title: "Lifeguard",
-    description: "Join a company using a company code.",
-    icon: ShieldCheck,
-  },
-];
 
 export default function ChooseRolePage() {
   const router = useRouter();
@@ -34,19 +13,10 @@ export default function ChooseRolePage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [checking, setChecking] = useState(true);
-  const [submittingRole, setSubmittingRole] = useState<RoleChoice | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
-      const hasPendingRole =
-        document.cookie.includes("chemdeck.pendingRole=boss") ||
-        document.cookie.includes("chemdeck.pendingRole=guard");
-
-      if (hasPendingRole) {
-        router.replace("/enter-company-code");
-        return;
-      }
-
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -58,40 +28,44 @@ export default function ChooseRolePage() {
 
       const { data: userRow } = await supabase
         .from("users")
-        .select("role")
+        .select("role, company_id")
         .eq("id", session.user.id)
         .maybeSingle();
 
       const role = userRow?.role?.trim().toLowerCase();
-      if (role === "boss" || role === "guard") {
-        router.replace("/enter-company-code");
+      if (role === "boss" && userRow?.company_id) {
+        router.replace("/management/dashboard");
+        return;
+      }
+
+      if (role === "boss" && !userRow?.company_id) {
+        router.replace("/create-company");
+        return;
+      }
+
+      if (userRow?.company_id) {
+        router.replace(role === "boss" || role === "manager" || role === "supervisor" ? "/management/dashboard" : "/guard");
         return;
       }
 
       setChecking(false);
     };
 
-    checkSession();
+    void checkSession();
   }, [router, supabase]);
 
-  const chooseRole = async (role: RoleChoice) => {
+  const createManagerWorkspace = async () => {
     setError("");
     setNotice("");
-    setSubmittingRole(role);
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 10000);
+    setSubmitting(true);
 
     try {
       const response = await fetch("/api/choose-role", {
         method: "POST",
         credentials: "same-origin",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({ role }),
-        signal: controller.signal,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ role: "boss" }),
       });
-
       const result = await response.json();
 
       if (!response.ok) {
@@ -99,19 +73,11 @@ export default function ChooseRolePage() {
         return;
       }
 
-      setNotice("Role saved. Redirecting to company code...");
-      window.setTimeout(() => {
-        window.location.href = result?.redirectTo || "/enter-company-code";
-      }, 50);
-    } catch (requestError) {
-      setError(
-        requestError instanceof DOMException && requestError.name === "AbortError"
-          ? "Saving role took too long. Please try again."
-          : "Unable to save role. Please try again.",
-      );
+      window.location.href = result?.redirectTo || "/create-company";
+    } catch {
+      setError("Unable to save role. Please try again.");
     } finally {
-      window.clearTimeout(timeout);
-      setSubmittingRole(null);
+      setSubmitting(false);
     }
   };
 
@@ -123,9 +89,9 @@ export default function ChooseRolePage() {
             <ChemDeckLogo variant="full" scheme="dark" className="hidden w-[230px] sm:block" />
             <ChemDeckLogo variant="mark" scheme="dark" className="h-12 w-12 sm:hidden" />
           </div>
-          <h1 className="text-4xl font-semibold tracking-tight text-white">Choose role</h1>
+          <h1 className="text-4xl font-semibold tracking-tight text-white">Get started</h1>
           <p className="mt-3 text-sm leading-6 text-[#D9E1E8]/80">
-            Pick how this ChemDeck account will be used.
+            Managers create a company workspace. Lifeguards join through an email invite from their supervisor.
           </p>
         </div>
 
@@ -145,25 +111,40 @@ export default function ChooseRolePage() {
             <p className="text-sm leading-6 text-[#D9E1E8]">Checking account...</p>
           </div>
         ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {roleOptions.map(({ role, title, description, icon: Icon }) => (
+          <div className="space-y-4">
             <button
-              key={role}
               type="button"
-              onClick={() => chooseRole(role)}
-              disabled={Boolean(submittingRole)}
-              className="rounded-md border border-[#3EC6FF]/50 bg-[rgba(62,198,255,0.12)] p-5 text-left transition hover:bg-[rgba(62,198,255,0.2)] disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() => void createManagerWorkspace()}
+              disabled={submitting}
+              className="w-full rounded-md border border-[#3EC6FF]/50 bg-[rgba(62,198,255,0.12)] p-5 text-left transition hover:bg-[rgba(62,198,255,0.2)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-md border border-[#3EC6FF]/40 bg-[#3EC6FF]/10 text-[#3EC6FF]">
-                <Icon className="h-5 w-5" />
+                <Building2 className="h-5 w-5" />
               </span>
               <span className="block text-lg font-semibold text-white">
-                {submittingRole === role ? "Saving..." : title}
+                {submitting ? "Setting up..." : "I'm a manager / supervisor"}
               </span>
-              <span className="mt-2 block text-sm leading-6 text-[#D9E1E8]/75">{description}</span>
+              <span className="mt-2 block text-sm leading-6 text-[#D9E1E8]/75">
+                Create your company workspace and invite your team by email.
+              </span>
             </button>
-          ))}
-        </div>
+
+            <div className="rounded-md border border-white/10 bg-white/[0.04] p-5">
+              <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#D9E1E8]">
+                <Mail className="h-5 w-5" />
+              </span>
+              <span className="block text-lg font-semibold text-white">I'm a lifeguard</span>
+              <span className="mt-2 block text-sm leading-6 text-[#D9E1E8]/75">
+                Ask your supervisor to send you a ChemDeck invite email. Open that link to create your account and join their company automatically.
+              </span>
+              <Link
+                href="/login"
+                className="mt-4 inline-flex text-sm font-semibold text-[#3EC6FF] hover:underline"
+              >
+                Already have an invite? Sign in
+              </Link>
+            </div>
+          </div>
         )}
       </section>
     </main>

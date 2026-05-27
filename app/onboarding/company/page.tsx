@@ -96,7 +96,7 @@ export default function CompanyOnboardingPage() {
     }
 
     const createdCompany = Array.isArray(data) ? data[0] : data;
-    setMessage(`Company created. Code: ${createdCompany?.company_code ?? "ready"}`);
+    setMessage(`Company created. Invite your team from the Team page.`);
     router.replace(route);
     router.refresh();
   };
@@ -139,8 +139,8 @@ export default function CompanyOnboardingPage() {
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">
           {isBoss
-            ? "Manager accounts create the ChemDeck company workspace. ChemDeck will generate a company code for lifeguards."
-            : "Lifeguard accounts need a company code from a manager before using ChemDeck."}
+            ? "Manager accounts create the ChemDeck company workspace, then invite staff by email."
+            : "Lifeguard accounts join through an email invite from a supervisor."}
         </p>
 
         {loading ? (
@@ -169,26 +169,16 @@ export default function CompanyOnboardingPage() {
             </button>
           </form>
         ) : (
-          <form onSubmit={handleJoinCompany} className="mt-6 space-y-4">
-            <label className="block">
-              <span className="text-sm font-semibold text-slate-700">Company code</span>
-              <input
-                value={companyCode}
-                onChange={(event) => setCompanyCode(event.target.value.toUpperCase())}
-                className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                placeholder="CHEM1234"
-                required
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+          <div className="mt-6 space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-700">
+            <p>Open the invite email from your supervisor and follow the link to create your account.</p>
+            <p>ChemDeck will add you to their company automatically — no codes needed.</p>
+            <Link
+              href="/choose-role"
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
             >
-              <KeyRound className="mr-2 h-4 w-4" />
-              {submitting ? "Joining..." : "Join company"}
-            </button>
-          </form>
+              Back to get started
+            </Link>
+          </div>
         )}
 
         {error ? (

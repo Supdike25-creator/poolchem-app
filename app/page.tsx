@@ -65,7 +65,7 @@ const steps = [
   },
   {
     title: 'Invite Your Team',
-    description: 'Share your company code or send email invites from the Team page. Guards sign up, join, and you approve access.',
+    description: 'Supervisors send email invites from the Team page. Staff create an account from the link and join your company automatically.',
   },
   {
     title: 'Start Logging',

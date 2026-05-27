@@ -15,7 +15,6 @@ import {
   Mail,
   Users,
   Building2,
-  Clipboard,
   Clock,
   Droplets,
   FlaskConical,
@@ -27,7 +26,7 @@ import {
   AlertTriangle,
   Megaphone,
   CheckCircle,
-  XCircle
+  XCircle,
 } from 'lucide-react';
 
 import { defaultCompanySettings, mergeCompanySettings, type CompanySettings } from '@/lib/companySettings';
@@ -135,9 +134,6 @@ export default function ManagementSettingsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [companyDetails, setCompanyDetails] = useState<CompanyDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [copyMessage, setCopyMessage] = useState('');
-  const [inviteLink, setInviteLink] = useState('');
-  const [inviteCopyMessage, setInviteCopyMessage] = useState('');
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -174,12 +170,6 @@ export default function ManagementSettingsPage() {
         notifySettingsChanged();
       }
 
-      const inviteResponse = await fetch('/api/team-invite', { cache: 'no-store' });
-      const inviteResult = await inviteResponse.json().catch(() => null);
-      if (inviteResponse.ok && inviteResult?.ok) {
-        setInviteLink(inviteResult.signup_link || '');
-      }
-
       setLoading(false);
     };
 
@@ -209,32 +199,6 @@ export default function ManagementSettingsPage() {
     const supabase = createClient();
     await supabase.auth.signOut();
     window.location.href = '/';
-  };
-
-  const copyCompanyCode = async () => {
-    if (!companyDetails?.company_code) {
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(companyDetails.company_code);
-      setCopyMessage('Copied');
-      window.setTimeout(() => setCopyMessage(''), 1600);
-    } catch {
-      setCopyMessage('Copy failed');
-    }
-  };
-
-  const copyInviteLink = async () => {
-    if (!inviteLink) return;
-
-    try {
-      await navigator.clipboard.writeText(inviteLink);
-      setInviteCopyMessage('Invite link copied');
-      window.setTimeout(() => setInviteCopyMessage(''), 1600);
-    } catch {
-      setInviteCopyMessage('Copy failed');
-    }
   };
 
   const rawRole = profile?.role?.toLowerCase().trim() || '';
@@ -555,7 +519,7 @@ export default function ManagementSettingsPage() {
           <SectionHeader
             icon={<Building2 className="h-4 w-4" />}
             title="Company / Workspace"
-            description={isManager ? "Share the company code with staff joining this workspace." : "Your assigned ChemDeck company workspace."}
+            description={isManager ? "Invite staff from the Team page." : "Your assigned ChemDeck company workspace."}
           />
 
           <div className="space-y-3">
@@ -568,41 +532,17 @@ export default function ManagementSettingsPage() {
 
             {isManager ? (
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Company Code</p>
-                <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <code className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-base font-semibold tracking-[0.18em] text-slate-950">
-                    {companyDetails?.company_code || 'Not assigned'}
-                  </code>
-                  <button
-                    type="button"
-                    onClick={copyCompanyCode}
-                    disabled={!companyDetails?.company_code}
-                    className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
+                <p className="text-sm text-slate-600">
+                  Send email invites from the Team page. New members join automatically when they open their invite link.
+                </p>
+                <div className="mt-4">
+                  <Link
+                    href="/management/team"
+                    className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-800 shadow-sm hover:bg-blue-100"
                   >
-                    <Clipboard className="h-4 w-4" />
-                    {copyMessage || 'Copy code'}
-                  </button>
-                </div>
-                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-slate-600">Share a signup link so guards can join with your code pre-filled.</p>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void copyInviteLink()}
-                      disabled={!inviteLink}
-                      className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-800 shadow-sm hover:bg-blue-100 disabled:cursor-not-allowed disabled:text-slate-400"
-                    >
-                      <Clipboard className="h-4 w-4" />
-                      {inviteCopyMessage || 'Copy invite link'}
-                    </button>
-                    <Link
-                      href="/management/team"
-                      className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                    >
-                      <Users className="h-4 w-4" />
-                      Manage team
-                    </Link>
-                  </div>
+                    <Users className="h-4 w-4" />
+                    Open Team invites
+                  </Link>
                 </div>
               </div>
             ) : null}
@@ -614,8 +554,8 @@ export default function ManagementSettingsPage() {
               </div>
               <p className="mt-3 text-sm text-slate-600">
                 {isManager
-                  ? 'Invite lifeguards from the Team page and approve pending members there.'
-                  : 'Contact your manager if you need to switch companies.'}
+                  ? 'Promote team members and assign pools from the Team page.'
+                  : 'Contact your supervisor if you need access changes.'}
               </p>
             </div>
           </div>

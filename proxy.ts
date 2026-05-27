@@ -21,6 +21,7 @@ const PUBLIC_PATHS = [
   "/auth/callback",
   "/api/spotify/callback",
 ];
+const PUBLIC_PREFIXES = ["/invite/", "/api/invites/"];
 const ROLE_SETUP_PATHS = ["/choose-role", "/api/choose-role"];
 
 const managerDashboardPath = "/management/dashboard";
@@ -81,7 +82,11 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname === "/choose-role" && hasPendingRole) {
-    return NextResponse.redirect(new URL("/enter-company-code", request.url));
+    return NextResponse.redirect(new URL("/create-company", request.url));
+  }
+
+  if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+    return NextResponse.next({ request });
   }
 
   if (ROLE_SETUP_PATHS.includes(pathname)) {
@@ -123,7 +128,7 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user || error) {
-    if (PUBLIC_PATHS.includes(pathname)) {
+    if (PUBLIC_PATHS.includes(pathname) || PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
       return supabaseResponse;
     }
 
@@ -140,7 +145,7 @@ export async function proxy(request: NextRequest) {
   const accountRecord = userRow as Record<string, unknown> | null;
 
   if (!accountRecord) {
-    if (hasPendingRole && (pathname === "/enter-company-code" || pathname === "/api/join-company")) {
+    if (pathname.startsWith("/invite/") || pathname === "/api/accept-invite") {
       return supabaseResponse;
     }
 
@@ -182,9 +187,7 @@ export async function proxy(request: NextRequest) {
   if (rawRole === "boss" && !hasCompany) {
     if (
       pathname !== "/create-company" &&
-      pathname !== "/onboarding/company" &&
-      pathname !== "/enter-company-code" &&
-      pathname !== "/api/join-company"
+      pathname !== "/onboarding/company"
     ) {
       return NextResponse.redirect(new URL("/create-company", request.url));
     }
@@ -192,15 +195,11 @@ export async function proxy(request: NextRequest) {
   }
 
   if (rawRole === "guard" && !hasCompany) {
-    if (pathname !== "/enter-company-code" && pathname !== "/api/join-company") {
-      if (hasJustJoinedCompany && pathname === "/") {
-        supabaseResponse.cookies.delete("chemdeck.justJoinedCompany");
-        return supabaseResponse;
-      }
-
-      return NextResponse.redirect(new URL("/enter-company-code", request.url));
+    if (pathname.startsWith("/invite/") || pathname === "/api/accept-invite") {
+      return supabaseResponse;
     }
-    return supabaseResponse;
+
+    return NextResponse.redirect(new URL("/choose-role", request.url));
   }
 
   if (pathname === "/login") {

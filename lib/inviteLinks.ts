@@ -4,19 +4,15 @@ export const getAppBaseUrl = (fallback = '') => {
   return fallback.replace(/\/$/, '');
 };
 
-export const buildSignupInviteLink = (companyCode: string, role: 'guard' | 'boss' = 'guard', baseUrl = '') => {
+export const buildInviteLink = (token: string, baseUrl = '') => {
   const base = getAppBaseUrl(baseUrl);
-  const params = new URLSearchParams({
-    role,
-    code: companyCode.trim().toUpperCase(),
-  });
-  return `${base}/create-account?${params.toString()}`;
+  return `${base}/invite/${token.trim()}`;
 };
 
-export const buildJoinInviteLink = (companyCode: string, baseUrl = '') => {
-  const base = getAppBaseUrl(baseUrl);
-  const params = new URLSearchParams({
-    code: companyCode.trim().toUpperCase(),
-  });
-  return `${base}/enter-company-code?${params.toString()}`;
-};
+/** @deprecated Company codes are no longer used for invites. */
+export const buildSignupInviteLink = (_companyCode: string, _role: 'guard' | 'boss' = 'guard', baseUrl = '') =>
+  `${getAppBaseUrl(baseUrl)}/create-account`;
+
+/** @deprecated Company codes are no longer used for invites. */
+export const buildJoinInviteLink = (_companyCode: string, baseUrl = '') =>
+  `${getAppBaseUrl(baseUrl)}/login`;

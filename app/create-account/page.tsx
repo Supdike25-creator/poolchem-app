@@ -3,7 +3,7 @@
 import { FormEvent, Suspense, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import ChemDeckLogo from "@/components/ChemDeckLogo";
 import { createClient } from "@/lib/supabase/client";
 
@@ -11,9 +11,6 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function CreateAccountForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const inviteCode = searchParams.get("code")?.trim().toUpperCase() || "";
-  const inviteRole = searchParams.get("role") === "boss" ? "boss" : "guard";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -77,11 +74,6 @@ function CreateAccountForm() {
 
       setNotice("Account created. Redirecting...");
       window.setTimeout(() => {
-        if (inviteCode) {
-          document.cookie = `chemdeck.pendingRole=${inviteRole}; path=/; max-age=3600; samesite=lax`;
-          router.replace(`/enter-company-code?code=${encodeURIComponent(inviteCode)}`);
-          return;
-        }
         router.replace("/choose-role");
       }, 700);
     } catch {
@@ -101,9 +93,7 @@ function CreateAccountForm() {
           </div>
           <h1 className="text-4xl font-semibold tracking-tight text-white">Create account</h1>
           <p className="mt-3 text-sm leading-6 text-[#D9E1E8]/80">
-            {inviteCode
-              ? `Create your ChemDeck account, then join with company code ${inviteCode}.`
-              : "Create your ChemDeck account."}
+            Create your ChemDeck account. Lifeguards should use the invite link from their supervisor instead.
           </p>
         </div>
 

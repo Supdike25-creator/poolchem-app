@@ -5,9 +5,17 @@ import {
   routeForRole,
 } from "@/lib/auth/accountAccess";
 
+const safeNextPath = (value: string | null) => {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return null;
+  }
+  return value;
+};
+
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
+  const nextPath = safeNextPath(url.searchParams.get("next"));
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
@@ -56,6 +64,10 @@ export async function GET(request: NextRequest) {
     return response;
   }
 
+  if (nextPath) {
+    return redirectWithCookies(nextPath);
+  }
+
   const {
     data: { user },
     error: userError,
@@ -91,7 +103,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (rawRole === "guard" && !accountRecord.company_id && !accountRecord.organization_id) {
-    return redirectWithCookies("/enter-company-code");
+    return redirectWithCookies("/choose-role");
   }
 
   return redirectWithCookies(routeForRole(role));

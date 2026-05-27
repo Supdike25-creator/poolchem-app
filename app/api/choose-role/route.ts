@@ -120,14 +120,18 @@ export async function POST(request: NextRequest) {
   const response = NextResponse.json({
     ok: true,
     role: selectedRole,
-    redirectTo: "/enter-company-code",
+    redirectTo: selectedRole === "boss" ? "/create-company" : "/choose-role",
   });
 
-  response.cookies.set("chemdeck.pendingRole", selectedRole, {
-    path: "/",
-    maxAge: 600,
-    sameSite: "lax",
-  });
+  if (selectedRole === "boss") {
+    response.cookies.set("chemdeck.pendingRole", selectedRole, {
+      path: "/",
+      maxAge: 600,
+      sameSite: "lax",
+    });
+  } else {
+    response.cookies.delete("chemdeck.pendingRole");
+  }
 
   return response;
 }

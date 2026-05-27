@@ -114,7 +114,7 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
       companyId = profileData?.company_id || null;
 
       if (!companyId) {
-        redirect('/enter-company-code');
+        redirect('/choose-role');
       }
 
       if (!['boss', 'manager', 'supervisor', 'admin'].includes(profileData?.role ?? '')) {

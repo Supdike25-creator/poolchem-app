@@ -19,25 +19,25 @@ const isMissingOptionalTable = (message?: string) => {
   return normalized.includes("relation") && normalized.includes("does not exist");
 };
 
-const profilePayload = (id: string, email: string) => ({
+const profilePayload = (id: string, email: string, fullName?: string | null) => ({
   id,
   email,
-  full_name: email,
+  full_name: fullName?.trim() || email,
   role: "guard",
   status: "active",
   company_id: null,
 });
 
-const publicUserPayload = (id: string, email: string) => ({
+const publicUserPayload = (id: string, email: string, fullName?: string | null) => ({
   id,
   email,
-  full_name: email,
+  full_name: fullName?.trim() || email,
   role: "guard",
   status: "active",
   company_id: null,
 });
 
-async function createAccountWithAdminClient(email: string, password: string) {
+async function createAccountWithAdminClient(email: string, password: string, fullName?: string | null) {
   const supabase = createAdminClient();
 
   const { data: existingProfile, error: profileLookupError } = await supabase
@@ -73,7 +73,7 @@ async function createAccountWithAdminClient(email: string, password: string) {
 
   const { error: profileError } = await supabase
     .from("profiles")
-    .upsert(profilePayload(data.user.id, email), { onConflict: "id" });
+    .upsert(profilePayload(data.user.id, email, fullName), { onConflict: "id" });
 
   if (profileError) {
     await supabase.auth.admin.deleteUser(data.user.id).catch(() => undefined);
@@ -82,7 +82,7 @@ async function createAccountWithAdminClient(email: string, password: string) {
 
   const { error: usersError } = await supabase
     .from("users")
-    .upsert(publicUserPayload(data.user.id, email), { onConflict: "id" });
+    .upsert(publicUserPayload(data.user.id, email, fullName), { onConflict: "id" });
 
   if (usersError && !isMissingOptionalTable(usersError.message)) {
     await supabase.auth.admin.deleteUser(data.user.id).catch(() => undefined);
@@ -117,9 +117,10 @@ async function createAccountWithPublicAuth(email: string, password: string) {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null) as { email?: string; password?: string } | null;
+  const body = await request.json().catch(() => null) as { email?: string; password?: string; full_name?: string } | null;
   const email = body?.email?.trim().toLowerCase() ?? "";
   const password = body?.password ?? "";
+  const fullName = body?.full_name?.trim() || null;
 
   if (!emailPattern.test(email)) {
     return NextResponse.json({ ok: false, message: "Enter a valid email address." }, { status: 400 });
@@ -131,7 +132,7 @@ export async function POST(request: NextRequest) {
 
   try {
     if (serviceRoleConfigured) {
-      return await createAccountWithAdminClient(email, password);
+      return await createAccountWithAdminClient(email, password, fullName);
     }
 
     return await createAccountWithPublicAuth(email, password);

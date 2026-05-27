@@ -15,7 +15,7 @@ import { createClient } from "../../lib/supabase/client";
 
 const authErrorMessages: Record<string, string> = {
   auth_not_configured: "Authentication is not configured for this environment.",
-  missing_workspace: "Enter your company code to finish setting up your account.",
+  missing_workspace: "Ask your supervisor for a ChemDeck invite link to join your company.",
 };
 
 export default function LoginPage() {
@@ -90,7 +90,7 @@ export default function LoginPage() {
     }
 
     if (rawRole === "guard" && !accountRecord.company_id && !accountRecord.organization_id) {
-      return { route: "/enter-company-code", message: "" };
+      return { route: "/choose-role", message: "" };
     }
 
     return { route: routeForRole(role), message: "" };

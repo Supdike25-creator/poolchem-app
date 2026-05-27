@@ -31,7 +31,6 @@ export default function GuardSettingsPage() {
   const companyId = searchParams.get('companyId');
   const [profile, setProfile] = useState<Profile | null>(null);
   const [companyName, setCompanyName] = useState('');
-  const [companyCode, setCompanyCode] = useState('');
   const [settings, setSettings] = useState<CompanySettings>(defaultCompanySettings);
   const [loading, setLoading] = useState(true);
 
@@ -71,7 +70,6 @@ export default function GuardSettingsPage() {
       const result = await response.json().catch(() => null);
       if (response.ok && result?.ok) {
         setCompanyName(result.company?.company_name?.trim() || '');
-        setCompanyCode(result.company?.company_code?.trim() || '');
       }
 
       setLoading(false);
@@ -134,11 +132,6 @@ export default function GuardSettingsPage() {
           {companyName ? (
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
               <p className="text-lg font-semibold text-slate-950">{companyName}</p>
-              {companyCode ? (
-                <p className="mt-1 text-sm text-slate-600">
-                  Company code: <span className="font-semibold text-slate-900">{companyCode}</span>
-                </p>
-              ) : null}
             </div>
           ) : (
             <p className="text-sm text-slate-600">Unable to load your company details right now.</p>

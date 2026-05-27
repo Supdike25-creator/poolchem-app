@@ -149,7 +149,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
         }
 
         if (rawRole === 'guard' && !hasCompany) {
-          router.replace('/enter-company-code');
+          router.replace('/choose-role');
           return;
         }
 
