@@ -2,7 +2,8 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Building2, CheckCircle2, Loader2, Mail, ShieldCheck } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { ArrowLeft, Building2, CheckCircle2, Loader2, LogIn, UserPlus } from 'lucide-react';
 import ChemDeckLogo from '@/components/ChemDeckLogo';
 import { createClient } from '@/lib/supabase/client';
 
@@ -13,20 +14,51 @@ type InviteDetails = {
 };
 
 export default function InvitePageClient({ token }: { token: string }) {
+  const searchParams = useSearchParams();
   const supabase = useMemo(() => createClient(), []);
 
   const [invite, setInvite] = useState<InviteDetails | null>(null);
+  const [hasAccount, setHasAccount] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [loadingInvite, setLoadingInvite] = useState(true);
 
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [mode, setMode] = useState<'signup' | 'signin' | 'accept'>('signup');
+  const [mode, setMode] = useState<'signup' | 'signin'>('signup');
+
+  useEffect(() => {
+    const requestedMode = searchParams.get('mode');
+    if (requestedMode === 'login') {
+      setMode('signin');
+    }
+  }, [searchParams]);
+
+  const finishJoin = (acceptResult: { message?: string; redirectTo?: string }) => {
+    setNotice(acceptResult.message || 'Welcome aboard!');
+    window.setTimeout(() => {
+      window.location.assign(acceptResult.redirectTo || '/guard');
+    }, 700);
+  };
+
+  const acceptInvite = async (full_name?: string) => {
+    const acceptResponse = await fetch('/api/accept-invite', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token, full_name }),
+    });
+    const acceptResult = await acceptResponse.json().catch(() => null);
+
+    if (!acceptResponse.ok || !acceptResult?.ok) {
+      throw new Error(acceptResult?.message || 'Unable to join this company.');
+    }
+
+    finishJoin(acceptResult);
+  };
 
   useEffect(() => {
     const loadInvite = async () => {
@@ -43,6 +75,12 @@ export default function InvitePageClient({ token }: { token: string }) {
       }
 
       setInvite(result.invite);
+      setHasAccount(Boolean(result.has_account));
+      if (result.has_account && searchParams.get('mode') !== 'signup') {
+        setMode('signin');
+      } else if (!result.has_account) {
+        setMode('signup');
+      }
       setLoadingInvite(false);
 
       const {
@@ -50,36 +88,21 @@ export default function InvitePageClient({ token }: { token: string }) {
       } = await supabase.auth.getSession();
 
       if (session?.user?.email?.toLowerCase() === result.invite.email.toLowerCase()) {
-        setMode('accept');
         setAccepting(true);
-        const acceptResponse = await fetch('/api/accept-invite', {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ token }),
-        });
-        const acceptResult = await acceptResponse.json().catch(() => null);
-        setAccepting(false);
-
-        if (acceptResponse.ok && acceptResult?.ok) {
-          setNotice(acceptResult.message || 'Welcome aboard!');
-          window.setTimeout(() => {
-            window.location.assign(acceptResult.redirectTo || '/guard');
-          }, 800);
-          return;
-        }
-
-        if (acceptResult?.message) {
-          setError(acceptResult.message);
+        try {
+          await acceptInvite();
+        } catch (acceptError) {
+          setError((acceptError as Error).message);
+        } finally {
+          setAccepting(false);
         }
       } else if (session?.user) {
-        setError(`This invite is for ${result.invite.email}. Sign out and use that email to continue.`);
-        setMode('signin');
+        setError(`This invite is for ${result.invite.email}. Sign out first, then open the link again.`);
       }
     };
 
     void loadInvite();
-  }, [supabase, token]);
+  }, [supabase, token, searchParams]);
 
   const handleSignup = async (event: FormEvent) => {
     event.preventDefault();
@@ -88,13 +111,13 @@ export default function InvitePageClient({ token }: { token: string }) {
     setError('');
     setNotice('');
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+    if (!fullName.trim()) {
+      setError('Enter your name.');
       return;
     }
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
       return;
     }
 
@@ -107,15 +130,16 @@ export default function InvitePageClient({ token }: { token: string }) {
         body: JSON.stringify({
           email: invite.email,
           password,
-          full_name: fullName.trim() || undefined,
+          full_name: fullName.trim(),
         }),
       });
       const createResult = await createResponse.json().catch(() => null);
 
       if (!createResponse.ok) {
         if (createResponse.status === 409) {
+          setHasAccount(true);
           setMode('signin');
-          setError('That email already has an account. Sign in below to join your team.');
+          setError('You already have a ChemDeck account. Sign in below to join this company.');
         } else {
           setError(createResult?.message || 'Unable to create account.');
         }
@@ -132,25 +156,9 @@ export default function InvitePageClient({ token }: { token: string }) {
         return;
       }
 
-      const acceptResponse = await fetch('/api/accept-invite', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ token, full_name: fullName.trim() || undefined }),
-      });
-      const acceptResult = await acceptResponse.json().catch(() => null);
-
-      if (!acceptResponse.ok || !acceptResult?.ok) {
-        setError(acceptResult?.message || 'Account created, but we could not join your company.');
-        return;
-      }
-
-      setNotice(acceptResult.message || `Welcome to ${invite.company_name}!`);
-      window.setTimeout(() => {
-        window.location.assign(acceptResult.redirectTo || '/guard');
-      }, 800);
-    } catch {
-      setError('Something went wrong. Please try again.');
+      await acceptInvite(fullName.trim());
+    } catch (submitError) {
+      setError((submitError as Error).message || 'Something went wrong. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -175,28 +183,18 @@ export default function InvitePageClient({ token }: { token: string }) {
         return;
       }
 
-      const acceptResponse = await fetch('/api/accept-invite', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ token, full_name: fullName.trim() || undefined }),
-      });
-      const acceptResult = await acceptResponse.json().catch(() => null);
-
-      if (!acceptResponse.ok || !acceptResult?.ok) {
-        setError(acceptResult?.message || 'Signed in, but we could not join your company.');
-        return;
-      }
-
-      setNotice(acceptResult.message || `Welcome to ${invite.company_name}!`);
-      window.setTimeout(() => {
-        window.location.assign(acceptResult.redirectTo || '/guard');
-      }, 800);
-    } catch {
-      setError('Unable to sign in. Please try again.');
+      await acceptInvite();
+    } catch (submitError) {
+      setError((submitError as Error).message || 'Unable to sign in.');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setError('');
+    window.location.reload();
   };
 
   return (
@@ -226,14 +224,11 @@ export default function InvitePageClient({ token }: { token: string }) {
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#3EC6FF]/30 bg-[#3EC6FF]/10 text-[#3EC6FF]">
                 <Building2 className="h-7 w-7" />
               </div>
-              <h1 className="text-3xl font-semibold tracking-tight text-white">Join {invite.company_name}</h1>
-              <p className="mt-3 text-sm leading-6 text-[#D9E1E8]/80">
-                You&apos;ve been invited to join this team on ChemDeck. Create your account and you&apos;ll be added automatically.
+              <h1 className="text-3xl font-semibold tracking-tight text-white">Hello,</h1>
+              <p className="mt-3 text-base leading-7 text-[#D9E1E8]">
+                You have been invited to join <span className="font-semibold text-white">{invite.company_name}</span> on ChemDeck.
               </p>
-              <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-[#D9E1E8]">
-                <Mail className="h-3.5 w-3.5" />
-                {invite.email}
-              </div>
+              <p className="mt-2 text-sm text-[#D9E1E8]/70">Invited as {invite.email}</p>
             </>
           ) : null}
         </div>
@@ -247,18 +242,44 @@ export default function InvitePageClient({ token }: { token: string }) {
               </div>
             ) : (
               <>
-                <div className="mb-5 flex items-start gap-3 rounded-xl border border-[#3EC6FF]/20 bg-[#3EC6FF]/10 p-4">
-                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#3EC6FF]" />
-                  <div className="text-left text-sm leading-6 text-[#D9E1E8]">
-                    <p className="font-semibold text-white">What happens next</p>
-                    <p className="mt-1">
-                      Set up your account once. You&apos;ll land directly in {invite.company_name} — no codes, no extra steps.
-                    </p>
-                  </div>
+                <div className="mb-5 grid grid-cols-2 gap-2 rounded-xl bg-white/[0.04] p-1">
+                  <button
+                    type="button"
+                    onClick={() => setMode('signup')}
+                    className={`inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+                      mode === 'signup' ? 'bg-[#3EC6FF]/20 text-white' : 'text-[#D9E1E8]/70 hover:text-white'
+                    }`}
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Create account
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMode('signin')}
+                    className={`inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+                      mode === 'signin' ? 'bg-[#3EC6FF]/20 text-white' : 'text-[#D9E1E8]/70 hover:text-white'
+                    }`}
+                  >
+                    <LogIn className="h-4 w-4" />
+                    Sign in
+                  </button>
                 </div>
 
+                {hasAccount && mode === 'signup' ? (
+                  <p className="mb-4 rounded-lg border border-amber-300/20 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
+                    This email already has a ChemDeck account. Use Sign in to join {invite.company_name}.
+                  </p>
+                ) : null}
+
                 {error ? (
-                  <div className="mb-4 rounded-lg border border-red-300/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">{error}</div>
+                  <div className="mb-4 rounded-lg border border-red-300/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+                    {error}
+                    {error.includes('Sign out') ? (
+                      <button type="button" onClick={() => void handleSignOut()} className="mt-2 block font-semibold text-white underline">
+                        Sign out
+                      </button>
+                    ) : null}
+                  </div>
                 ) : null}
                 {notice ? (
                   <div className="mb-4 flex items-center gap-2 rounded-lg border border-green-300/30 bg-green-500/10 px-4 py-3 text-sm text-green-100">
@@ -269,13 +290,16 @@ export default function InvitePageClient({ token }: { token: string }) {
 
                 {mode === 'signin' ? (
                   <form onSubmit={handleSignIn} className="space-y-4">
-                    <p className="text-sm text-[#D9E1E8]/80">Sign in with your existing ChemDeck account to join this team.</p>
+                    <p className="text-sm leading-6 text-[#D9E1E8]/80">
+                      Sign in to link your existing ChemDeck account to {invite.company_name}.
+                    </p>
                     <label className="block">
                       <span className="mb-2 block text-sm font-medium">Password</span>
                       <input
                         type="password"
                         value={password}
                         onChange={(event) => setPassword(event.target.value)}
+                        placeholder="Enter your password"
                         className="h-12 w-full rounded-md border border-white/10 bg-white/[0.08] px-4 text-sm text-white outline-none focus:border-[#3EC6FF]/70 focus:ring-2 focus:ring-[#3EC6FF]/20"
                         required
                       />
@@ -287,12 +311,12 @@ export default function InvitePageClient({ token }: { token: string }) {
                     >
                       {submitting ? 'Signing in...' : `Sign in & join ${invite.company_name}`}
                     </button>
-                    <button type="button" onClick={() => setMode('signup')} className="w-full text-sm text-[#D9E1E8]/70 hover:text-[#3EC6FF]">
-                      Need to create an account instead?
-                    </button>
                   </form>
                 ) : (
                   <form onSubmit={handleSignup} className="space-y-4">
+                    <p className="text-sm leading-6 text-[#D9E1E8]/80">
+                      Create your account for {invite.email}. You&apos;ll join {invite.company_name} right away.
+                    </p>
                     <label className="block">
                       <span className="mb-2 block text-sm font-medium">Your name</span>
                       <input
@@ -302,15 +326,6 @@ export default function InvitePageClient({ token }: { token: string }) {
                         placeholder="First and last name"
                         className="h-12 w-full rounded-md border border-white/10 bg-white/[0.08] px-4 text-sm text-white outline-none placeholder:text-[#D9E1E8]/45 focus:border-[#3EC6FF]/70 focus:ring-2 focus:ring-[#3EC6FF]/20"
                         required
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="mb-2 block text-sm font-medium">Email</span>
-                      <input
-                        type="email"
-                        value={invite.email}
-                        readOnly
-                        className="h-12 w-full cursor-not-allowed rounded-md border border-white/10 bg-white/[0.04] px-4 text-sm text-[#D9E1E8]/70"
                       />
                     </label>
                     <label className="block">
@@ -324,25 +339,12 @@ export default function InvitePageClient({ token }: { token: string }) {
                         required
                       />
                     </label>
-                    <label className="block">
-                      <span className="mb-2 block text-sm font-medium">Confirm password</span>
-                      <input
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(event) => setConfirmPassword(event.target.value)}
-                        className="h-12 w-full rounded-md border border-white/10 bg-white/[0.08] px-4 text-sm text-white outline-none focus:border-[#3EC6FF]/70 focus:ring-2 focus:ring-[#3EC6FF]/20"
-                        required
-                      />
-                    </label>
                     <button
                       type="submit"
                       disabled={submitting}
                       className="flex h-12 w-full items-center justify-center rounded-md border border-[#3EC6FF] bg-[rgba(62,198,255,0.15)] text-sm font-semibold text-[#3EC6FF] hover:bg-[rgba(62,198,255,0.25)] disabled:opacity-50"
                     >
                       {submitting ? 'Creating account...' : `Create account & join ${invite.company_name}`}
-                    </button>
-                    <button type="button" onClick={() => setMode('signin')} className="w-full text-sm text-[#D9E1E8]/70 hover:text-[#3EC6FF]">
-                      Already have an account? Sign in
                     </button>
                   </form>
                 )}

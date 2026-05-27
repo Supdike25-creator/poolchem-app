@@ -2,6 +2,7 @@ import { randomBytes } from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { routeForRole, normalizeProfileRole } from '@/lib/auth/accountAccess';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { upsertCompanyMembership } from '@/lib/companyMemberships';
 
 export type CompanyInviteRow = {
   id: string;
@@ -13,6 +14,7 @@ export type CompanyInviteRow = {
   expires_at: string;
   created_at: string;
   accepted_at?: string | null;
+  accepted_by?: string | null;
   companies?: { company_name?: string | null } | null;
 };
 
@@ -26,7 +28,13 @@ export type InvitePreview = {
 };
 
 export type AcceptInviteResult =
-  | { ok: true; message: string; redirectTo: string; company_name: string }
+  | {
+      ok: true;
+      message: string;
+      redirectTo: string;
+      company_name: string;
+      switched_company?: boolean;
+    }
   | { ok: false; message: string; status?: number };
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -50,6 +58,7 @@ const inviteSelect = `
   expires_at,
   created_at,
   accepted_at,
+  accepted_by,
   companies ( company_name )
 `;
 
@@ -174,6 +183,19 @@ export async function acceptCompanyInvite(
 
   const preview = previewInvite(invite);
   if (!preview.ok) {
+    if (
+      invite.status.toLowerCase() === 'accepted' &&
+      invite.accepted_by === params.userId
+    ) {
+      const companyName = invite.companies?.company_name?.trim() || 'your company';
+      return {
+        ok: true,
+        message: `You're already part of ${companyName}.`,
+        company_name: companyName,
+        redirectTo: routeForRole(normalizeProfileRole('guard')),
+      };
+    }
+
     return { ok: false, message: preview.message, status: 400 };
   }
 
@@ -190,25 +212,35 @@ export async function acceptCompanyInvite(
 
   const { data: existingUser } = await db
     .from('users')
-    .select('id, company_id, role')
+    .select('id, company_id, role, full_name')
     .eq('id', params.userId)
     .maybeSingle();
 
+  const switchedCompany = Boolean(
+    existingUser?.company_id && existingUser.company_id !== invite.company_id,
+  );
+
   if (existingUser?.company_id && existingUser.company_id !== invite.company_id) {
-    return {
-      ok: false,
-      message: 'Your account is already assigned to another company.',
-      status: 409,
-    };
+    await upsertCompanyMembership(db, {
+      userId: params.userId,
+      companyId: existingUser.company_id,
+      role: existingUser.role ?? 'guard',
+    });
   }
 
   await upsertInvitedUserProfile(
     db,
     params.userId,
     sessionEmail,
-    params.fullName?.trim() || null,
+    params.fullName?.trim() || existingUser?.full_name || null,
     invite.company_id,
   );
+
+  await upsertCompanyMembership(db, {
+    userId: params.userId,
+    companyId: invite.company_id,
+    role: 'guard',
+  });
 
   await db
     .from('company_invites')
@@ -225,9 +257,12 @@ export async function acceptCompanyInvite(
 
   return {
     ok: true,
-    message: `Welcome to ${companyName}!`,
+    message: switchedCompany
+      ? `Welcome to ${companyName}! You can switch companies anytime in Settings.`
+      : `Welcome to ${companyName}!`,
     company_name: companyName,
     redirectTo: routeForRole(normalizeProfileRole('guard')),
+    switched_company: switchedCompany,
   };
 }
 

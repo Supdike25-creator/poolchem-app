@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { buildInviteUrl, createCompanyInvite, isInviteEmailValid, listPendingInvites } from '@/lib/companyInvites';
+import { inviteEmailHasAccount, sendInviteEmail } from '@/lib/inviteEmail';
 import { resolveManagerApiScope } from '@/lib/managerApiScope';
 
 export const dynamic = 'force-dynamic';
@@ -77,8 +78,7 @@ export async function POST(request: NextRequest) {
     });
 
     const inviteLink = buildInviteUrl(token, origin);
-    const invitePath = `/invite/${token}`;
-    const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(invitePath)}`;
+    const hasAccount = await inviteEmailHasAccount(admin, email);
 
     if (delivery === 'link') {
       return NextResponse.json({
@@ -86,63 +86,36 @@ export async function POST(request: NextRequest) {
         message: `Invite link ready for ${email}.`,
         invite_link: inviteLink,
         delivery: 'link',
+        has_account: hasAccount,
       });
     }
 
-    const inviteResult = await admin.auth.admin.inviteUserByEmail(email, {
-      redirectTo,
-      data: {
-        invite_token: token,
-        company_id: companyId,
-        invited_by: inviterName,
-        pending_role: 'guard',
-      },
+    const emailResult = await sendInviteEmail({
+      to: email,
+      companyName: company.company_name,
+      inviterName,
+      token,
+      origin,
+      hasAccount,
     });
 
-    if (!inviteResult.error) {
-      return NextResponse.json({
-        ok: true,
-        message: `Invite email sent to ${email}. They'll join ${company.company_name} when they create their account.`,
-        invite_link: inviteLink,
-        delivery: 'invite',
-      });
-    }
-
-    const alreadyRegistered = inviteResult.error.message.toLowerCase().includes('already');
-    if (!alreadyRegistered) {
-      const missingTable = inviteResult.error.message.toLowerCase().includes('company_invites');
+    if (!emailResult.ok) {
       return NextResponse.json(
         {
           ok: false,
-          message: missingTable
-            ? 'Run SUPABASE_COMPANY_INVITES.sql in Supabase first.'
-            : inviteResult.error.message,
+          message: emailResult.message,
+          invite_link: inviteLink,
         },
-        { status: 400 },
+        { status: emailResult.message.includes('RESEND_API_KEY') ? 503 : 400 },
       );
-    }
-
-    const otpResult = await admin.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: redirectTo,
-        data: {
-          invite_token: token,
-          company_id: companyId,
-          pending_role: 'guard',
-        },
-      },
-    });
-
-    if (otpResult.error) {
-      return NextResponse.json({ ok: false, message: otpResult.error.message }, { status: 400 });
     }
 
     return NextResponse.json({
       ok: true,
-      message: `Sign-in link sent to ${email}. Opening it will add them to ${company.company_name}.`,
+      message: `Invite email sent to ${email}.`,
       invite_link: inviteLink,
-      delivery: 'magiclink',
+      delivery: 'email',
+      has_account: hasAccount,
     });
   } catch (error) {
     const message = (error as Error).message || 'Unable to send invite.';

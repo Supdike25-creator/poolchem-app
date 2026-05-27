@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 
 import { defaultCompanySettings, mergeCompanySettings, type CompanySettings } from '@/lib/companySettings';
+import CompanySwitcher from '@/components/CompanySwitcher';
 
 type Theme = CompanySettings['theme'];
 type StylePreset = CompanySettings['stylePreset'];
@@ -546,6 +547,8 @@ export default function ManagementSettingsPage() {
                 </div>
               </div>
             ) : null}
+
+            <CompanySwitcher />
 
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center gap-2 text-sm text-slate-700">

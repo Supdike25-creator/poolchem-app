@@ -254,7 +254,7 @@ export default function ManagementTeamPage() {
           <h2 className="text-base font-semibold text-slate-950">Invite a team member</h2>
         </div>
         <p className="text-sm leading-6 text-slate-600">
-          Send an email invite from {companyName || 'your company'}. They&apos;ll open the link, create an account, and join your team automatically — no codes required.
+          Send a branded invite email from {companyName || 'your company'}. They&apos;ll open the link, enter their name and password, and join automatically.
         </p>
 
         <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_auto_auto]">

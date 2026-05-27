@@ -8,6 +8,7 @@ import { getStoredSession } from '@/lib/appAccounts';
 import { createClient } from '@/utils/supabase/client';
 import { defaultCompanySettings, mergeCompanySettings, type CompanySettings } from '@/lib/companySettings';
 import { PageHeader, SectionCard, buttonClass } from '../../../components/OperationsUI';
+import CompanySwitcher from '../../../components/CompanySwitcher';
 import { appVersion } from '../../../lib/generatedVersion';
 
 type Profile = {
@@ -136,7 +137,8 @@ export default function GuardSettingsPage() {
           ) : (
             <p className="text-sm text-slate-600">Unable to load your company details right now.</p>
           )}
-          <p className="mt-3 text-xs text-slate-500">Contact your manager to change company or pool assignments.</p>
+          <CompanySwitcher />
+          <p className="mt-3 text-xs text-slate-500">Contact your manager if you need access changes.</p>
         </SectionCard>
 
         <SectionCard className="p-5">

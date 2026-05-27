@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getInviteByToken, previewInvite } from '@/lib/companyInvites';
+import { inviteEmailHasAccount } from '@/lib/inviteEmail';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +28,9 @@ export async function GET(
       return NextResponse.json({ ok: false, message: preview.message }, { status: 400 });
     }
 
-    return NextResponse.json({ ok: true, invite: preview });
+    const hasAccount = await inviteEmailHasAccount(db, preview.email);
+
+    return NextResponse.json({ ok: true, invite: preview, has_account: hasAccount });
   } catch (error) {
     const message = (error as Error).message || 'Unable to load invite.';
     if (message.toLowerCase().includes('company_invites')) {
