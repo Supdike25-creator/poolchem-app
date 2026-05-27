@@ -6,7 +6,7 @@ import { createClient } from '@/utils/supabase/client';
 import { getStoredSession } from '@/lib/appAccounts';
 import { useDevCompanyScope } from '@/lib/useDevCompanyScope';
 import { EmptyState, PageHeader, SectionCard, StatusBadge, buttonClass } from '../../../components/OperationsUI';
-import { ClipboardList, Pencil, Plus, SlidersHorizontal, Waves } from 'lucide-react';
+import { ClipboardList, CalendarClock, Pencil, Plus, SlidersHorizontal, Waves } from 'lucide-react';
 
 interface Pool {
   id: string;
@@ -168,10 +168,14 @@ export default function ManagementPoolsView() {
                     <dd className="mt-1"><StatusBadge tone="neutral">Configured</StatusBadge></dd>
                   </div>
                 </dl>
-                <div className="mt-4 flex gap-2">
+                <div className="mt-4 flex flex-wrap gap-2">
                   <Link href={withCompany(`/log?poolId=${pool.id}`)} className={buttonClass.primary}>
                     <ClipboardList className="mr-2 h-4 w-4" />
                     Log Test
+                  </Link>
+                  <Link href={withCompany(`/management/pools/${pool.id}/schedule`)} className={buttonClass.secondary}>
+                    <CalendarClock className="mr-2 h-4 w-4" />
+                    Hours
                   </Link>
                   <Link href={withCompany(`/management/pools/${pool.id}`)} className={buttonClass.secondary}>
                     <Pencil className="mr-2 h-4 w-4" />
@@ -216,10 +220,16 @@ export default function ManagementPoolsView() {
                     <td className="px-6 py-4 text-sm text-slate-600">{pool.volume_gallons ? `${pool.volume_gallons} gal` : 'Unknown'}</td>
                     <td className="px-6 py-4 text-sm"><StatusBadge tone="neutral">Configured</StatusBadge></td>
                     <td className="px-6 py-4 text-right text-sm font-medium">
-                      <Link href={withCompany(`/management/pools/${pool.id}/edit`)} className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-900 transition-colors">
-                        <Pencil className="h-4 w-4" />
-                        Edit
-                      </Link>
+                      <div className="inline-flex items-center gap-3">
+                        <Link href={withCompany(`/management/pools/${pool.id}/schedule`)} className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-900 transition-colors">
+                          <CalendarClock className="h-4 w-4" />
+                          Hours
+                        </Link>
+                        <Link href={withCompany(`/management/pools/${pool.id}/edit`)} className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-900 transition-colors">
+                          <Pencil className="h-4 w-4" />
+                          Edit
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))

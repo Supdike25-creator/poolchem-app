@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveApiCompanyScope } from '@/lib/apiCompanyScope';
+import { mergePoolOperatingSchedule, type PoolOperatingSchedule } from '@/lib/poolSchedule';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,7 @@ type PoolPayload = {
   target_ph_max?: number | null;
   default_chlorine_strength?: number | null;
   notes?: string | null;
+  operating_schedule?: PoolOperatingSchedule;
 };
 
 export async function POST(request: NextRequest) {
@@ -55,6 +57,7 @@ export async function POST(request: NextRequest) {
       target_ph_max: body?.target_ph_max ?? null,
       default_chlorine_strength: body?.default_chlorine_strength ?? null,
       notes: body?.notes?.trim() || null,
+      operating_schedule: mergePoolOperatingSchedule(body?.operating_schedule),
       company_id: companyId,
     })
     .select('id, name')

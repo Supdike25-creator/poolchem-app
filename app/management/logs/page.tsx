@@ -17,6 +17,7 @@ import {
   getOperatingHourSlots,
   toOperatingDateInputValue,
 } from '@/lib/operatingDayBounds';
+import { getUnionHourSlotsForDate, type PoolScheduleEvent } from '@/lib/poolSchedule';
 import { EmptyState, PageHeader, SectionCard, StatCard, StatusBadge, buttonClass, type StatusTone } from '../../../components/OperationsUI';
 import { ClipboardList, Clock3, Filter, FileSpreadsheet, Rows3, Waves } from 'lucide-react';
 
@@ -126,7 +127,7 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
 
   let poolsQuery = supabase
     .from('pools')
-    .select('id,name')
+    .select('id,name,operating_schedule')
     .order('name');
 
   if (companyId) {
@@ -138,6 +139,28 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
   const poolMap = new Map(pools?.map((pool) => [pool.id, pool.name]) || []);
 
   const poolIds = Array.from(poolMap.keys());
+
+  const { data: scheduleEvents } = poolIds.length > 0
+    ? await supabase
+      .from('pool_schedule_events')
+      .select('id, pool_id, company_id, event_date, event_type, title, closed, open_time, close_time, notes')
+      .in('pool_id', poolIds)
+      .eq('event_date', selectedDate)
+    : { data: [] };
+
+  const dayEvents: PoolScheduleEvent[] = (scheduleEvents ?? []).map((row) => ({
+    id: String(row.id),
+    pool_id: String(row.pool_id),
+    company_id: String(row.company_id),
+    event_date: String(row.event_date).slice(0, 10),
+    event_type: String(row.event_type ?? 'custom').toLowerCase() as PoolScheduleEvent['event_type'],
+    title: String(row.title ?? ''),
+    closed: Boolean(row.closed),
+    open: row.open_time ? String(row.open_time).slice(0, 5) : null,
+    close: row.close_time ? String(row.close_time).slice(0, 5) : null,
+    notes: row.notes ? String(row.notes) : null,
+  }));
+
   const { data: logs, error } = poolIds.length > 0
     ? await supabase
       .from('chemical_logs')
@@ -181,7 +204,7 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
       profile.full_name || profile.email || profile.id,
     ])
   );
-  const hours = getOperatingHourSlots();
+  const hours = getUnionHourSlotsForDate(pools ?? [], dayEvents, selectedDate, getOperatingHourSlots());
 
   return (
     <div className="space-y-5">
@@ -215,7 +238,7 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
         <div className="grid gap-3 sm:grid-cols-3">
           <StatCard label="Rows" value={filteredLogs.length} icon={<Rows3 className="h-5 w-5" />} tone="info" />
           <StatCard label="Pools" value={poolMap.size} icon={<Waves className="h-5 w-5" />} tone="neutral" />
-          <StatCard label="Slots" value="12" icon={<Clock3 className="h-5 w-5" />} tone="neutral" />
+          <StatCard label="Slots" value={hours.length} icon={<Clock3 className="h-5 w-5" />} tone="neutral" />
         </div>
 
         <SectionCard className="p-4">

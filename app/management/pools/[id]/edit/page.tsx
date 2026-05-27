@@ -6,6 +6,8 @@ import { createClient } from '@/utils/supabase/client';
 import { getStoredSession } from '@/lib/appAccounts';
 import { useDevCompanyScope } from '@/lib/useDevCompanyScope';
 import BackButton from '../../../../../components/BackButton';
+import Link from 'next/link';
+import { CalendarClock } from 'lucide-react';
 
 interface PoolData {
   id: string;
@@ -186,7 +188,16 @@ export default function EditPoolPage({ params }: { params: { id: string } }) {
         </div>
         <p className="mt-2 text-sm text-slate-600">Update the pool configuration and dosing targets.</p>
         </div>
-        <BackButton fallbackHref={poolsHref} label="Back" />
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/management/pools/${id}/schedule${query}`}
+            className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            <CalendarClock className="mr-2 h-4 w-4" />
+            Hours & Calendar
+          </Link>
+          <BackButton fallbackHref={poolsHref} label="Back" />
+        </div>
       </div>
 
       {loading ? (

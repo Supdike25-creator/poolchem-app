@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveApiCompanyScope } from '@/lib/apiCompanyScope';
+import { mergePoolOperatingSchedule, type PoolOperatingSchedule } from '@/lib/poolSchedule';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,7 @@ type PoolPayload = {
   target_ph_max?: number | null;
   default_chlorine_strength?: number | null;
   notes?: string | null;
+  operating_schedule?: PoolOperatingSchedule;
 };
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -52,7 +54,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ ok: false, message: 'Pool not found.' }, { status: 404 });
   }
 
-  return NextResponse.json({ ok: true, pool: data });
+  return NextResponse.json({
+    ok: true,
+    pool: {
+      ...data,
+      operating_schedule: mergePoolOperatingSchedule(data.operating_schedule),
+    },
+  });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -83,6 +91,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       target_ph_max: body?.target_ph_max ?? null,
       default_chlorine_strength: body?.default_chlorine_strength ?? null,
       notes: body?.notes?.trim() || null,
+      ...(body?.operating_schedule
+        ? { operating_schedule: mergePoolOperatingSchedule(body.operating_schedule) }
+        : {}),
     })
     .eq('id', id)
     .eq('company_id', companyId)

@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import BackButton from '../../../../components/BackButton';
 import { PageHeader, SectionCard, buttonClass } from '../../../../components/OperationsUI';
+import PoolWeeklyHoursEditor from '@/components/pools/PoolWeeklyHoursEditor';
 import { useDevCompanyScope } from '@/lib/useDevCompanyScope';
 import { getStoredSession } from '@/lib/appAccounts';
-import { Waves } from 'lucide-react';
+import { defaultPoolOperatingSchedule, type PoolOperatingSchedule } from '@/lib/poolSchedule';
+import { ChevronDown, ChevronUp, Waves } from 'lucide-react';
 
 export default function NewPoolForm() {
   const router = useRouter();
@@ -21,6 +23,8 @@ export default function NewPoolForm() {
   const [phMax, setPhMax] = useState('7.8');
   const [chlorineStrength, setChlorineStrength] = useState('12.5');
   const [notes, setNotes] = useState('');
+  const [operatingSchedule, setOperatingSchedule] = useState<PoolOperatingSchedule>(defaultPoolOperatingSchedule());
+  const [showHours, setShowHours] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -51,6 +55,7 @@ export default function NewPoolForm() {
           target_ph_max: Number(phMax) || 0,
           default_chlorine_strength: Number(chlorineStrength) || null,
           notes,
+          operating_schedule: operatingSchedule,
         }),
       });
 
@@ -183,6 +188,25 @@ export default function NewPoolForm() {
                 placeholder="Optional admin notes"
               />
             </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+            <button
+              type="button"
+              onClick={() => setShowHours((value) => !value)}
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Operating hours</p>
+                <p className="mt-0.5 text-xs text-slate-500">Set default weekly hours. Override specific days later from the pool calendar.</p>
+              </div>
+              {showHours ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+            </button>
+            {showHours ? (
+              <div className="mt-4">
+                <PoolWeeklyHoursEditor schedule={operatingSchedule} onChange={setOperatingSchedule} compact />
+              </div>
+            ) : null}
           </div>
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
