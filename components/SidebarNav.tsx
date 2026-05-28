@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
 
-type SidebarNavItem = {
+export type SidebarNavItem = {
   label: string;
   href: string;
   icon: ComponentType<{ className?: string }>;
@@ -187,12 +187,14 @@ export function SidebarNav({
   className = '',
   expanded = false,
   items = mainNavItems,
+  hideMobileNav = false,
 }: {
   header?: ReactNode;
   footer?: ReactNode;
   className?: string;
   expanded?: boolean;
   items?: SidebarNavItem[];
+  hideMobileNav?: boolean;
 }) {
   return (
     <>
@@ -211,7 +213,7 @@ export function SidebarNav({
       </aside>
 
       <nav
-        className="fixed inset-x-3 bottom-3 z-40 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-[0_18px_50px_rgba(15,23,42,0.16)] backdrop-blur lg:hidden"
+        className={`fixed inset-x-3 bottom-3 z-40 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-[0_18px_50px_rgba(15,23,42,0.16)] backdrop-blur lg:hidden ${hideMobileNav ? 'hidden' : ''}`}
         aria-label="Primary mobile navigation"
       >
         <div className="flex items-center gap-1">

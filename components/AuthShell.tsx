@@ -18,6 +18,7 @@ import {
 import { getStoredSession } from '@/lib/appAccounts';
 import { createClient } from '@/utils/supabase/client';
 import { SidebarNav, buildDevPreviewNavItems, buildGuardNavItems, buildManagerNavItems } from './SidebarNav';
+import DevPreviewHotbar from './dev/DevPreviewHotbar';
 import InstallAppBanner from './InstallAppBanner';
 import AlertsBell from './AlertsBell';
 import WorkspaceBackLink from './WorkspaceBackLink';
@@ -257,9 +258,10 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   }
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 pb-24 lg:pb-0">
+    <div className={`min-h-screen w-full bg-slate-50 ${isDevPreview ? 'pb-40' : 'pb-24'} lg:pb-0`}>
       <SidebarNav
         items={sidebarItems}
+        hideMobileNav={isDevPreview}
         header={(
           <div className="min-h-[74px] overflow-visible">
             <ChemDeckLogo variant="mark" className="h-10 w-10 group-hover:hidden group-focus-within:hidden" />
@@ -372,6 +374,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
         </div>
         {role === 'guard' ? <InstallAppBanner /> : null}
       </main>
+      {isDevPreview ? <DevPreviewHotbar /> : null}
     </div>
   );
 }

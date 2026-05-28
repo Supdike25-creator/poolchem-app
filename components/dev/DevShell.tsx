@@ -3,6 +3,7 @@ import { Building2, Code2, Gauge, SlidersHorizontal, Users, Waves } from 'lucide
 import ChemDeckLogo from '@/components/ChemDeckLogo';
 import { DevCompanyProvider } from '@/components/dev/DevCompanyContext';
 import DevLogoutButton from '@/components/dev/DevLogoutButton';
+import DevPreviewHotbar from '@/components/dev/DevPreviewHotbar';
 
 const adminItems = [
   { label: 'Profiles', href: '/dev-admin/profiles', icon: Users },
@@ -70,7 +71,7 @@ export default function DevShell({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
 
-        <main className="lg:ml-16 lg:w-[calc(100%-4rem)]">
+        <main className="lg:ml-16 lg:w-[calc(100%-4rem)] pb-36">
           <div className="border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
             <div className="flex items-center justify-between gap-3">
               <ChemDeckLogo variant="full" className="w-36" />
@@ -84,6 +85,7 @@ export default function DevShell({ children }: { children: React.ReactNode }) {
           </div>
           {children}
         </main>
+        <DevPreviewHotbar />
       </div>
     </DevCompanyProvider>
   );
