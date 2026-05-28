@@ -135,6 +135,9 @@ export default function ManagementSettingsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [companyDetails, setCompanyDetails] = useState<CompanyDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationTone, setNotificationTone] = useState<'success' | 'error' | ''>('');
+  const [sendingNotificationTest, setSendingNotificationTest] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -200,6 +203,21 @@ export default function ManagementSettingsPage() {
     const supabase = createClient();
     await supabase.auth.signOut();
     window.location.href = '/';
+  };
+
+  const sendTestNotification = async () => {
+    setSendingNotificationTest(true);
+    setNotificationMessage('');
+    setNotificationTone('');
+
+    const response = await fetch('/api/notifications/test', {
+      method: 'POST',
+      credentials: 'same-origin',
+    });
+    const result = await response.json().catch(() => null);
+    setSendingNotificationTest(false);
+    setNotificationMessage(result?.message || 'Unable to send test notification.');
+    setNotificationTone(response.ok && result?.ok ? 'success' : 'error');
   };
 
   const rawRole = profile?.role?.toLowerCase().trim() || '';
@@ -423,28 +441,28 @@ export default function ManagementSettingsPage() {
             />
             <ToggleRow
               title="Missed chemical test alerts"
-              description="Notify managers when scheduled pool checks are not submitted."
+              description="Email managers when scheduled pool checks are not submitted."
               checked={settings.missedTestAlerts}
               disabled={!settings.masterNotifications}
               onToggle={() => saveSettings({ missedTestAlerts: !settings.missedTestAlerts })}
             />
             <ToggleRow
               title="Out-of-range chemical alerts"
-              description="Flag chlorine or pH readings that need follow-up."
+              description="Email managers when chlorine or pH readings need follow-up."
               checked={settings.outOfRangeAlerts}
               disabled={!settings.masterNotifications}
               onToggle={() => saveSettings({ outOfRangeAlerts: !settings.outOfRangeAlerts })}
             />
             <ToggleRow
               title="New announcement alerts"
-              description="Notify staff when a manager posts an announcement."
+              description="Email staff when a manager posts an announcement."
               checked={settings.newAnnouncementAlerts}
               disabled={!settings.masterNotifications}
               onToggle={() => saveSettings({ newAnnouncementAlerts: !settings.newAnnouncementAlerts })}
             />
             <ToggleRow
               title="Daily summary"
-              description="Send a digest of daily activity and unresolved items."
+              description="Email managers a daily digest of logs, alerts, and announcements."
               checked={settings.dailySummary}
               disabled={!settings.masterNotifications}
               onToggle={() => saveSettings({ dailySummary: !settings.dailySummary })}
@@ -469,6 +487,33 @@ export default function ManagementSettingsPage() {
                   className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
               </div>
+            </div>
+
+            <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
+              Emails are sent through Resend to manager and staff addresses on file. Critical out-of-range alerts still send during quiet hours.
+            </p>
+
+            <div className="pt-3">
+              <button
+                type="button"
+                disabled={sendingNotificationTest}
+                onClick={() => void sendTestNotification()}
+                className="inline-flex h-10 items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 text-sm font-semibold text-blue-800 hover:bg-blue-100 disabled:opacity-60"
+              >
+                <Mail className="h-4 w-4" />
+                {sendingNotificationTest ? 'Sending test email…' : 'Send test notification'}
+              </button>
+              {notificationMessage ? (
+                <p
+                  className={`mt-3 rounded-lg border px-3 py-2 text-sm ${
+                    notificationTone === 'success'
+                      ? 'border-green-200 bg-green-50 text-green-800'
+                      : 'border-amber-200 bg-amber-50 text-amber-900'
+                  }`}
+                >
+                  {notificationMessage}
+                </p>
+              ) : null}
             </div>
           </div>
         </div>

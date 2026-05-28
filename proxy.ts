@@ -21,7 +21,7 @@ const PUBLIC_PATHS = [
   "/auth/callback",
   "/api/spotify/callback",
 ];
-const PUBLIC_PREFIXES = ["/invite/", "/api/invites/"];
+const PUBLIC_PREFIXES = ["/invite/", "/api/invites/", "/api/cron/"];
 const ROLE_SETUP_PATHS = ["/choose-role", "/api/choose-role"];
 
 const managerDashboardPath = "/management/dashboard";

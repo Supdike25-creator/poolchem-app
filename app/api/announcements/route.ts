@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveApiCompanyScope } from '@/lib/apiCompanyScope';
 import { resolveManagerApiScope } from '@/lib/managerApiScope';
+import { mergeCompanySettings } from '@/lib/companySettings';
+import { dispatchAnnouncementNotifications } from '@/lib/notifications';
 import { isValidUuid } from '@/lib/teamMembers';
 
 export const dynamic = 'force-dynamic';
@@ -104,15 +106,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
   }
 
+  const { data: company } = await accountDb
+    .from('companies')
+    .select('settings')
+    .eq('id', companyId)
+    .maybeSingle();
+
+  const notificationResult = await dispatchAnnouncementNotifications(accountDb, {
+    companyId,
+    announcement: data,
+    settings: mergeCompanySettings(company?.settings),
+    origin: request.nextUrl.origin,
+  });
+
   return NextResponse.json({
     ok: true,
     announcement: {
       ...data,
       author_name: account?.full_name || account?.email || 'ChemDeck Dev',
       acknowledged_count: 0,
-      recipient_count: 0,
+      recipient_count: notificationResult.sent,
       unread: true,
     },
+    notifications: notificationResult,
   }, { status: 201 });
 }
 

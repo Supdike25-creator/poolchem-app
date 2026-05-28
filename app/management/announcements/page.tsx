@@ -159,6 +159,11 @@ export default function AnnouncementsPage() {
 
     if (response.ok && result?.ok) {
       setAnnouncements((prev) => [result.announcement, ...prev]);
+      if (formData.send_notification && result.notifications?.sent) {
+        setError('');
+      } else if (formData.send_notification && result.notifications?.failures?.length) {
+        setError(`Announcement posted, but email failed: ${result.notifications.failures[0]}`);
+      }
       setFormData({
         title: '',
         message: '',
@@ -364,7 +369,7 @@ export default function AnnouncementsPage() {
                     onChange={(e) => setFormData(prev => ({ ...prev, send_notification: e.target.checked }))}
                     className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm font-medium text-slate-700">Send push notification</span>
+                  <span className="text-sm font-medium text-slate-700">Send email notification</span>
                 </label>
                 <label className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
                   <input

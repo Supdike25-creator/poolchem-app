@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { mergeCompanySettings } from '@/lib/companySettings';
+import { dispatchAlertNotifications } from '@/lib/notifications';
 
 type AlertInput = {
   companyId: string;
@@ -83,7 +84,7 @@ export async function createAlertsForLog(
 
   if (!rows.length) return [];
 
-  const { data, error } = await db.from('alerts').insert(rows).select('id, alert_type, title');
+  const { data, error } = await db.from('alerts').insert(rows).select('id, alert_type, title, message, severity');
   if (error) {
     if (error.message.toLowerCase().includes('does not exist')) {
       return [];
@@ -91,7 +92,16 @@ export async function createAlertsForLog(
     throw new Error(error.message);
   }
 
-  return data ?? [];
+  const created = data ?? [];
+  if (created.length) {
+    void dispatchAlertNotifications(db, {
+      companyId: input.companyId,
+      alerts: created,
+      settings: input.settings,
+    }).catch(() => undefined);
+  }
+
+  return created;
 }
 
 export async function loadCompanyAlerts(
@@ -174,7 +184,7 @@ export async function syncMissedTestAlerts(
 
   if (!rows.length) return [];
 
-  const { data, error } = await db.from('alerts').insert(rows).select('id, alert_type, title');
+  const { data, error } = await db.from('alerts').insert(rows).select('id, alert_type, title, message, severity');
   if (error) {
     if (error.message.toLowerCase().includes('does not exist')) {
       return [];
@@ -182,5 +192,14 @@ export async function syncMissedTestAlerts(
     throw new Error(error.message);
   }
 
-  return data ?? [];
+  const created = data ?? [];
+  if (created.length) {
+    void dispatchAlertNotifications(db, {
+      companyId,
+      alerts: created,
+      settings,
+    }).catch(() => undefined);
+  }
+
+  return created;
 }
