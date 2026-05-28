@@ -231,10 +231,10 @@ export default function CompanyOnboardingPage() {
             <p>Open the invite email from your supervisor and follow the link to create your account.</p>
             <p>ChemDeck adds you to their company automatically when you accept the invite.</p>
             <Link
-              href="/choose-role"
+              href="/login"
               className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
             >
-              Back to get started
+              Back to sign in
             </Link>
           </div>
         )}

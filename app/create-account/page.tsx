@@ -53,6 +53,7 @@ function CreateAccountForm() {
           email: normalizedEmail,
           password,
           full_name: fullName.trim(),
+          signup_as: "manager",
         }),
       });
 
@@ -74,10 +75,17 @@ function CreateAccountForm() {
         return;
       }
 
-      setNotice("Account created. Redirecting...");
+      await fetch("/api/choose-role", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ role: "boss" }),
+      });
+
+      setNotice("Manager account created. Setting up your company...");
       window.setTimeout(() => {
-        router.replace("/choose-role");
-      }, 700);
+        router.replace(result?.redirectTo || "/create-company");
+      }, 500);
     } catch {
       setError("Unable to create account. Please try again.");
     } finally {
@@ -93,9 +101,9 @@ function CreateAccountForm() {
             <ChemDeckLogo variant="full" scheme="dark" className="hidden w-[230px] sm:block" />
             <ChemDeckLogo variant="mark" scheme="dark" className="h-12 w-12 sm:hidden" />
           </div>
-          <h1 className="text-4xl font-semibold tracking-tight text-white">Create account</h1>
+          <h1 className="text-4xl font-semibold tracking-tight text-white">Create manager account</h1>
           <p className="mt-3 text-sm leading-6 text-[#D9E1E8]/80">
-            Create your ChemDeck account. Lifeguards should use the invite link from their supervisor instead.
+            For supervisors setting up a new ChemDeck company. Lifeguards must use the invite link from their supervisor.
           </p>
         </div>
 
@@ -126,7 +134,7 @@ function CreateAccountForm() {
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-sm font-medium text-[#D9E1E8]">Email</span>
+            <span className="mb-2 block text-sm font-medium text-[#D9E1E8]">Work email</span>
             <input
               type="email"
               value={email}
@@ -172,11 +180,14 @@ function CreateAccountForm() {
             disabled={submitting}
             className="flex h-12 w-full items-center justify-center rounded-md border border-[#3EC6FF] bg-[rgba(62,198,255,0.15)] px-4 text-sm font-semibold text-[#3EC6FF] transition hover:bg-[rgba(62,198,255,0.25)] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/10 disabled:text-[#D9E1E8]/40"
           >
-            {submitting ? "Creating..." : "Create Account"}
+            {submitting ? "Creating..." : "Create manager account"}
           </button>
         </form>
 
-        <div className="mt-8 text-center">
+        <div className="mt-8 space-y-3 text-center">
+          <p className="text-xs leading-5 text-[#D9E1E8]/60">
+            Lifeguard? Ask your supervisor for a ChemDeck invite email — you cannot sign up here.
+          </p>
           <Link
             href="/login"
             className="inline-flex items-center gap-2 text-sm font-medium text-[#D9E1E8]/70 transition hover:text-[#3EC6FF]"

@@ -75,14 +75,14 @@ export default function LoginPage() {
     const accountRecord = userRow as Record<string, unknown> | null;
 
     if (!accountRecord) {
-      return { route: "/choose-role", message: "" };
+      return { route: "/create-company", message: "" };
     }
 
     const rawRole = typeof accountRecord.role === "string" ? accountRecord.role.trim().toLowerCase() : "";
     const role = normalizeProfileRole(rawRole || null);
 
     if (!rawRole) {
-      return { route: "/choose-role", message: "" };
+      return { route: "/create-company", message: "" };
     }
 
     if (rawRole === "boss" && !accountRecord.company_id && !accountRecord.organization_id) {
@@ -374,8 +374,11 @@ export default function LoginPage() {
             href="/create-account"
             className="flex h-12 w-full items-center justify-center rounded-md border border-[#3EC6FF] bg-[rgba(62,198,255,0.15)] px-4 text-sm font-semibold text-[#3EC6FF] transition hover:bg-[rgba(62,198,255,0.25)]"
           >
-            Create Account
+            Create manager account
           </Link>
+          <p className="text-center text-xs leading-5 text-slate-500">
+            Lifeguards: use the invite link from your supervisor to join.
+          </p>
         </form>
 
         <div className="my-7 flex items-center gap-3">

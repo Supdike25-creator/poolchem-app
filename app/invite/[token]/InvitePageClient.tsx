@@ -131,6 +131,7 @@ export default function InvitePageClient({ token }: { token: string }) {
           email: invite.email,
           password,
           full_name: fullName.trim(),
+          signup_as: 'invite',
         }),
       });
       const createResult = await createResponse.json().catch(() => null);

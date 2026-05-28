@@ -154,7 +154,7 @@ export async function proxy(request: NextRequest) {
       return supabaseResponse;
     }
 
-    return NextResponse.redirect(new URL("/choose-role", request.url));
+    return NextResponse.redirect(new URL("/create-company", request.url));
   }
 
   const storedRole = typeof accountRecord.role === "string" ? accountRecord.role.trim().toLowerCase() : "";
@@ -181,7 +181,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!rawRole) {
-    return NextResponse.redirect(new URL("/choose-role", request.url));
+    return NextResponse.redirect(new URL("/create-company", request.url));
   }
 
   if (rawRole === "boss" && !hasCompany) {
