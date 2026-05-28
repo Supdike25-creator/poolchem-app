@@ -183,27 +183,30 @@ function NavLink({ item, compact = false }: { item: SidebarNavItem; compact?: bo
 
 export function SidebarNav({
   header,
+  beforeNav,
   footer,
   className = '',
   expanded = false,
   items = mainNavItems,
-  hideMobileNav = false,
+  showMobileSidebar = false,
 }: {
   header?: ReactNode;
+  beforeNav?: ReactNode;
   footer?: ReactNode;
   className?: string;
   expanded?: boolean;
   items?: SidebarNavItem[];
-  hideMobileNav?: boolean;
+  showMobileSidebar?: boolean;
 }) {
   return (
     <>
       <aside
-        className={`sidebar-rail group fixed left-0 top-0 z-50 hidden h-screen overflow-hidden border-r border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)] transition-[width,box-shadow] duration-200 ease-out lg:flex ${expanded ? 'sidebar-expanded w-64' : 'w-16 hover:w-64 focus-within:w-64'} ${className}`}
+        className={`sidebar-rail group fixed left-0 top-0 z-50 h-screen overflow-hidden border-r border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)] transition-[width,box-shadow] duration-200 ease-out ${expanded ? 'sidebar-expanded w-64' : 'w-16 hover:w-64 focus-within:w-64'} ${showMobileSidebar ? 'flex' : 'hidden lg:flex'} ${className}`}
       >
         <div className="flex h-full w-full flex-col overflow-hidden p-3">
           {header ? <div className="mb-5">{header}</div> : null}
-          <nav className="space-y-1" aria-label="Primary navigation">
+          {beforeNav ? <div>{beforeNav}</div> : null}
+          <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto" aria-label="Primary navigation">
             {items.map((item) => (
               <NavLink key={`${item.label}-${item.href}`} item={item} />
             ))}
@@ -212,16 +215,18 @@ export function SidebarNav({
         </div>
       </aside>
 
-      <nav
-        className={`fixed inset-x-3 bottom-3 z-40 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-[0_18px_50px_rgba(15,23,42,0.16)] backdrop-blur lg:hidden ${hideMobileNav ? 'hidden' : ''}`}
-        aria-label="Primary mobile navigation"
-      >
-        <div className="flex items-center gap-1">
-          {items.map((item) => (
-            <NavLink key={item.href} item={item} compact />
-          ))}
-        </div>
-      </nav>
+      {!showMobileSidebar ? (
+        <nav
+          className="fixed inset-x-3 bottom-3 z-40 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-[0_18px_50px_rgba(15,23,42,0.16)] backdrop-blur lg:hidden"
+          aria-label="Primary mobile navigation"
+        >
+          <div className="flex items-center gap-1">
+            {items.map((item) => (
+              <NavLink key={item.href} item={item} compact />
+            ))}
+          </div>
+        </nav>
+      ) : null}
     </>
   );
 }
