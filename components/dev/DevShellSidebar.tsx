@@ -11,7 +11,6 @@ import {
   DevPerspectiveProvider,
   useDevPerspective,
 } from '@/components/dev/DevPerspectiveProvider';
-import { devPerspectiveMeta } from '@/lib/devPerspective';
 import type { SidebarNavItem } from '@/components/SidebarNav';
 
 function isActiveItem(pathname: string, item: SidebarNavItem) {
@@ -42,10 +41,12 @@ function SidebarNavLink({ item }: { item: SidebarNavItem }) {
 
 function DevShellSidebarInner() {
   const { perspective, selectPerspective, items } = useDevPerspective();
-  const meta = devPerspectiveMeta[perspective];
 
   return (
-    <aside className="sidebar-rail group fixed left-0 top-0 z-30 flex h-screen w-16 overflow-hidden border-r border-slate-200 bg-white shadow-sm transition-[width] duration-200 ease-out hover:w-64 focus-within:w-64">
+    <aside
+      data-dev-perspective={perspective}
+      className="sidebar-rail group fixed left-0 top-0 z-30 flex h-screen w-16 overflow-hidden border-r border-slate-200 bg-white shadow-sm transition-[width] duration-200 ease-out hover:w-64 focus-within:w-64"
+    >
       <div className="flex h-full w-full flex-col overflow-hidden p-3">
         <div className="mb-4 min-h-[74px]">
           <ChemDeckLogo variant="mark" className="h-10 w-10 group-hover:hidden group-focus-within:hidden" />
@@ -60,9 +61,6 @@ function DevShellSidebarInner() {
             Perspective
           </p>
           <DevPerspectiveCylinder value={perspective} onChange={selectPerspective} compact />
-          <p className="sidebar-label mt-2 hidden text-xs font-semibold text-slate-700 group-hover:block group-focus-within:block">
-            {meta.description}
-          </p>
         </div>
 
         <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto" aria-label="Dev navigation">

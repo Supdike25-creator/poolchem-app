@@ -189,6 +189,7 @@ export function SidebarNav({
   expanded = false,
   items = mainNavItems,
   showMobileSidebar = false,
+  devPerspective,
 }: {
   header?: ReactNode;
   beforeNav?: ReactNode;
@@ -197,10 +198,12 @@ export function SidebarNav({
   expanded?: boolean;
   items?: SidebarNavItem[];
   showMobileSidebar?: boolean;
+  devPerspective?: 'dev' | 'manager' | 'lifeguard';
 }) {
   return (
     <>
       <aside
+        data-dev-perspective={devPerspective}
         className={`sidebar-rail group fixed left-0 top-0 z-50 h-screen overflow-hidden border-r border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)] transition-[width,box-shadow] duration-200 ease-out ${expanded ? 'sidebar-expanded w-64' : 'w-16 hover:w-64 focus-within:w-64'} ${showMobileSidebar ? 'flex' : 'hidden lg:flex'} ${className}`}
       >
         <div className="flex h-full w-full flex-col overflow-hidden p-3">

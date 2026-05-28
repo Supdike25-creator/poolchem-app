@@ -53,13 +53,10 @@ export function DevPerspectiveProvider({ children }: { children: ReactNode }) {
 
   const selectPerspective = useCallback(
     (next: DevPerspective) => {
-      if (next === perspective) {
-        router.push(perspectiveHomePath(next, companyId));
-        return;
-      }
       setPerspective(next);
+      router.push(perspectiveHomePath(next, companyId));
     },
-    [companyId, perspective, router, setPerspective],
+    [companyId, router, setPerspective],
   );
 
   const items = useMemo(

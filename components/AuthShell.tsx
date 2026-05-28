@@ -98,7 +98,7 @@ function AuthShellDevLayout({
   onLogout: () => void;
   onBackToDev: () => void;
 }) {
-  const { items } = useDevPerspective();
+  const { items, perspective } = useDevPerspective();
 
   return (
     <AuthShellFrame
@@ -113,6 +113,7 @@ function AuthShellDevLayout({
         <SidebarNav
           items={items}
           showMobileSidebar
+          devPerspective={perspective}
           beforeNav={<DevPerspectiveSidebarSlot />}
           header={<AuthShellSidebarHeader role={role} />}
         />
