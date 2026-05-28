@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { isDevRequest, getDevSessionFromRequest } from '@/lib/auth/devSession';
+import { getDevSessionFromRequest } from '@/lib/auth/devSession';
 import { getAppSessionFromRequest } from '@/lib/auth/appSession';
 import { resolveDevCompanyId } from '@/lib/devTools';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -47,7 +47,9 @@ export async function resolveApiCompanyScope(request?: NextRequest): Promise<Sco
   const adminClient = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : null;
   const accountDb = adminClient ?? supabase;
 
-  const rawDevCompanyId = request && isDevRequest(request)
+  const devSession = request ? getDevSessionFromRequest(request) : null;
+
+  const rawDevCompanyId = request && devSession
     ? request.nextUrl.searchParams.get('companyId') ?? (await readDevCompanyIdFromBody(request))
     : null;
 
@@ -85,7 +87,7 @@ export async function resolveApiCompanyScope(request?: NextRequest): Promise<Sco
 
   const companyId = devCompanyId ?? account?.company_id ?? null;
 
-  if ((userError || !user) && !devCompanyId && !appSession) {
+  if ((userError || !user) && !devCompanyId && !appSession && !devSession) {
     return {
       ok: false,
       response: NextResponse.json({ ok: false, message: 'Unauthorized.' }, { status: 401 }),
@@ -102,7 +104,6 @@ export async function resolveApiCompanyScope(request?: NextRequest): Promise<Sco
     };
   }
 
-  const devSession = request ? getDevSessionFromRequest(request) : null;
   const userId = user?.id ?? devSession?.id ?? appSession?.id ?? null;
 
   return {

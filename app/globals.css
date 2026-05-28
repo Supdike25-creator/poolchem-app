@@ -585,109 +585,118 @@ a:active {
   font-size: 1rem;
 }
 
-.dev-cylinder-shell {
-  width: 3.25rem;
+.dev-pov-switcher {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
 }
 
-.dev-cylinder-shell-compact {
-  width: 3rem;
+.dev-pov-switcher-compact {
+  gap: 0.35rem;
 }
 
-.dev-cylinder-scene {
-  position: relative;
-  width: 3.25rem;
-  height: 3.25rem;
-  margin: 0 auto;
-  perspective: 720px;
+.dev-pov-viewport {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  overflow: hidden;
+  isolation: isolate;
   cursor: grab;
   touch-action: none;
   outline: none;
 }
 
-.dev-cylinder-scene:focus-visible {
+.dev-pov-viewport:focus-visible {
   outline: 2px solid rgb(96 165 250);
-  outline-offset: 4px;
-  border-radius: 9999px;
+  outline-offset: 3px;
 }
 
-.dev-cylinder-scene:active {
+.dev-pov-viewport:active {
   cursor: grabbing;
 }
 
-.dev-cylinder {
+.dev-pov-scene {
+  width: 100%;
+  height: 100%;
+  perspective: 240px;
+  perspective-origin: center center;
+}
+
+.dev-pov-drum {
   position: relative;
   width: 100%;
   height: 100%;
   transform-style: preserve-3d;
-  transition: transform 0.55s cubic-bezier(0.34, 1.15, 0.64, 1);
-  will-change: transform;
+  transition: transform 0.5s cubic-bezier(0.34, 1.12, 0.64, 1);
 }
 
-.dev-cylinder-dragging {
-  transition-duration: 0.32s;
-}
-
-.dev-cylinder-face {
+.dev-pov-face {
   position: absolute;
   inset: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.05rem;
   border-radius: 9999px;
   backface-visibility: hidden;
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.16),
-    0 8px 18px rgb(15 23 42 / 0.16);
-  border: 1px solid rgb(255 255 255 / 0.1);
-  opacity: 0.72;
   transform-origin: center center;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.15);
 }
 
-.dev-cylinder-face-active {
+.dev-pov-face-active {
   opacity: 1;
+  visibility: visible;
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.22),
-    0 0 0 2px rgb(96 165 250 / 0.35),
-    0 12px 24px rgb(15 23 42 / 0.2);
+    0 0 0 2px rgb(96 165 250 / 0.28);
 }
 
-.dev-cylinder-letter {
-  font-size: 1.1rem;
+.dev-pov-letter {
+  font-size: 1rem;
   font-weight: 800;
   line-height: 1;
 }
 
-.dev-cylinder-caption {
-  font-size: 0.48rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  opacity: 0.9;
-}
-
-.dev-cylinder-dots {
-  display: flex;
+.dev-pov-segments {
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
-  margin-top: 0.55rem;
+  gap: 0.25rem;
 }
 
-.dev-cylinder-dot {
-  height: 0.35rem;
-  width: 0.35rem;
+.dev-pov-segment {
+  height: 1.25rem;
+  min-width: 1.25rem;
+  padding: 0 0.3rem;
   border-radius: 9999px;
-  background: rgb(203 213 225);
-  transition: all 0.25s ease;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: rgb(100 116 139);
+  background: rgb(241 245 249);
+  transition: all 0.2s ease;
 }
 
-.dev-cylinder-dot-active {
-  width: 1rem;
+.dev-pov-segment-active {
   background: rgb(59 130 246);
+  color: white;
 }
 
-.dev-cylinder-dot:hover {
-  background: rgb(148 163 184);
+.dev-pov-segment:hover {
+  background: rgb(226 232 240);
+}
+
+.dev-pov-segment-active:hover {
+  background: rgb(37 99 235);
+}
+
+.dev-pov-sidebar-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  overflow: hidden;
 }

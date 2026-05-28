@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Database, FlaskConical, ListTree, Mail, Radio, RotateCcw, ShieldCheck, ToggleLeft, Trash2 } from 'lucide-react';
+import { AlertTriangle, Bell, Database, FlaskConical, ListTree, Mail, Radio, RotateCcw, ShieldCheck, ToggleLeft, Trash2 } from 'lucide-react';
 import type { DevApiRequest, DevFeatureFlag, DevRawLog, DevTableSummary } from '@/lib/devTools';
 
 type ApiResult = {
@@ -98,6 +98,27 @@ export default function DevToolPanel({
     }
   };
 
+  const sendNotificationTest = async () => {
+    setLoadingAction('notification-test');
+    setResult({ message: 'Sending test alert notification...' });
+
+    try {
+      const response = await fetch('/api/dev/test-notification', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ companyId: selectedCompanyId || null }),
+      });
+      const data = (await response.json()) as ApiResult;
+      setResult(data);
+      await refreshActivity();
+    } catch (error) {
+      setResult({ ok: false, message: (error as Error).message });
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
   const sendResendTestEmail = async () => {
     setLoadingAction('resend-test');
     setResult({ message: 'Sending test invite email via Resend...' });
@@ -182,6 +203,28 @@ export default function DevToolPanel({
             {JSON.stringify(result, null, 2)}
           </pre>
         </div>
+      </div>
+
+      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
+        <div className="flex items-center gap-2">
+          <Bell className="h-5 w-5 text-slate-500" />
+          <h2 className="text-lg font-semibold text-slate-950">Notification test</h2>
+        </div>
+        <p className="mt-2 text-sm text-slate-600">
+          Fire a test pool alert email to managers on the selected company. Uses the same Resend pipeline as live alerts.
+        </p>
+        <button
+          type="button"
+          onClick={() => void sendNotificationTest()}
+          disabled={loadingAction === 'notification-test' || !selectedCompanyId}
+          className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Bell className="h-4 w-4" />
+          {loadingAction === 'notification-test' ? 'Sending…' : 'Send test notification'}
+        </button>
+        {!selectedCompanyId ? (
+          <p className="mt-2 text-xs text-amber-700">Pick a company above before sending.</p>
+        ) : null}
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">

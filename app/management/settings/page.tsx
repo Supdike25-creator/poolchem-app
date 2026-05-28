@@ -4,6 +4,7 @@ import { useState, useEffect, type ReactNode } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
+import { useDevCompanyScope } from '@/lib/useDevCompanyScope';
 import { appVersion } from '../../../lib/generatedVersion';
 import {
   Settings,
@@ -131,6 +132,7 @@ const ToggleRow = ({
 );
 
 export default function ManagementSettingsPage() {
+  const { companyId: devCompanyId } = useDevCompanyScope();
   const [settings, setSettings] = useState<SettingsData>(loadStoredSettings);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [companyDetails, setCompanyDetails] = useState<CompanyDetails | null>(null);
@@ -213,6 +215,8 @@ export default function ManagementSettingsPage() {
     const response = await fetch('/api/notifications/test', {
       method: 'POST',
       credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ companyId: devCompanyId || null }),
     });
     const result = await response.json().catch(() => null);
     setSendingNotificationTest(false);
