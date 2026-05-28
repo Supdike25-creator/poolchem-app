@@ -111,6 +111,7 @@ export async function sendInviteEmail(params: SendInviteEmailParams) {
     return {
       ok: false as const,
       message: 'Email sending is not configured. Add RESEND_API_KEY to your environment, or use Copy invite link.',
+      resend_test_mode: false,
       ...content,
     };
   }
