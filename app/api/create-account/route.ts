@@ -60,6 +60,7 @@ async function createAccountWithAdminClient(email: string, password: string, ful
     email_confirm: true,
     user_metadata: {
       role: "guard",
+      full_name: fullName?.trim() || email,
     },
   });
 
@@ -92,7 +93,7 @@ async function createAccountWithAdminClient(email: string, password: string, ful
   return NextResponse.json({ ok: true, message: "Account created." }, { status: 201 });
 }
 
-async function createAccountWithPublicAuth(email: string, password: string) {
+async function createAccountWithPublicAuth(email: string, password: string, fullName?: string | null) {
   const supabase = await createClient();
 
   const { data, error: createError } = await supabase.auth.signUp({
@@ -101,6 +102,7 @@ async function createAccountWithPublicAuth(email: string, password: string) {
     options: {
       data: {
         role: "guard",
+        full_name: fullName?.trim() || email,
       },
     },
   });
@@ -135,7 +137,7 @@ export async function POST(request: NextRequest) {
       return await createAccountWithAdminClient(email, password, fullName);
     }
 
-    return await createAccountWithPublicAuth(email, password);
+    return await createAccountWithPublicAuth(email, password, fullName);
   } catch (error) {
     const message = (error as Error).message;
     return NextResponse.json({ ok: false, message }, { status: 500 });

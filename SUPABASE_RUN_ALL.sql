@@ -293,6 +293,91 @@ $$;
 
 grant execute on function public.auth_user_exists_by_email(text) to service_role;
 
+-- ---------------------------------------------------------------------------
+-- Manager company creation (required for /create-company onboarding)
+-- ---------------------------------------------------------------------------
+
+create or replace function public.generate_company_code()
+returns text
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  candidate text;
+begin
+  loop
+    candidate := upper(substr(encode(extensions.gen_random_bytes(6), 'hex'), 1, 8));
+    exit when not exists (select 1 from public.companies where company_code = candidate);
+  end loop;
+
+  return candidate;
+end;
+$$;
+
+create or replace function public.create_company_for_boss(
+  p_boss_user_id uuid,
+  p_company_name text
+)
+returns table (
+  company_id uuid,
+  company_name text,
+  company_code text
+)
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  inserted_company public.companies%rowtype;
+begin
+  if nullif(trim(coalesce(p_company_name, '')), '') is null then
+    raise exception 'Company name is required';
+  end if;
+
+  if not exists (
+    select 1 from public.profiles
+    where id = p_boss_user_id
+      and lower(role) = 'boss'
+  ) and not exists (
+    select 1 from public.users
+    where id = p_boss_user_id
+      and lower(role) = 'boss'
+  ) then
+    raise exception 'Only boss accounts can create companies';
+  end if;
+
+  insert into public.companies (company_name, company_code, created_by)
+  values (trim(p_company_name), public.generate_company_code(), p_boss_user_id)
+  returning * into inserted_company;
+
+  update public.profiles
+  set company_id = inserted_company.id,
+      role = 'boss'
+  where id = p_boss_user_id;
+
+  update public.users
+  set company_id = inserted_company.id,
+      role = 'boss'
+  where id = p_boss_user_id;
+
+  update public.app_accounts
+  set company_id = inserted_company.id
+  where auth_user_id = p_boss_user_id;
+
+  insert into public.user_company_memberships (user_id, company_id, role)
+  values (p_boss_user_id, inserted_company.id, 'boss')
+  on conflict (user_id, company_id) do update
+  set role = excluded.role;
+
+  return query
+  select inserted_company.id, inserted_company.company_name, inserted_company.company_code;
+end;
+$$;
+
+grant execute on function public.generate_company_code() to authenticated, service_role;
+grant execute on function public.create_company_for_boss(uuid, text) to authenticated, service_role;
+
 
 select table_name, column_name
 from information_schema.columns

@@ -42,6 +42,11 @@ export async function POST(request: NextRequest) {
 
     const response = NextResponse.json(result);
     response.cookies.delete('chemdeck.pendingRole');
+    response.cookies.set('chemdeck.justJoinedCompany', 'true', {
+      path: '/',
+      maxAge: 120,
+      sameSite: 'lax',
+    });
     return response;
   } catch (error) {
     const message = (error as Error).message || 'Unable to accept invite.';

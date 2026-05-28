@@ -11,6 +11,7 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function CreateAccountForm() {
   const router = useRouter();
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -51,6 +52,7 @@ function CreateAccountForm() {
         body: JSON.stringify({
           email: normalizedEmail,
           password,
+          full_name: fullName.trim(),
         }),
       });
 
@@ -109,6 +111,20 @@ function CreateAccountForm() {
         ) : null}
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          <label className="block">
+            <span className="mb-2 block text-sm font-medium text-[#D9E1E8]">Your name</span>
+            <input
+              type="text"
+              value={fullName}
+              onChange={(event) => setFullName(event.target.value)}
+              placeholder="First and last name"
+              className="h-12 w-full rounded-md border border-white/10 bg-white/[0.08] px-4 text-sm text-white outline-none transition placeholder:text-[#D9E1E8]/45 focus:border-[#3EC6FF]/70 focus:ring-2 focus:ring-[#3EC6FF]/20"
+              disabled={submitting}
+              autoComplete="name"
+              required
+            />
+          </label>
+
           <label className="block">
             <span className="mb-2 block text-sm font-medium text-[#D9E1E8]">Email</span>
             <input
