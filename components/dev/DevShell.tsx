@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Building2, Code2, Gauge, SlidersHorizontal, Users, Waves } from 'lucide-react';
 import ChemDeckLogo from '@/components/ChemDeckLogo';
 import { DevCompanyProvider } from '@/components/dev/DevCompanyContext';
+import DevLogoutButton from '@/components/dev/DevLogoutButton';
 
 const adminItems = [
   { label: 'Profiles', href: '/dev-admin/profiles', icon: Users },
@@ -56,12 +57,15 @@ export default function DevShell({ children }: { children: React.ReactNode }) {
               </div>
             </nav>
 
-            <div className="sidebar-label sidebar-footer mt-auto rounded-lg border border-blue-200 bg-blue-50 p-3">
-              <div className="flex items-center gap-2">
-                <Code2 className="h-4 w-4 text-blue-700" />
-                <p className="text-sm font-semibold text-blue-950">DEV only</p>
+            <div className="mt-auto space-y-3">
+              <DevLogoutButton />
+              <div className="sidebar-label sidebar-footer rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <div className="flex items-center gap-2">
+                  <Code2 className="h-4 w-4 text-blue-700" />
+                  <p className="text-sm font-semibold text-blue-950">DEV only</p>
+                </div>
+                <p className="mt-1 text-xs leading-5 text-blue-900">ChemDeckDev session access.</p>
               </div>
-              <p className="mt-1 text-xs leading-5 text-blue-900">ChemDeckDev session access.</p>
             </div>
           </div>
         </aside>
@@ -70,9 +74,12 @@ export default function DevShell({ children }: { children: React.ReactNode }) {
           <div className="border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
             <div className="flex items-center justify-between gap-3">
               <ChemDeckLogo variant="full" className="w-36" />
-              <Link href="/dev-dashboard" className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">
-                Dev Dashboard
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link href="/dev-dashboard" className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">
+                  Dev Dashboard
+                </Link>
+                <DevLogoutButton className="!w-auto px-3" />
+              </div>
             </div>
           </div>
           {children}
