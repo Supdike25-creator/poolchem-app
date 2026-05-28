@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { buildInviteUrl, createCompanyInvite, isInviteEmailValid, listPendingInvites, normalizeInviteEmail } from '@/lib/companyInvites';
+import { buildInviteUrl, createCompanyInvite, getPendingInviteById, isInviteEmailValid, listPendingInvites, normalizeInviteEmail } from '@/lib/companyInvites';
 import { inviteEmailHasAccount, sendInviteEmail } from '@/lib/inviteEmail';
+import { getAppBaseUrl } from '@/lib/inviteLinks';
 import { resolveManagerApiScope } from '@/lib/managerApiScope';
 
 export const dynamic = 'force-dynamic';
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest) {
   if (!context.ok) return context.response;
 
   const { companyId, accountDb } = context.scope;
-  const origin = request.nextUrl.origin;
+  const origin = getAppBaseUrl(request.nextUrl.origin);
 
   const [{ data: company, error }, pendingInvites] = await Promise.all([
     accountDb.from('companies').select('company_name').eq('id', companyId).maybeSingle(),
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { companyId, accountDb, inviterName, userId } = context.scope;
-  const origin = request.nextUrl.origin;
+  const origin = getAppBaseUrl(request.nextUrl.origin);
 
   const { data: company, error: companyError } = await accountDb
     .from('companies')
@@ -126,6 +127,78 @@ export async function POST(request: NextRequest) {
         { status: 503 },
       );
     }
+    return NextResponse.json({ ok: false, message }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  const context = await resolveManagerApiScope(request);
+  if (!context.ok) return context.response;
+
+  const body = await request.json().catch(() => null) as { invite_id?: string; companyId?: string } | null;
+  const inviteId = body?.invite_id?.trim() ?? '';
+
+  if (!inviteId) {
+    return NextResponse.json({ ok: false, message: 'Invite id is required.' }, { status: 400 });
+  }
+
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json({ ok: false, message: 'Email invites require server configuration.' }, { status: 503 });
+  }
+
+  const { companyId, accountDb, inviterName } = context.scope;
+  const origin = getAppBaseUrl(request.nextUrl.origin);
+
+  try {
+    const admin = createAdminClient();
+    const invite = await getPendingInviteById(accountDb, companyId, inviteId);
+
+    if (!invite?.token) {
+      return NextResponse.json({ ok: false, message: 'Pending invite not found or expired.' }, { status: 404 });
+    }
+
+    const { data: company, error: companyError } = await accountDb
+      .from('companies')
+      .select('company_name')
+      .eq('id', companyId)
+      .maybeSingle();
+
+    if (companyError || !company) {
+      return NextResponse.json({ ok: false, message: companyError?.message || 'Company not found.' }, { status: 404 });
+    }
+
+    const inviteLink = buildInviteUrl(invite.token, origin);
+    const hasAccount = await inviteEmailHasAccount(admin, invite.email);
+    const emailResult = await sendInviteEmail({
+      to: invite.email,
+      companyName: company.company_name,
+      inviterName,
+      token: invite.token,
+      origin,
+      hasAccount,
+    });
+
+    if (!emailResult.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: emailResult.message,
+          invite_link: inviteLink,
+          resend_test_mode: emailResult.resend_test_mode ?? false,
+        },
+        { status: emailResult.message.includes('RESEND_API_KEY') ? 503 : 400 },
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      message: `Invite email resent to ${invite.email}.`,
+      invite_link: inviteLink,
+      delivery: 'email',
+      has_account: hasAccount,
+    });
+  } catch (error) {
+    const message = (error as Error).message || 'Unable to resend invite.';
     return NextResponse.json({ ok: false, message }, { status: 500 });
   }
 }

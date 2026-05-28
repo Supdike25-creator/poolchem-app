@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { routeForRole, normalizeProfileRole } from '@/lib/auth/accountAccess';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { upsertCompanyMembership } from '@/lib/companyMemberships';
+import { getAppBaseUrl } from '@/lib/inviteLinks';
 
 export type CompanyInviteRow = {
   id: string;
@@ -42,7 +43,7 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const generateInviteToken = () => randomBytes(24).toString('hex');
 
 export const buildInviteUrl = (token: string, origin: string) =>
-  `${origin.replace(/\/$/, '')}/invite/${token}`;
+  `${getAppBaseUrl(origin)}/invite/${token.trim()}`;
 
 export const normalizeInviteEmail = (value: string) => value.trim().toLowerCase();
 
@@ -326,4 +327,25 @@ export async function listPendingInvites(db: SupabaseClient, companyId: string) 
   }
 
   return data ?? [];
+}
+
+export async function getPendingInviteById(
+  db: SupabaseClient,
+  companyId: string,
+  inviteId: string,
+) {
+  const { data, error } = await db
+    .from('company_invites')
+    .select('id, email, token, status, expires_at, company_id')
+    .eq('id', inviteId)
+    .eq('company_id', companyId)
+    .eq('status', 'pending')
+    .gt('expires_at', new Date().toISOString())
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
 }

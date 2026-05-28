@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Database, FlaskConical, ListTree, Radio, RotateCcw, ShieldCheck, ToggleLeft, Trash2 } from 'lucide-react';
+import { AlertTriangle, Database, FlaskConical, ListTree, Mail, Radio, RotateCcw, ShieldCheck, ToggleLeft, Trash2 } from 'lucide-react';
 import type { DevApiRequest, DevFeatureFlag, DevRawLog, DevTableSummary } from '@/lib/devTools';
 
 type ApiResult = {
@@ -28,12 +28,23 @@ export default function DevToolPanel({
   const [apiRequests, setApiRequests] = useState(initialRequests);
   const [result, setResult] = useState<ApiResult>({ message: 'Tools ready.' });
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
+  const [resendTestEmail, setResendTestEmail] = useState('supdike25@hotmail.com');
+  const [resendConfig, setResendConfig] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     setFlags(initialFlags);
     setRawLogs(initialLogs);
     setApiRequests(initialRequests);
   }, [initialFlags, initialLogs, initialRequests, selectedCompanyId]);
+
+  useEffect(() => {
+    void fetch('/api/dev/test-resend-email', { credentials: 'same-origin' })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data?.details) setResendConfig(data.details as Record<string, unknown>);
+      })
+      .catch(() => undefined);
+  }, []);
 
   const refreshActivity = async () => {
     const query = selectedCompanyId ? `?companyId=${encodeURIComponent(selectedCompanyId)}` : '';
@@ -79,6 +90,28 @@ export default function DevToolPanel({
       });
       const data = (await response.json()) as ApiResult;
       setResult(data);
+      await refreshActivity();
+    } catch (error) {
+      setResult({ ok: false, message: (error as Error).message });
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const sendResendTestEmail = async () => {
+    setLoadingAction('resend-test');
+    setResult({ message: 'Sending test invite email via Resend...' });
+
+    try {
+      const response = await fetch('/api/dev/test-resend-email', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: resendTestEmail.trim() }),
+      });
+      const data = (await response.json()) as ApiResult & { details?: Record<string, unknown> };
+      setResult(data);
+      if (data.details) setResendConfig(data.details);
       await refreshActivity();
     } catch (error) {
       setResult({ ok: false, message: (error as Error).message });
@@ -148,6 +181,43 @@ export default function DevToolPanel({
           <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap text-xs leading-5 text-slate-300">
             {JSON.stringify(result, null, 2)}
           </pre>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
+        <div className="flex items-center gap-2">
+          <Mail className="h-5 w-5 text-slate-500" />
+          <h2 className="text-lg font-semibold text-slate-950">Resend email test</h2>
+        </div>
+        <p className="mt-2 text-sm text-slate-600">
+          Send a test invite email through Resend. In test mode, only <strong>supdike25@hotmail.com</strong> can receive mail until you verify a domain.
+        </p>
+        {resendConfig ? (
+          <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            <p><strong>From:</strong> {String(resendConfig.invite_email_from ?? '—')}</p>
+            <p><strong>App URL:</strong> {String(resendConfig.app_url ?? '—')}</p>
+            <p><strong>API key:</strong> {String(resendConfig.resend_api_key ?? '—')}</p>
+          </div>
+        ) : null}
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+          <label className="block flex-1 text-sm">
+            <span className="mb-1 block font-semibold text-slate-700">Test recipient</span>
+            <input
+              type="email"
+              value={resendTestEmail}
+              onChange={(event) => setResendTestEmail(event.target.value)}
+              className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => void sendResendTestEmail()}
+            disabled={loadingAction === 'resend-test' || !resendTestEmail.trim()}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-4 text-sm font-semibold text-blue-800 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Mail className="h-4 w-4" />
+            {loadingAction === 'resend-test' ? 'Sending…' : 'Send test email'}
+          </button>
         </div>
       </div>
 

@@ -45,6 +45,7 @@ export default function ManagementTeamPage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [sendingInvite, setSendingInvite] = useState(false);
   const [copyingLink, setCopyingLink] = useState(false);
+  const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
 
   const showMessage = (text: string, tone: 'info' | 'success' | 'warning' | 'error' = 'info') => {
     setMessage(text);
@@ -247,6 +248,40 @@ export default function ManagementTeamPage() {
     }
   };
 
+  const resendPendingInvite = async (inviteId: string, email: string) => {
+    setResendingInviteId(inviteId);
+    setMessage('');
+    const response = await fetch(`/api/team-invite${query}`, {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ...scopeBody(), invite_id: inviteId }),
+    });
+    const result = await response.json().catch(() => null);
+    setResendingInviteId(null);
+
+    if (!response.ok || !result?.ok) {
+      if (result?.invite_link) {
+        try {
+          await navigator.clipboard.writeText(result.invite_link);
+          showMessage(
+            result.resend_test_mode
+              ? `${result.message} Invite link copied — share it with ${email} manually.`
+              : `Email could not be sent. Invite link copied for ${email}.`,
+            'warning',
+          );
+        } catch {
+          showMessage(`${result.message} Invite link: ${result.invite_link}`, 'error');
+        }
+      } else {
+        showMessage(result?.message || 'Unable to resend invite email.', 'error');
+      }
+      return;
+    }
+
+    showMessage(result.message, 'success');
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-[420px] items-center justify-center rounded-xl border border-slate-200 bg-white py-12 shadow-sm">
@@ -344,14 +379,25 @@ export default function ManagementTeamPage() {
                   <p className="font-semibold text-slate-900">{invite.email}</p>
                   <p className="text-xs text-slate-500">Expires {new Date(invite.expires_at).toLocaleDateString()}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void copyPendingInvite(invite.invite_link)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  <Copy className="h-4 w-4" />
-                  Copy link
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={resendingInviteId === invite.id}
+                    onClick={() => void resendPendingInvite(invite.id, invite.email)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-100 disabled:opacity-60"
+                  >
+                    <Send className="h-4 w-4" />
+                    {resendingInviteId === invite.id ? 'Sending…' : 'Resend email'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void copyPendingInvite(invite.invite_link)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <Copy className="h-4 w-4" />
+                    Copy link
+                  </button>
+                </div>
               </div>
             ))}
           </div>
