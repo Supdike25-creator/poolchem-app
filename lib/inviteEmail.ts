@@ -89,10 +89,23 @@ export const buildInviteEmailContent = ({
   return { subject, html, text, signupLink, loginLink };
 };
 
+export const isResendTestModeError = (message: string) => {
+  const lower = message.toLowerCase();
+  return lower.includes('testing emails') || lower.includes('verify a domain') || lower.includes('only send');
+};
+
+export const formatResendInviteError = (message: string, inviteEmail: string) => {
+  if (isResendTestModeError(message)) {
+    return `Resend test mode: email can only go to your Resend account address until you verify a domain at resend.com/domains. Use "Copy invite link" for ${inviteEmail} instead.`;
+  }
+  return message;
+};
+
 export async function sendInviteEmail(params: SendInviteEmailParams) {
   const content = buildInviteEmailContent(params);
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.INVITE_EMAIL_FROM?.trim() || 'ChemDeck <onboarding@resend.dev>';
+  const to = params.to.trim().toLowerCase();
 
   if (!apiKey) {
     return {
@@ -110,7 +123,7 @@ export async function sendInviteEmail(params: SendInviteEmailParams) {
     },
     body: JSON.stringify({
       from,
-      to: [params.to],
+      to: [to],
       subject: content.subject,
       html: content.html,
       text: content.text,
@@ -123,14 +136,15 @@ export async function sendInviteEmail(params: SendInviteEmailParams) {
     const detail = typeof result?.message === 'string' ? result.message : 'Unable to send invite email.';
     return {
       ok: false as const,
-      message: detail,
+      message: formatResendInviteError(detail, to),
+      resend_test_mode: isResendTestModeError(detail),
       ...content,
     };
   }
 
   return {
     ok: true as const,
-    message: `Invite email sent to ${params.to}.`,
+    message: `Invite email sent to ${to}.`,
     id: result.id as string | undefined,
     ...content,
   };

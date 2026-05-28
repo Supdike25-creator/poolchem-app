@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { buildInviteUrl, createCompanyInvite, isInviteEmailValid, listPendingInvites } from '@/lib/companyInvites';
+import { buildInviteUrl, createCompanyInvite, isInviteEmailValid, listPendingInvites, normalizeInviteEmail } from '@/lib/companyInvites';
 import { inviteEmailHasAccount, sendInviteEmail } from '@/lib/inviteEmail';
 import { resolveManagerApiScope } from '@/lib/managerApiScope';
 
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     companyId?: string;
   } | null;
 
-  const email = body?.email?.trim() ?? '';
+  const email = normalizeInviteEmail(body?.email?.trim() ?? '');
   const delivery = body?.delivery === 'link' ? 'link' : 'email';
 
   if (!isInviteEmailValid(email)) {
@@ -105,6 +105,7 @@ export async function POST(request: NextRequest) {
           ok: false,
           message: emailResult.message,
           invite_link: inviteLink,
+          resend_test_mode: emailResult.resend_test_mode ?? false,
         },
         { status: emailResult.message.includes('RESEND_API_KEY') ? 503 : 400 },
       );

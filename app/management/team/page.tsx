@@ -38,12 +38,18 @@ export default function ManagementTeamPage() {
   const [companyName, setCompanyName] = useState('');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [messageTone, setMessageTone] = useState<'info' | 'success' | 'warning' | 'error'>('info');
   const [error, setError] = useState('');
   const [savingGuardId, setSavingGuardId] = useState<string | null>(null);
   const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [sendingInvite, setSendingInvite] = useState(false);
   const [copyingLink, setCopyingLink] = useState(false);
+
+  const showMessage = (text: string, tone: 'info' | 'success' | 'warning' | 'error' = 'info') => {
+    setMessage(text);
+    setMessageTone(tone);
+  };
 
   const loadTeam = async () => {
     setError('');
@@ -55,7 +61,7 @@ export default function ManagementTeamPage() {
       setAssignments({});
       setPendingMembers([]);
       setPendingInvites([]);
-      setMessage('Select a company from Dev Dashboard before managing team assignments.');
+      showMessage('Select a company from Dev Dashboard before managing team assignments.', 'warning');
       setLoading(false);
       return;
     }
@@ -68,7 +74,7 @@ export default function ManagementTeamPage() {
     const result = await teamResponse.json().catch(() => null);
     const inviteResult = await inviteResponse.json().catch(() => null);
     if (!teamResponse.ok || !result?.ok) {
-      setMessage(result?.message || 'Unable to load team data.');
+      showMessage(result?.message || 'Unable to load team data.', 'error');
       setError(result?.message || 'Unable to load team data.');
       setLoading(false);
       return;
@@ -121,7 +127,10 @@ export default function ManagementTeamPage() {
     });
     const result = await response.json().catch(() => null);
     setSavingGuardId(null);
-    setMessage(result?.ok ? 'Pool assignments saved.' : result?.message || 'Unable to save assignments.');
+    showMessage(
+      result?.ok ? 'Pool assignments saved.' : result?.message || 'Unable to save assignments.',
+      result?.ok ? 'success' : 'error',
+    );
   };
 
   const updateMemberStatus = async (userId: string, status: 'active' | 'pending' | 'inactive') => {
@@ -134,11 +143,11 @@ export default function ManagementTeamPage() {
     });
     const result = await response.json().catch(() => null);
     if (!response.ok || !result?.ok) {
-      setMessage(result?.message || 'Unable to update member status.');
+      showMessage(result?.message || 'Unable to update member status.', 'error');
       return;
     }
     await loadTeam();
-    setMessage(result.message);
+    showMessage(result.message, 'success');
   };
 
   const updateMemberRole = async (userId: string, role: string) => {
@@ -153,36 +162,53 @@ export default function ManagementTeamPage() {
     const result = await response.json().catch(() => null);
     setUpdatingRoleId(null);
     if (!response.ok || !result?.ok) {
-      setMessage(result?.message || 'Unable to update role.');
+      showMessage(result?.message || 'Unable to update role.', 'error');
       return;
     }
     await loadTeam();
-    setMessage(result.message);
+    showMessage(result.message, 'success');
   };
 
   const sendInviteEmail = async () => {
+    const normalizedEmail = inviteEmail.trim().toLowerCase();
     setSendingInvite(true);
     setMessage('');
     const response = await fetch(`/api/team-invite${query}`, {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ...scopeBody(), email: inviteEmail, delivery: 'email' }),
+      body: JSON.stringify({ ...scopeBody(), email: normalizedEmail, delivery: 'email' }),
     });
     const result = await response.json().catch(() => null);
     setSendingInvite(false);
     if (!response.ok || !result?.ok) {
-      setMessage(result?.message || 'Unable to send invite email.');
+      await loadTeam();
+      if (result?.invite_link) {
+        try {
+          await navigator.clipboard.writeText(result.invite_link);
+          showMessage(
+            result.resend_test_mode
+              ? `${result.message} Invite link copied — share it with ${normalizedEmail} by text or chat.`
+              : `Email could not be sent. Invite link copied for ${normalizedEmail}.`,
+            'warning',
+          );
+        } catch {
+          showMessage(`${result.message} Invite link: ${result.invite_link}`, 'error');
+        }
+      } else {
+        showMessage(result?.message || 'Unable to send invite email.', 'error');
+      }
       return;
     }
     setInviteEmail('');
-    setMessage(result.message);
+    showMessage(result.message, 'success');
     await loadTeam();
   };
 
   const copyInviteLinkForEmail = async () => {
-    if (!inviteEmail.trim()) {
-      setMessage('Enter an email address first.');
+    const normalizedEmail = inviteEmail.trim().toLowerCase();
+    if (!normalizedEmail) {
+      showMessage('Enter an email address first.', 'warning');
       return;
     }
 
@@ -192,21 +218,21 @@ export default function ManagementTeamPage() {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ...scopeBody(), email: inviteEmail, delivery: 'link' }),
+      body: JSON.stringify({ ...scopeBody(), email: normalizedEmail, delivery: 'link' }),
     });
     const result = await response.json().catch(() => null);
     setCopyingLink(false);
 
     if (!response.ok || !result?.ok || !result.invite_link) {
-      setMessage(result?.message || 'Unable to create invite link.');
+      showMessage(result?.message || 'Unable to create invite link.', 'error');
       return;
     }
 
     try {
       await navigator.clipboard.writeText(result.invite_link);
-      setMessage(`Invite link copied for ${inviteEmail.trim()}. Send it by text or chat.`);
+      showMessage(`Invite link copied for ${normalizedEmail}. Send it by text or chat.`, 'success');
     } catch {
-      setMessage(`Copy this invite link: ${result.invite_link}`);
+      showMessage(`Copy this invite link: ${result.invite_link}`, 'warning');
     }
 
     await loadTeam();
@@ -215,9 +241,9 @@ export default function ManagementTeamPage() {
   const copyPendingInvite = async (link: string) => {
     try {
       await navigator.clipboard.writeText(link);
-      setMessage('Invite link copied.');
+      showMessage('Invite link copied.', 'success');
     } catch {
-      setMessage(`Copy this link: ${link}`);
+      showMessage(`Copy this link: ${link}`, 'warning');
     }
   };
 
@@ -231,6 +257,13 @@ export default function ManagementTeamPage() {
 
   const guardMembers = members.filter((member) => isGuardRole(member.role));
 
+  const messageBannerClass = {
+    info: 'border-blue-200 bg-blue-50 text-blue-900',
+    success: 'border-green-200 bg-green-50 text-green-900',
+    warning: 'border-amber-200 bg-amber-50 text-amber-900',
+    error: 'border-red-200 bg-red-50 text-red-900',
+  }[messageTone];
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -241,7 +274,7 @@ export default function ManagementTeamPage() {
       />
 
       {message ? (
-        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">{message}</div>
+        <div className={`rounded-xl border px-4 py-3 text-sm ${messageBannerClass}`}>{message}</div>
       ) : null}
 
       {error && !message ? (
@@ -255,6 +288,13 @@ export default function ManagementTeamPage() {
         </div>
         <p className="text-sm leading-6 text-slate-600">
           Send a branded invite email from {companyName || 'your company'}. They&apos;ll open the link, enter their name and password, and join automatically.
+        </p>
+        <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
+          <strong>Resend test mode:</strong> until you verify a domain at{' '}
+          <a href="https://resend.com/domains" target="_blank" rel="noreferrer" className="font-semibold text-blue-700 underline">
+            resend.com/domains
+          </a>
+          , email can only go to your Resend account address. Use <strong>Copy invite link</strong> for everyone else.
         </p>
 
         <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_auto_auto]">
