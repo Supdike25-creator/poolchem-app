@@ -49,7 +49,7 @@ export const normalizeInviteEmail = (value: string) => value.trim().toLowerCase(
 
 export const isInviteEmailValid = (value: string) => emailPattern.test(normalizeInviteEmail(value));
 
-const inviteSelect = `
+const inviteColumns = `
   id,
   company_id,
   email,
@@ -59,25 +59,38 @@ const inviteSelect = `
   expires_at,
   created_at,
   accepted_at,
-  accepted_by,
-  companies ( company_name )
+  accepted_by
 `;
 
 export async function getInviteByToken(
   db: SupabaseClient,
   token: string,
 ): Promise<CompanyInviteRow | null> {
-  const normalized = token.trim();
+  const normalized = decodeURIComponent(token.trim());
   if (!normalized) return null;
 
   const { data, error } = await db
     .from('company_invites')
-    .select(inviteSelect)
+    .select(inviteColumns)
     .eq('token', normalized)
     .maybeSingle();
 
-  if (error || !data) return null;
-  return data as CompanyInviteRow;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) return null;
+
+  const { data: company } = await db
+    .from('companies')
+    .select('company_name')
+    .eq('id', data.company_id)
+    .maybeSingle();
+
+  return {
+    ...(data as Omit<CompanyInviteRow, 'companies'>),
+    companies: company ? { company_name: company.company_name } : null,
+  };
 }
 
 export function previewInvite(invite: CompanyInviteRow): InvitePreview | { ok: false; message: string } {

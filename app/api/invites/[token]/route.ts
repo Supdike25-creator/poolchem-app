@@ -5,14 +5,24 @@ import { inviteEmailHasAccount } from '@/lib/inviteEmail';
 
 export const dynamic = 'force-dynamic';
 
+const invitesConfigured = () =>
+  Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+
 export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ token: string }> },
 ) {
   const { token } = await context.params;
 
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return NextResponse.json({ ok: false, message: 'Invites are not configured.' }, { status: 503 });
+  if (!invitesConfigured()) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message:
+          'Invites are not configured on the server. Add SUPABASE_SERVICE_ROLE_KEY in Vercel and redeploy.',
+      },
+      { status: 503 },
+    );
   }
 
   try {
@@ -20,7 +30,14 @@ export async function GET(
     const invite = await getInviteByToken(db, token);
 
     if (!invite) {
-      return NextResponse.json({ ok: false, message: 'Invite not found.' }, { status: 404 });
+      return NextResponse.json(
+        {
+          ok: false,
+          message:
+            'Invite not found. Ask your manager to resend the invite, or use Copy invite link from the Team page.',
+        },
+        { status: 404 },
+      );
     }
 
     const preview = previewInvite(invite);
@@ -35,7 +52,11 @@ export async function GET(
     const message = (error as Error).message || 'Unable to load invite.';
     if (message.toLowerCase().includes('company_invites')) {
       return NextResponse.json(
-        { ok: false, message: 'Run SUPABASE_COMPANY_INVITES.sql in Supabase first.' },
+        {
+          ok: false,
+          message:
+            'The invites table is missing. Run SUPABASE_COMPANY_INVITES.sql (or SUPABASE_RUN_ALL.sql) in Supabase.',
+        },
         { status: 503 },
       );
     }

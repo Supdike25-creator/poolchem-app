@@ -215,6 +215,9 @@ export default function InvitePageClient({ token }: { token: string }) {
             <>
               <h1 className="text-3xl font-semibold tracking-tight text-white">Invite unavailable</h1>
               <p className="mt-3 text-sm leading-6 text-red-100">{loadError}</p>
+              <p className="mt-4 text-sm leading-6 text-[#D9E1E8]/75">
+                If you just set up email, your manager may need to send a fresh invite from Team after Vercel env vars are saved.
+              </p>
               <Link href="/login" className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[#3EC6FF]">
                 <ArrowLeft className="h-4 w-4" />
                 Back to sign in
