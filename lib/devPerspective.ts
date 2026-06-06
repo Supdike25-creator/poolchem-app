@@ -1,5 +1,6 @@
 import {
   Building2,
+  FlaskConical,
   Gauge,
   SlidersHorizontal,
   Users,
@@ -45,6 +46,12 @@ export const buildDevHotbarItems = (companyId?: string | null): SidebarNavItem[]
     href: companyId ? `/dev-dashboard?companyId=${encodeURIComponent(companyId)}` : '/dev-dashboard',
     icon: Gauge,
     match: ['/dev-dashboard'],
+  },
+  {
+    label: 'Test Lab',
+    href: companyId ? `/dev-dashboard/test-lab?companyId=${encodeURIComponent(companyId)}` : '/dev-dashboard/test-lab',
+    icon: FlaskConical,
+    match: ['/dev-dashboard/test-lab'],
   },
   { label: 'Profiles', href: '/dev-admin/profiles', icon: Users, match: ['/dev-admin/profiles'] },
   { label: 'Companies', href: '/dev-admin/companies', icon: Building2, match: ['/dev-admin/companies'] },
