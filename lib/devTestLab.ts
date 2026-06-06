@@ -4,7 +4,11 @@ import { getAppBaseUrl } from '@/lib/inviteLinks';
 import { buildInviteUrl, generateInviteToken, listPendingInvites } from '@/lib/companyInvites';
 import { mergeCompanySettings } from '@/lib/companySettings';
 import { buildDevHotbarItems, perspectiveHomePath } from '@/lib/devPerspective';
-import { buildGuardNavItems, buildManagerNavItems } from '@/components/SidebarNav';
+import {
+  buildGuardNavItems,
+  buildManagerNavItems,
+  toNavRouteLinks,
+} from '@/lib/sidebarNavItems';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type DevTestLabLink = {
@@ -150,21 +154,9 @@ export function buildRouteGroups(companyId?: string | null) {
       { label: 'Create company', url: '/create-company', description: 'After manager signup' },
       { label: 'Invite required (lifeguard)', url: '/choose-role', description: 'Guard without invite' },
     ] satisfies DevTestLabLink[],
-    dev: buildDevHotbarItems(companyId).map((item) => ({
-      label: item.label,
-      url: item.href,
-      description: 'Dev console',
-    })),
-    manager: buildManagerNavItems(companyId).map((item) => ({
-      label: item.label,
-      url: item.href,
-      description: 'Manager POV',
-    })),
-    lifeguard: buildGuardNavItems(companyId).map((item) => ({
-      label: item.label,
-      url: item.href,
-      description: 'Lifeguard POV',
-    })),
+    dev: toNavRouteLinks(buildDevHotbarItems(companyId), 'Dev console'),
+    manager: toNavRouteLinks(buildManagerNavItems(companyId), 'Manager POV'),
+    lifeguard: toNavRouteLinks(buildGuardNavItems(companyId), 'Lifeguard POV'),
     pov_homes: [
       { label: 'Dev home', url: perspectiveHomePath('dev', companyId), description: 'D perspective' },
       { label: 'Manager home', url: perspectiveHomePath('manager', companyId), description: 'M perspective' },
