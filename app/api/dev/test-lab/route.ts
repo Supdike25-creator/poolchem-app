@@ -5,6 +5,7 @@ import {
   buildEmailPreviews,
   buildRouteGroups,
   checkTableHealth,
+  ensureDevLabInvites,
   loadCompanyName,
   loadPendingInviteRows,
   readDevTestLabConfig,
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
   let companyName = 'My Pool Company';
   let pendingInvites: Awaited<ReturnType<typeof loadPendingInviteRows>> = [];
   let tableHealth: Record<string, string> = {};
-  let sampleToken: string | undefined;
+  let labTokens: { unlinkedToken: string; linkedToken: string } | null = null;
   let linkedScenario = {
     linkedEmail: linkedEmailParam || 'supdike25@hotmail.com',
     hasAccount: false,
@@ -48,8 +49,8 @@ export async function GET(request: NextRequest) {
 
       if (companyId) {
         companyName = await loadCompanyName(db, companyId);
+        labTokens = await ensureDevLabInvites(db, companyId, linkedScenario.linkedEmail);
         pendingInvites = await loadPendingInviteRows(db, companyId, origin);
-        sampleToken = pendingInvites[0]?.token;
       }
     } catch (error) {
       return NextResponse.json({
@@ -63,7 +64,8 @@ export async function GET(request: NextRequest) {
   const emailPreviews = buildEmailPreviews({
     origin,
     companyName,
-    sampleToken,
+    unlinkedToken: labTokens?.unlinkedToken,
+    linkedToken: labTokens?.linkedToken,
     linkedEmail: linkedScenario.linkedEmail,
     linkedHasAccount: linkedScenario.hasAccount,
   });
