@@ -13,14 +13,28 @@ import {
 } from '@/components/dev/DevPerspectiveProvider';
 import type { SidebarNavItem } from '@/components/SidebarNav';
 
-function isActiveItem(pathname: string, item: SidebarNavItem) {
-  const matches = item.match ?? [item.href.split('?')[0]];
-  return matches.some((match) => pathname === match || pathname.startsWith(`${match}/`));
+function matchLength(pathname: string, match: string) {
+  if (pathname === match) return match.length;
+  if (pathname.startsWith(`${match}/`)) return match.length;
+  return 0;
 }
 
-function SidebarNavLink({ item }: { item: SidebarNavItem }) {
+function isActiveItem(pathname: string, item: SidebarNavItem, allItems: SidebarNavItem[]) {
+  const matches = item.match ?? [item.href.split('?')[0]];
+  const bestLength = allItems.reduce((longest, other) => {
+    const otherMatches = other.match ?? [other.href.split('?')[0]];
+    const otherBest = Math.max(...otherMatches.map((match) => matchLength(pathname, match)), 0);
+    return Math.max(longest, otherBest);
+  }, 0);
+
+  if (bestLength === 0) return false;
+
+  return matches.some((match) => matchLength(pathname, match) === bestLength);
+}
+
+function SidebarNavLink({ item, allItems }: { item: SidebarNavItem; allItems: SidebarNavItem[] }) {
   const pathname = usePathname();
-  const active = isActiveItem(pathname, item);
+  const active = isActiveItem(pathname, item, allItems);
   const Icon = item.icon;
 
   return (
@@ -65,7 +79,7 @@ function DevShellSidebarInner() {
 
         <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto" aria-label="Dev navigation">
           {items.map((item) => (
-            <SidebarNavLink key={`${perspective}-${item.href}-${item.label}`} item={item} />
+            <SidebarNavLink key={`${perspective}-${item.href}-${item.label}`} item={item} allItems={items} />
           ))}
         </nav>
 

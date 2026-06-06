@@ -1,5 +1,5 @@
 import { buildChemDeckEmailHtml } from '@/lib/email';
-import { buildInviteEmailContent } from '@/lib/inviteEmail';
+import { buildInviteEmailContent, inviteEmailHasAccount } from '@/lib/inviteEmail';
 import { getAppBaseUrl } from '@/lib/inviteLinks';
 import { buildInviteUrl, generateInviteToken, listPendingInvites } from '@/lib/companyInvites';
 import { mergeCompanySettings } from '@/lib/companySettings';
@@ -18,11 +18,16 @@ export type DevTestLabLink = {
 };
 
 export type DevTestLabEmailPreview = {
-  kind: 'invite' | 'alert' | 'announcement' | 'daily_summary';
+  kind: 'invite_unlinked' | 'invite_linked' | 'alert' | 'announcement' | 'daily_summary';
   subject: string;
   html: string;
   text: string;
   links: DevTestLabLink[];
+  scenario?: {
+    recipient_email: string;
+    has_account: boolean;
+    links_live: boolean;
+  };
 };
 
 export type DevTestLabConfig = {
@@ -66,16 +71,44 @@ export function buildEmailPreviews(input: {
   origin: string;
   companyName: string;
   sampleToken?: string;
+  linkedEmail?: string;
+  linkedHasAccount?: boolean;
 }): DevTestLabEmailPreview[] {
   const token = input.sampleToken ?? generateInviteToken();
+  const linksLive = Boolean(input.sampleToken);
   const origin = getAppBaseUrl(input.origin);
-  const invite = buildInviteEmailContent({
-    to: 'lifeguard@example.com',
+  const unlinkedEmail = 'new.lifeguard@example.com';
+  const linkedEmail = input.linkedEmail?.trim().toLowerCase() || 'existing.lifeguard@example.com';
+  const linkedHasAccount = input.linkedHasAccount ?? true;
+
+  const inviteUnlinked = buildInviteEmailContent({
+    to: unlinkedEmail,
     companyName: input.companyName,
     inviterName: 'Test Manager',
     token,
     origin,
     hasAccount: false,
+  });
+
+  const inviteLinked = buildInviteEmailContent({
+    to: linkedEmail,
+    companyName: input.companyName,
+    inviterName: 'Test Manager',
+    token,
+    origin,
+    hasAccount: linkedHasAccount,
+  });
+
+  const inviteLinks = (invite: ReturnType<typeof buildInviteEmailContent>) => [
+    { label: 'Create account (email button)', url: invite.signupLink, description: 'Primary invite CTA' },
+    { label: 'Sign in (email button)', url: invite.loginLink, description: 'Existing user CTA' },
+    { label: 'Invite page', url: invite.signupLink },
+  ];
+
+  const scenarioMeta = (recipientEmail: string, hasAccount: boolean) => ({
+    recipient_email: recipientEmail,
+    has_account: hasAccount,
+    links_live: linksLive,
   });
 
   const alertHtml = buildChemDeckEmailHtml({
@@ -109,15 +142,20 @@ export function buildEmailPreviews(input: {
 
   return [
     {
-      kind: 'invite',
-      subject: invite.subject,
-      html: invite.html,
-      text: invite.text,
-      links: [
-        { label: 'Create account (email button)', url: invite.signupLink, description: 'Primary invite CTA' },
-        { label: 'Sign in (email button)', url: invite.loginLink, description: 'Existing user CTA' },
-        { label: 'Invite page', url: invite.signupLink },
-      ],
+      kind: 'invite_unlinked',
+      subject: inviteUnlinked.subject,
+      html: inviteUnlinked.html,
+      text: inviteUnlinked.text,
+      links: inviteLinks(inviteUnlinked),
+      scenario: scenarioMeta(unlinkedEmail, false),
+    },
+    {
+      kind: 'invite_linked',
+      subject: inviteLinked.subject,
+      html: inviteLinked.html,
+      text: inviteLinked.text,
+      links: inviteLinks(inviteLinked),
+      scenario: scenarioMeta(linkedEmail, linkedHasAccount),
     },
     {
       kind: 'alert',
@@ -210,6 +248,15 @@ export async function checkTableHealth(db: SupabaseClient) {
 export async function loadCompanyName(db: SupabaseClient, companyId: string) {
   const { data } = await db.from('companies').select('company_name').eq('id', companyId).maybeSingle();
   return data?.company_name?.trim() || 'Test Company';
+}
+
+export async function resolveLinkedInviteScenario(
+  db: SupabaseClient,
+  linkedEmail: string,
+) {
+  const normalized = linkedEmail.trim().toLowerCase();
+  const hasAccount = normalized ? await inviteEmailHasAccount(db, normalized) : false;
+  return { linkedEmail: normalized || 'existing.lifeguard@example.com', hasAccount };
 }
 
 export async function loadCompanySettings(db: SupabaseClient, companyId: string) {

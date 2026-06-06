@@ -8,6 +8,7 @@ import {
   loadCompanyName,
   loadPendingInviteRows,
   readDevTestLabConfig,
+  resolveLinkedInviteScenario,
 } from '@/lib/devTestLab';
 import {
   createCompanyInvite,
@@ -27,17 +28,23 @@ export async function GET(request: NextRequest) {
 
   const origin = getAppBaseUrl(request.nextUrl.origin);
   const companyId = await getDevCompanyId(request);
+  const linkedEmailParam = request.nextUrl.searchParams.get('linkedEmail')?.trim() ?? '';
   const config = readDevTestLabConfig(origin);
 
   let companyName = 'My Pool Company';
   let pendingInvites: Awaited<ReturnType<typeof loadPendingInviteRows>> = [];
   let tableHealth: Record<string, string> = {};
   let sampleToken: string | undefined;
+  let linkedScenario = {
+    linkedEmail: linkedEmailParam || 'supdike25@hotmail.com',
+    hasAccount: false,
+  };
 
   if (config.service_role_configured) {
     try {
       const db = createAdminClient();
       tableHealth = await checkTableHealth(db);
+      linkedScenario = await resolveLinkedInviteScenario(db, linkedScenario.linkedEmail);
 
       if (companyId) {
         companyName = await loadCompanyName(db, companyId);
@@ -57,6 +64,8 @@ export async function GET(request: NextRequest) {
     origin,
     companyName,
     sampleToken,
+    linkedEmail: linkedScenario.linkedEmail,
+    linkedHasAccount: linkedScenario.hasAccount,
   });
 
   return NextResponse.json({
@@ -64,6 +73,7 @@ export async function GET(request: NextRequest) {
     config,
     company: companyId ? { id: companyId, name: companyName } : null,
     pending_invites: pendingInvites,
+    linked_scenario: linkedScenario,
     email_previews: emailPreviews,
     routes: buildRouteGroups(companyId),
     table_health: tableHealth,
