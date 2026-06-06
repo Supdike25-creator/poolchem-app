@@ -110,7 +110,20 @@ export default function DevTestLabPanel({ selectedCompanyId }: { selectedCompany
     setLoading(true);
     try {
       const response = await fetch(`/api/dev/test-lab${query}`, { credentials: 'same-origin', cache: 'no-store' });
-      const data = (await response.json()) as LabSnapshot;
+      const raw = await response.text();
+      let data: LabSnapshot;
+      try {
+        data = JSON.parse(raw) as LabSnapshot;
+      } catch {
+        pushLog({
+          label: 'Load test lab',
+          ok: false,
+          message: response.ok
+            ? 'Server returned invalid JSON.'
+            : `HTTP ${response.status}: ${raw.slice(0, 200) || response.statusText}`,
+        });
+        return;
+      }
       setSnapshot(data);
       if (!data.ok) {
         pushLog({ label: 'Load test lab', ok: false, message: data.message || 'Failed to load.' });

@@ -10,7 +10,7 @@ import {
   buildGuardNavItems,
   buildManagerNavItems,
   type SidebarNavItem,
-} from '@/components/SidebarNav';
+} from '@/lib/sidebarNavItems';
 
 export type DevPerspective = 'dev' | 'manager' | 'lifeguard';
 
