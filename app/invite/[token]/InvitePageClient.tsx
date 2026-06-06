@@ -30,12 +30,13 @@ export default function InvitePageClient({ token }: { token: string }) {
   const [notice, setNotice] = useState('');
   const [mode, setMode] = useState<'signup' | 'signin'>('signup');
 
+  const requestedMode = searchParams.get('mode');
+
   useEffect(() => {
-    const requestedMode = searchParams.get('mode');
     if (requestedMode === 'login') {
       setMode('signin');
     }
-  }, [searchParams]);
+  }, [requestedMode]);
 
   const finishJoin = (acceptResult: { message?: string; redirectTo?: string }) => {
     setNotice(acceptResult.message || 'Welcome aboard!');
@@ -61,48 +62,86 @@ export default function InvitePageClient({ token }: { token: string }) {
   };
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadInvite = async () => {
       setLoadingInvite(true);
       setLoadError('');
+      setError('');
 
-      const response = await fetch(`/api/invites/${encodeURIComponent(token)}`, { cache: 'no-store' });
-      const result = await response.json().catch(() => null);
+      try {
+        const response = await fetch(`/api/invites/${encodeURIComponent(token)}`, { cache: 'no-store' });
+        const result = await response.json().catch(() => null);
 
-      if (!response.ok || !result?.ok) {
-        setLoadError(result?.message || 'This invite link is invalid.');
-        setLoadingInvite(false);
-        return;
-      }
+        if (cancelled) return;
 
-      setInvite(result.invite);
-      setHasAccount(Boolean(result.has_account));
-      if (result.has_account && searchParams.get('mode') !== 'signup') {
-        setMode('signin');
-      } else if (!result.has_account) {
-        setMode('signup');
-      }
-      setLoadingInvite(false);
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (session?.user?.email?.toLowerCase() === result.invite.email.toLowerCase()) {
-        setAccepting(true);
-        try {
-          await acceptInvite();
-        } catch (acceptError) {
-          setError((acceptError as Error).message);
-        } finally {
-          setAccepting(false);
+        if (!response.ok || !result?.ok) {
+          setInvite(null);
+          setLoadError(result?.message || 'This invite link is invalid.');
+          setLoadingInvite(false);
+          return;
         }
-      } else if (session?.user) {
-        setError(`This invite is for ${result.invite.email}. Sign out first, then open the link again.`);
+
+        setInvite(result.invite);
+        setHasAccount(Boolean(result.has_account));
+        if (result.has_account && requestedMode !== 'login') {
+          setMode('signin');
+        } else if (!result.has_account) {
+          setMode('signup');
+        }
+        setLoadingInvite(false);
+
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (cancelled) return;
+
+        if (session?.user?.email?.toLowerCase() === result.invite.email.toLowerCase()) {
+          setAccepting(true);
+          try {
+            const acceptResponse = await fetch('/api/accept-invite', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ token }),
+            });
+            const acceptResult = await acceptResponse.json().catch(() => null);
+
+            if (!acceptResponse.ok || !acceptResult?.ok) {
+              throw new Error(acceptResult?.message || 'Unable to join this company.');
+            }
+
+            if (!cancelled) {
+              finishJoin(acceptResult);
+            }
+          } catch (acceptError) {
+            if (!cancelled) {
+              setError((acceptError as Error).message);
+            }
+          } finally {
+            if (!cancelled) {
+              setAccepting(false);
+            }
+          }
+        } else if (session?.user) {
+          setError(`This invite is for ${result.invite.email}. Sign out first, then open the link again.`);
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setInvite(null);
+          setLoadError((loadError as Error).message || 'Unable to load invite.');
+          setLoadingInvite(false);
+        }
       }
     };
 
     void loadInvite();
-  }, [supabase, token, searchParams]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, token, requestedMode]);
 
   const handleSignup = async (event: FormEvent) => {
     event.preventDefault();

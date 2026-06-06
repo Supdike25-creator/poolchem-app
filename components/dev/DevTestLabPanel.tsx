@@ -28,6 +28,11 @@ type EmailPreview = {
   html: string;
   text: string;
   links: DevTestLabLink[];
+  scenario?: {
+    recipient_email: string;
+    has_account: boolean;
+    links_live: boolean;
+  };
 };
 
 type RunEntry = {
@@ -50,6 +55,7 @@ type LabSnapshot = {
     resend_configured: boolean;
   };
   company?: { id: string; name: string } | null;
+  linked_scenario?: { linkedEmail: string; hasAccount: boolean };
   pending_invites?: Array<{
     id: string;
     email: string;
@@ -84,16 +90,31 @@ function StatusDot({ ok }: { ok: boolean }) {
   );
 }
 
+const emailKindLabels: Record<string, string> = {
+  invite_unlinked: 'Invite · new user',
+  invite_linked: 'Invite · existing user',
+  alert: 'Alert',
+  announcement: 'Announcement',
+  daily_summary: 'Daily summary',
+};
+
 export default function DevTestLabPanel({ selectedCompanyId }: { selectedCompanyId?: string }) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [snapshot, setSnapshot] = useState<LabSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState<string | null>(null);
-  const [selectedEmail, setSelectedEmail] = useState('invite');
+  const [selectedEmail, setSelectedEmail] = useState('invite_unlinked');
   const [testRecipient, setTestRecipient] = useState('supdike25@hotmail.com');
+  const [linkedEmail, setLinkedEmail] = useState('supdike25@hotmail.com');
   const [runLog, setRunLog] = useState<RunEntry[]>([]);
 
-  const query = selectedCompanyId ? `?companyId=${encodeURIComponent(selectedCompanyId)}` : '';
+  const query = useMemo(() => {
+    const params = new URLSearchParams();
+    if (selectedCompanyId) params.set('companyId', selectedCompanyId);
+    if (linkedEmail.trim()) params.set('linkedEmail', linkedEmail.trim());
+    const value = params.toString();
+    return value ? `?${value}` : '';
+  }, [linkedEmail, selectedCompanyId]);
 
   const pushLog = useCallback((entry: Omit<RunEntry, 'id' | 'at'>) => {
     setRunLog((current) => [
@@ -285,25 +306,73 @@ export default function DevTestLabPanel({ selectedCompanyId }: { selectedCompany
 
           {activeTab === 'emails' ? (
             <div className="space-y-4">
+              <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-[1fr_auto]">
+                <label className="block text-sm">
+                  <span className="mb-1 block font-semibold text-slate-700">Linked email (existing account test)</span>
+                  <input
+                    value={linkedEmail}
+                    onChange={(event) => setLinkedEmail(event.target.value)}
+                    placeholder="email that already has a ChemDeck account"
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Used for the “existing user” invite preview. DB check:{' '}
+                    {snapshot?.linked_scenario?.hasAccount ? 'account found' : 'no account found'}.
+                  </p>
+                </label>
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={() => void loadSnapshot()}
+                    disabled={loading}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 disabled:opacity-50"
+                  >
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    Apply email
+                  </button>
+                </div>
+              </div>
+
               <div className="flex flex-wrap gap-2">
                 {(snapshot?.email_previews ?? []).map((preview) => (
                   <button
                     key={preview.kind}
                     type="button"
                     onClick={() => setSelectedEmail(preview.kind)}
-                    className={`rounded-lg px-3 py-2 text-sm font-semibold capitalize transition ${
+                    className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
                       selectedEmail === preview.kind
                         ? 'bg-slate-900 text-white'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                     }`}
                   >
-                    {preview.kind.replace('_', ' ')}
+                    {emailKindLabels[preview.kind] ?? preview.kind.replaceAll('_', ' ')}
                   </button>
                 ))}
               </div>
 
               {emailPreview ? (
                 <>
+                  {emailPreview.scenario ? (
+                    <div
+                      className={`rounded-xl border p-4 ${
+                        emailPreview.scenario.links_live
+                          ? 'border-emerald-200 bg-emerald-50'
+                          : 'border-amber-200 bg-amber-50'
+                      }`}
+                    >
+                      <p className={`text-sm font-semibold ${emailPreview.scenario.links_live ? 'text-emerald-900' : 'text-amber-900'}`}>
+                        {emailPreview.scenario.has_account ? 'Existing user scenario' : 'New user scenario'}
+                        {' · '}
+                        {emailPreview.scenario.recipient_email}
+                      </p>
+                      <p className={`mt-1 text-sm ${emailPreview.scenario.links_live ? 'text-emerald-800' : 'text-amber-800'}`}>
+                        {emailPreview.scenario.links_live
+                          ? 'Links use a real pending invite — Open will load the live invite page.'
+                          : 'Preview-only token — create a test invite in the Invites tab before opening links.'}
+                      </p>
+                    </div>
+                  ) : null}
+
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Subject</p>
                     <p className="mt-1 text-sm font-semibold text-slate-900">{emailPreview.subject}</p>
