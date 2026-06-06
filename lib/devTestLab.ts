@@ -1,7 +1,7 @@
 import { buildChemDeckEmailHtml } from '@/lib/email';
 import { buildInviteEmailContent, inviteEmailHasAccount } from '@/lib/inviteEmail';
 import { getAppBaseUrl } from '@/lib/inviteLinks';
-import { buildInviteUrl, generateInviteToken, listPendingInvites } from '@/lib/companyInvites';
+import { buildInviteUrl, createCompanyInvite, listPendingInvites } from '@/lib/companyInvites';
 import { mergeCompanySettings } from '@/lib/companySettings';
 import { buildDevHotbarItems, perspectiveHomePath } from '@/lib/devPerspective';
 import {
@@ -67,25 +67,28 @@ export function readDevTestLabConfig(origin: string): DevTestLabConfig {
   };
 }
 
+export const DEV_LAB_UNLINKED_EMAIL = 'dev.lab.unlinked@chemdeck.app';
+
 export function buildEmailPreviews(input: {
   origin: string;
   companyName: string;
-  sampleToken?: string;
+  unlinkedToken?: string;
+  linkedToken?: string;
   linkedEmail?: string;
   linkedHasAccount?: boolean;
 }): DevTestLabEmailPreview[] {
-  const token = input.sampleToken ?? generateInviteToken();
-  const linksLive = Boolean(input.sampleToken);
   const origin = getAppBaseUrl(input.origin);
-  const unlinkedEmail = 'new.lifeguard@example.com';
+  const unlinkedEmail = DEV_LAB_UNLINKED_EMAIL;
   const linkedEmail = input.linkedEmail?.trim().toLowerCase() || 'existing.lifeguard@example.com';
   const linkedHasAccount = input.linkedHasAccount ?? true;
+  const unlinkedToken = input.unlinkedToken ?? '';
+  const linkedToken = input.linkedToken ?? '';
 
   const inviteUnlinked = buildInviteEmailContent({
     to: unlinkedEmail,
     companyName: input.companyName,
     inviterName: 'Test Manager',
-    token,
+    token: unlinkedToken || 'preview-unlinked',
     origin,
     hasAccount: false,
   });
@@ -94,7 +97,7 @@ export function buildEmailPreviews(input: {
     to: linkedEmail,
     companyName: input.companyName,
     inviterName: 'Test Manager',
-    token,
+    token: linkedToken || 'preview-linked',
     origin,
     hasAccount: linkedHasAccount,
   });
@@ -105,10 +108,10 @@ export function buildEmailPreviews(input: {
     { label: 'Invite page', url: invite.signupLink },
   ];
 
-  const scenarioMeta = (recipientEmail: string, hasAccount: boolean) => ({
+  const scenarioMeta = (recipientEmail: string, hasAccount: boolean, token: string) => ({
     recipient_email: recipientEmail,
     has_account: hasAccount,
-    links_live: linksLive,
+    links_live: Boolean(token),
   });
 
   const alertHtml = buildChemDeckEmailHtml({
@@ -147,7 +150,7 @@ export function buildEmailPreviews(input: {
       html: inviteUnlinked.html,
       text: inviteUnlinked.text,
       links: inviteLinks(inviteUnlinked),
-      scenario: scenarioMeta(unlinkedEmail, false),
+      scenario: scenarioMeta(unlinkedEmail, false, unlinkedToken),
     },
     {
       kind: 'invite_linked',
@@ -155,7 +158,7 @@ export function buildEmailPreviews(input: {
       html: inviteLinked.html,
       text: inviteLinked.text,
       links: inviteLinks(inviteLinked),
-      scenario: scenarioMeta(linkedEmail, linkedHasAccount),
+      scenario: scenarioMeta(linkedEmail, linkedHasAccount, linkedToken),
     },
     {
       kind: 'alert',
@@ -248,6 +251,28 @@ export async function checkTableHealth(db: SupabaseClient) {
 export async function loadCompanyName(db: SupabaseClient, companyId: string) {
   const { data } = await db.from('companies').select('company_name').eq('id', companyId).maybeSingle();
   return data?.company_name?.trim() || 'Test Company';
+}
+
+export async function ensureDevLabInvites(
+  db: SupabaseClient,
+  companyId: string,
+  linkedEmail: string,
+) {
+  const normalizedLinked = linkedEmail.trim().toLowerCase();
+  const [{ token: unlinkedToken }, { token: linkedToken }] = await Promise.all([
+    createCompanyInvite(db, {
+      companyId,
+      email: DEV_LAB_UNLINKED_EMAIL,
+      createdBy: null,
+    }),
+    createCompanyInvite(db, {
+      companyId,
+      email: normalizedLinked,
+      createdBy: null,
+    }),
+  ]);
+
+  return { unlinkedToken, linkedToken, linkedEmail: normalizedLinked };
 }
 
 export async function resolveLinkedInviteScenario(

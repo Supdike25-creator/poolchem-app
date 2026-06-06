@@ -367,8 +367,8 @@ export default function DevTestLabPanel({ selectedCompanyId }: { selectedCompany
                       </p>
                       <p className={`mt-1 text-sm ${emailPreview.scenario.links_live ? 'text-emerald-800' : 'text-amber-800'}`}>
                         {emailPreview.scenario.links_live
-                          ? 'Links use a real pending invite — Open will load the live invite page.'
-                          : 'Preview-only token — create a test invite in the Invites tab before opening links.'}
+                          ? 'Links use live dev-lab invites in Supabase — Open will load the real invite page.'
+                          : 'Select a company above first — Test Lab auto-creates working invite links when a company is selected.'}
                       </p>
                     </div>
                   ) : null}
