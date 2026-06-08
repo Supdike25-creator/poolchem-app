@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import ButtonSoundEffects from "../components/ButtonSoundEffects";
+import NavigationLoadingListener from "../components/NavigationLoadingListener";
 import ServiceWorkerRegister from "../components/ServiceWorkerRegister";
 import ThemeManager from "../components/ThemeManager";
 import VersionBadge from "../components/VersionBadge";
@@ -55,6 +56,7 @@ export default function RootLayout({
         <ThemeManager />
         <ServiceWorkerRegister />
         <ButtonSoundEffects />
+        <NavigationLoadingListener />
         {children}
         <VersionBadge />
       </body>
