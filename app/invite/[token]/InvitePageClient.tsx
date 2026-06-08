@@ -3,7 +3,8 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, Building2, CheckCircle2, Loader2, LogIn, UserPlus } from 'lucide-react';
+import { ArrowLeft, Building2, CheckCircle2, LogIn, UserPlus } from 'lucide-react';
+import ChemDeckLoadingScreen from '@/components/ChemDeckLoadingScreen';
 import ChemDeckLogo from '@/components/ChemDeckLogo';
 import { createClient } from '@/lib/supabase/client';
 
@@ -237,6 +238,29 @@ export default function InvitePageClient({ token }: { token: string }) {
     window.location.reload();
   };
 
+  if (loadingInvite || accepting || submitting) {
+    return (
+      <ChemDeckLoadingScreen
+        message={
+          accepting
+            ? `Joining ${invite?.company_name ?? 'your team'}…`
+            : submitting
+              ? mode === 'signin'
+                ? 'Signing you in…'
+                : 'Creating your account…'
+              : 'Loading your invite…'
+        }
+        submessage={
+          accepting
+            ? 'Setting up your workspace access.'
+            : submitting
+              ? 'This usually takes a few seconds.'
+              : undefined
+        }
+      />
+    );
+  }
+
   return (
     <main className="flex min-h-screen w-full items-center justify-center bg-[#0A1A2F] px-5 py-10 text-[#D9E1E8] sm:px-6">
       <section className="w-full max-w-[480px]">
@@ -245,12 +269,7 @@ export default function InvitePageClient({ token }: { token: string }) {
             <ChemDeckLogo variant="mark" scheme="dark" className="h-12 w-12" />
           </div>
 
-          {loadingInvite ? (
-            <div className="flex items-center justify-center gap-2 text-sm text-[#D9E1E8]/80">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading your invite...
-            </div>
-          ) : loadError ? (
+          {loadError ? (
             <>
               <h1 className="text-3xl font-semibold tracking-tight text-white">Invite unavailable</h1>
               <p className="mt-3 text-sm leading-6 text-red-100">{loadError}</p>
@@ -276,15 +295,9 @@ export default function InvitePageClient({ token }: { token: string }) {
           ) : null}
         </div>
 
-        {!loadingInvite && !loadError && invite ? (
+        {!loadError && invite ? (
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-xl">
-            {accepting ? (
-              <div className="flex items-center justify-center gap-2 py-8 text-sm">
-                <Loader2 className="h-5 w-5 animate-spin text-[#3EC6FF]" />
-                Joining {invite.company_name}...
-              </div>
-            ) : (
-              <>
+            <>
                 <div className="mb-5 grid grid-cols-2 gap-2 rounded-xl bg-white/[0.04] p-1">
                   <button
                     type="button"
@@ -392,7 +405,6 @@ export default function InvitePageClient({ token }: { token: string }) {
                   </form>
                 )}
               </>
-            )}
           </div>
         ) : null}
       </section>

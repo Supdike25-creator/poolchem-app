@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import ChemDeckLoadingScreen from '@/components/ChemDeckLoadingScreen';
+import { prepareEmailPreviewForIframe } from '@/lib/emailPreviewHtml';
 import {
   CheckCircle2,
   Copy,
@@ -244,10 +246,7 @@ export default function DevTestLabPanel({ selectedCompanyId }: { selectedCompany
       <div className="grid gap-0 lg:grid-cols-[1fr_320px]">
         <div className="min-w-0 p-5 sm:p-6">
           {loading && !snapshot ? (
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading test lab…
-            </div>
+            <ChemDeckLoadingScreen variant="embedded" message="Loading test lab…" />
           ) : null}
 
           {activeTab === 'overview' ? (
@@ -408,12 +407,15 @@ export default function DevTestLabPanel({ selectedCompanyId }: { selectedCompany
                   </div>
 
                   <div className="overflow-hidden rounded-xl border border-slate-200">
-                    <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                      Email preview (HTML)
+                    <div className="flex flex-col gap-1 border-b border-slate-200 bg-slate-50 px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                        Email preview (HTML)
+                      </p>
+                      <p className="text-xs text-slate-500">Use the Open buttons above — links inside the preview are disabled.</p>
                     </div>
                     <iframe
                       title="Email preview"
-                      srcDoc={emailPreview.html}
+                      srcDoc={prepareEmailPreviewForIframe(emailPreview.html)}
                       className="h-[520px] w-full bg-white"
                       sandbox=""
                     />

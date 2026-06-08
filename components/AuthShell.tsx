@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ArrowLeft, LogOut, ShieldCheck } from 'lucide-react';
+import ChemDeckLoadingScreen from '@/components/ChemDeckLoadingScreen';
 import ChemDeckLogo from '@/components/ChemDeckLogo';
 import {
   AppRole,
@@ -455,19 +456,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   };
 
   if (status === 'loading') {
-    return (
-      <div className="flex min-h-screen w-full items-center justify-center bg-slate-50 px-4 py-8">
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
-          <div className="animate-pulse">
-            <div className="mx-auto mb-4 flex justify-center">
-              <ChemDeckLogo variant="mark" className="h-12 w-12" />
-            </div>
-            <p className="text-sm font-semibold text-blue-700">Restoring your session</p>
-            <p className="mt-2 text-lg font-semibold text-slate-950">Please wait...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <ChemDeckLoadingScreen message="Restoring your session…" submessage="Please wait a moment." />;
   }
 
   const layout = isDevPreview ? (
