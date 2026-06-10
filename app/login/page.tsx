@@ -303,7 +303,7 @@ export default function LoginPage() {
               type="text"
               value={loginId}
               onChange={(e) => setLoginId(e.target.value)}
-              placeholder="username or you@example.com"
+              placeholder="Enter your email or username"
               className="h-12 w-full rounded-md border border-slate-200 bg-slate-50 px-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               disabled={loading}
               autoComplete="username"
@@ -313,7 +313,7 @@ export default function LoginPage() {
 
           <div>
             <label htmlFor="password" className="mb-2 block text-sm font-medium text-slate-700">
-              Password / passcode
+              Password
             </label>
             <div className="relative">
               <input
@@ -321,7 +321,7 @@ export default function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your passcode or password"
+                placeholder="Enter your password"
                 className="h-12 w-full rounded-md border border-slate-200 bg-slate-50 px-4 pr-12 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 disabled={loading}
                 autoComplete="current-password"
