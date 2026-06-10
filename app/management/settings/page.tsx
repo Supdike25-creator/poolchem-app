@@ -4,7 +4,7 @@ import { useState, useEffect, type ReactNode } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
-import StyleThemeSettingsSection from '@/components/StyleThemeSettingsSection';
+import ThemeSettingsSection from '@/components/ThemeSettingsSection';
 import { useDevCompanyScope } from '@/lib/useDevCompanyScope';
 import { appVersion } from '../../../lib/generatedVersion';
 import {
@@ -272,7 +272,7 @@ export default function ManagementSettingsPage() {
           />
 
           <div className="space-y-6">
-            <StyleThemeSettingsSection />
+            <ThemeSettingsSection />
 
             <div>
               <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Style Format</label>

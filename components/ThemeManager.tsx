@@ -1,11 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import {
-  applyBrandColor,
-  readStoredBrandColor,
-  resolveThemeMode,
-} from '@/lib/styleTheme';
+import { clearBrandPalette, resolveThemeMode } from '@/lib/styleTheme';
 
 type Theme = 'light' | 'dark' | 'system';
 type StylePreset = 'default' | 'compact' | 'contrast' | 'soft';
@@ -56,7 +52,7 @@ export default function ThemeManager() {
       applyTheme(theme);
       applyStyle(getStoredStyle());
       applyLargerText(Boolean(settings.largerTextMode));
-      applyBrandColor(readStoredBrandColor(), theme);
+      clearBrandPalette();
     };
 
     syncTheme();

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Building2, KeyRound, LogOut, Settings, Sun } from 'lucide-react';
-import StyleThemeSettingsSection from '@/components/StyleThemeSettingsSection';
+import ThemeSettingsSection from '@/components/ThemeSettingsSection';
 import { getStoredSession } from '@/lib/appAccounts';
 import { createClient } from '@/utils/supabase/client';
 import { defaultCompanySettings, mergeCompanySettings, type CompanySettings } from '@/lib/companySettings';
@@ -147,7 +147,7 @@ export default function GuardSettingsPage() {
             <Sun className="h-5 w-5" />
             <h2 className="text-base font-semibold text-slate-950">Display</h2>
           </div>
-          <StyleThemeSettingsSection />
+          <ThemeSettingsSection />
           <label className="mt-4 flex items-center gap-3 text-sm font-medium">
             <input
               type="checkbox"
