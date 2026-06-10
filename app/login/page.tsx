@@ -296,7 +296,7 @@ export default function LoginPage() {
         <form onSubmit={handleSignIn} className="space-y-5">
           <div>
             <label htmlFor="login-id" className="mb-2 block text-sm font-medium text-slate-700">
-              Username or email
+              Email or Username
             </label>
             <input
               id="login-id"
@@ -376,9 +376,6 @@ export default function LoginPage() {
           >
             Create manager account
           </Link>
-          <p className="text-center text-xs leading-5 text-slate-500">
-            Lifeguards: use the invite link from your supervisor to join.
-          </p>
         </form>
 
         <div className="my-7 flex items-center gap-3">
