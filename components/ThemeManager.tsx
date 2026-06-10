@@ -3,9 +3,11 @@
 import { useEffect } from 'react';
 import {
   applyBrandColor,
+  clearBrandPalette,
   readStoredBrandColor,
   resolveThemeMode,
 } from '@/lib/styleTheme';
+import { isDevSessionActive } from '@/lib/isDevSessionClient';
 
 type Theme = 'light' | 'dark' | 'system';
 type StylePreset = 'default' | 'compact' | 'contrast' | 'soft';
@@ -56,7 +58,11 @@ export default function ThemeManager() {
       applyTheme(theme);
       applyStyle(getStoredStyle());
       applyLargerText(Boolean(settings.largerTextMode));
-      applyBrandColor(readStoredBrandColor(), theme);
+      if (isDevSessionActive()) {
+        applyBrandColor(readStoredBrandColor(), theme);
+      } else {
+        clearBrandPalette();
+      }
     };
 
     syncTheme();

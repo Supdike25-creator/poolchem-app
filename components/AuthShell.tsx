@@ -19,6 +19,7 @@ import {
   DevPerspectiveAuthShell,
   DevPerspectiveSidebarSlot,
 } from './dev/DevPerspectiveSidebarSlot';
+import DevOnlyStyleThemePicker from './dev/DevOnlyStyleThemePicker';
 import { useDevPerspective } from './dev/DevPerspectiveProvider';
 import InstallAppBanner from './InstallAppBanner';
 import AlertsBell from './AlertsBell';
@@ -178,6 +179,7 @@ function AuthShellFrame({
   return (
     <div className="min-h-screen w-full bg-slate-50 pb-24 lg:pb-0">
       {sidebar}
+      {isDevPreview ? <DevOnlyStyleThemePicker /> : null}
       <main className={`min-h-screen w-full bg-white shadow-[0_18px_50px_rgba(15,23,42,0.07)] ${isDevPreview ? 'ml-16 w-[calc(100%-4rem)]' : 'lg:ml-16 lg:w-[calc(100%-4rem)]'}`}>
         <div className="border-b border-slate-200 bg-white px-5 py-5 lg:px-7">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
