@@ -4,6 +4,7 @@ import { useState, useEffect, type ReactNode } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import { temporaryLoginBypass } from '../../../lib/temporaryLoginBypass';
+import StyleThemeSettingsSection from '@/components/StyleThemeSettingsSection';
 import { useDevCompanyScope } from '@/lib/useDevCompanyScope';
 import { appVersion } from '../../../lib/generatedVersion';
 import {
@@ -21,9 +22,6 @@ import {
   FlaskConical,
   KeyRound,
   LogOut,
-  Moon,
-  Sun,
-  Monitor,
   AlertTriangle,
   Megaphone,
   CheckCircle,
@@ -33,7 +31,6 @@ import {
 import { defaultCompanySettings, mergeCompanySettings, type CompanySettings } from '@/lib/companySettings';
 import CompanySwitcher from '@/components/CompanySwitcher';
 
-type Theme = CompanySettings['theme'];
 type StylePreset = CompanySettings['stylePreset'];
 type ChlorineType = CompanySettings['chlorineType'];
 type DosingUnit = CompanySettings['dosingUnit'];
@@ -275,30 +272,7 @@ export default function ManagementSettingsPage() {
           />
 
           <div className="space-y-6">
-            <div>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Theme</label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { value: 'light' as Theme, label: 'Light', icon: Sun },
-                  { value: 'dark' as Theme, label: 'Dark', icon: Moon },
-                  { value: 'system' as Theme, label: 'System', icon: Monitor },
-                ].map(({ value, label, icon: Icon }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => saveSettings({ theme: value })}
-                    className={`flex h-20 flex-col items-center justify-center gap-2 rounded-lg border px-3 text-sm transition-colors ${
-                      settings.theme === value
-                        ? 'border-blue-300 bg-blue-50 text-blue-800 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.12)]'
-                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span className="font-semibold">{label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <StyleThemeSettingsSection />
 
             <div>
               <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Style Format</label>

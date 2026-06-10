@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Building2, KeyRound, LogOut, Moon, Settings, Sun, Monitor } from 'lucide-react';
+import { Building2, KeyRound, LogOut, Settings, Sun } from 'lucide-react';
+import StyleThemeSettingsSection from '@/components/StyleThemeSettingsSection';
 import { getStoredSession } from '@/lib/appAccounts';
 import { createClient } from '@/utils/supabase/client';
 import { defaultCompanySettings, mergeCompanySettings, type CompanySettings } from '@/lib/companySettings';
@@ -146,23 +147,7 @@ export default function GuardSettingsPage() {
             <Sun className="h-5 w-5" />
             <h2 className="text-base font-semibold text-slate-950">Display</h2>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {(['light', 'dark', 'system'] as const).map((theme) => (
-              <button
-                key={theme}
-                type="button"
-                onClick={() => saveLocalPreference({ theme })}
-                className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold ${
-                  settings.theme === theme
-                    ? 'border-blue-300 bg-blue-50 text-blue-800'
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                {theme === 'light' ? <Sun className="h-4 w-4" /> : theme === 'dark' ? <Moon className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}
-                {theme.charAt(0).toUpperCase() + theme.slice(1)}
-              </button>
-            ))}
-          </div>
+          <StyleThemeSettingsSection />
           <label className="mt-4 flex items-center gap-3 text-sm font-medium">
             <input
               type="checkbox"

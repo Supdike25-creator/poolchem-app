@@ -1,77 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Monitor, Moon, Palette, RotateCcw, Sun, X } from 'lucide-react';
-import ColorWheelPicker from '@/components/ColorWheelPicker';
-import {
-  DEFAULT_BRAND_COLOR,
-  applyBrandColor,
-  normalizeHex,
-  persistBrandColor,
-  persistThemePreference,
-  readStoredBrandColor,
-  readStoredThemePreference,
-} from '@/lib/styleTheme';
-
-const quickSwatches = ['#0ea5e9', '#10b981', '#8b5cf6', '#f97316', '#ef4444', '#ec4899', '#14b8a6', '#eab308'];
+import { usePathname } from 'next/navigation';
+import { Palette, X } from 'lucide-react';
+import StyleThemeSettingsSection from '@/components/StyleThemeSettingsSection';
+import { useStyleThemeSettings } from '@/hooks/useStyleThemeSettings';
 
 export default function StyleThemePicker() {
   const [open, setOpen] = useState(false);
-  const [brandColor, setBrandColor] = useState<string | null>(null);
-  const [draftColor, setDraftColor] = useState(DEFAULT_BRAND_COLOR);
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('light');
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    const sync = () => {
-      const storedColor = readStoredBrandColor();
-      const storedTheme = readStoredThemePreference();
-      setBrandColor(storedColor);
-      setDraftColor(storedColor ?? DEFAULT_BRAND_COLOR);
-      setTheme(storedTheme);
-      applyBrandColor(storedColor, storedTheme);
-      setHydrated(true);
-    };
-
-    sync();
-    window.addEventListener('chemdeck-settings-change', sync);
-    window.addEventListener('storage', sync);
-    return () => {
-      window.removeEventListener('chemdeck-settings-change', sync);
-      window.removeEventListener('storage', sync);
-    };
-  }, []);
-
-  const applyDraftColor = (hex: string) => {
-    const normalized = normalizeHex(hex);
-    if (!normalized) return;
-    setDraftColor(normalized);
-    setBrandColor(normalized);
-    persistBrandColor(normalized);
-    applyBrandColor(normalized, theme);
-  };
-
-  const setThemeMode = (nextTheme: 'light' | 'dark' | 'system') => {
-    setTheme(nextTheme);
-    persistThemePreference(nextTheme);
-    document.documentElement.dataset.themePreference = nextTheme;
-    if (nextTheme === 'system') {
-      document.documentElement.dataset.theme = window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'dark'
-        : 'light';
-    } else {
-      document.documentElement.dataset.theme = nextTheme;
-    }
-    applyBrandColor(brandColor ?? draftColor, nextTheme);
-    window.dispatchEvent(new Event('chemdeck-settings-change'));
-  };
-
-  const resetToDefault = () => {
-    setBrandColor(null);
-    setDraftColor(DEFAULT_BRAND_COLOR);
-    persistBrandColor(null);
-    applyBrandColor(null, theme);
-  };
+  const pathname = usePathname();
+  const { hydrated, previewColor } = useStyleThemeSettings();
 
   useEffect(() => {
     if (!open) return;
@@ -82,10 +20,7 @@ export default function StyleThemePicker() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open]);
 
-  if (!hydrated) return null;
-
-  const previewColor = brandColor ?? draftColor;
-  const usingCustom = Boolean(brandColor);
+  if (!hydrated || pathname.includes('/settings')) return null;
 
   return (
     <>
@@ -144,89 +79,16 @@ export default function StyleThemePicker() {
               </div>
             </div>
 
-            <div className="space-y-5 p-5">
-              <ColorWheelPicker value={draftColor} onChange={applyDraftColor} />
-
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Quick shades</p>
-                <div className="flex flex-wrap gap-2">
-                  {quickSwatches.map((swatch) => (
-                    <button
-                      key={swatch}
-                      type="button"
-                      onClick={() => applyDraftColor(swatch)}
-                      className={`h-9 w-9 rounded-full border-2 transition hover:scale-105 ${
-                        previewColor === swatch ? 'border-slate-900 ring-2 ring-slate-300' : 'border-white shadow-sm'
-                      }`}
-                      style={{ backgroundColor: swatch }}
-                      aria-label={`Use ${swatch}`}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Theme</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {([
-                    { id: 'light', label: 'Light', icon: Sun },
-                    { id: 'dark', label: 'Dark', icon: Moon },
-                    { id: 'system', label: 'System', icon: Monitor },
-                  ] as const).map((option) => {
-                    const Icon = option.icon;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setThemeMode(option.id)}
-                        className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-semibold transition ${
-                          theme === option.id
-                            ? 'border-slate-900 bg-slate-900 text-white'
-                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-white'
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" />
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-semibold text-slate-900">Live preview</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="rounded-lg px-3 py-2 text-sm font-semibold text-white" style={{ backgroundColor: previewColor }}>
-                    Primary action
-                  </span>
-                  <span
-                    className="rounded-lg border px-3 py-2 text-sm font-semibold"
-                    style={{ borderColor: previewColor, color: previewColor }}
-                  >
-                    Accent text
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={resetToDefault}
-                  disabled={!usingCustom}
-                  className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  Back to default
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="inline-flex h-11 flex-1 items-center justify-center rounded-xl px-4 text-sm font-semibold text-white transition hover:opacity-90"
-                  style={{ backgroundColor: previewColor }}
-                >
-                  Done
-                </button>
-              </div>
+            <div className="max-h-[70vh] space-y-5 overflow-y-auto p-5">
+              <StyleThemeSettingsSection showBrandColors compact />
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="inline-flex h-11 w-full items-center justify-center rounded-xl px-4 text-sm font-semibold text-white transition hover:opacity-90"
+                style={{ backgroundColor: previewColor }}
+              >
+                Done
+              </button>
             </div>
           </section>
         </div>
