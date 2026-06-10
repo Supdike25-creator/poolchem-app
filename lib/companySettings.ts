@@ -1,6 +1,7 @@
 export type CompanySettings = {
   theme: 'light' | 'dark' | 'system';
   stylePreset: 'default' | 'compact' | 'contrast' | 'soft';
+  brandColor?: string | null;
   compactLayout: boolean;
   largerTextMode: boolean;
   chemCalcEnabled: boolean;
