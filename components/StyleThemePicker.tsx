@@ -80,7 +80,7 @@ export default function StyleThemePicker() {
             </div>
 
             <div className="max-h-[70vh] space-y-5 overflow-y-auto p-5">
-              <StyleThemeSettingsSection showBrandColors compact />
+              <StyleThemeSettingsSection compact />
               <button
                 type="button"
                 onClick={() => setOpen(false)}

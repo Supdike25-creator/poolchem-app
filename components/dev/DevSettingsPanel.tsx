@@ -49,7 +49,7 @@ export default function DevSettingsPanel() {
             <Palette className="h-5 w-5" />
             <h2 className="text-base font-semibold text-slate-950">Display & brand</h2>
           </div>
-          <StyleThemeSettingsSection showBrandColors />
+          <StyleThemeSettingsSection />
         </SectionCard>
 
         <SectionCard className="p-5">

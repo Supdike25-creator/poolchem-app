@@ -71,7 +71,39 @@ const firstRow = <T,>(data: T[] | T | null): T | null => {
   return Array.isArray(data) ? data[0] ?? null : data;
 };
 
-export const getStoredSession = () => readJson<AppSession | null>(sessionKey, null);
+export const readSessionFromDocumentCookie = (): AppSession | null => {
+  if (typeof document === 'undefined') return null;
+
+  const prefix = `${appSessionCookie}=`;
+  const entry = document.cookie
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(prefix));
+
+  if (!entry) return null;
+
+  try {
+    const parsed = JSON.parse(decodeURIComponent(entry.slice(prefix.length))) as AppSession;
+    if (!parsed?.role || !parsed?.username) return null;
+    parsed.role = normalizeAppRole(parsed.role);
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+export const getStoredSession = () => {
+  const fromStorage = readJson<AppSession | null>(sessionKey, null);
+  if (fromStorage) return fromStorage;
+
+  const fromCookie = readSessionFromDocumentCookie();
+  if (fromCookie) {
+    writeJson(sessionKey, fromCookie);
+    return fromCookie;
+  }
+
+  return null;
+};
 
 export const setAppSession = (account: AppAccount) => {
   const session: AppSession = {
@@ -85,6 +117,7 @@ export const setAppSession = (account: AppAccount) => {
 
   writeJson(sessionKey, session);
   document.cookie = `${appSessionCookie}=${encodeURIComponent(JSON.stringify(session))}; path=/; max-age=2592000; samesite=lax`;
+  window.dispatchEvent(new Event('chemdeck-session-change'));
   return session;
 };
 
@@ -92,6 +125,7 @@ export const clearAppSession = () => {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(sessionKey);
   document.cookie = `${appSessionCookie}=; path=/; max-age=0; samesite=lax`;
+  window.dispatchEvent(new Event('chemdeck-session-change'));
 };
 
 export const sendAccountMagicLink = async (email: string, shouldCreateUser = true, redirectTo = `${getAppBaseUrl()}/login`) => {

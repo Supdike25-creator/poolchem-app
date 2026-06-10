@@ -109,6 +109,7 @@ export default function LoginPage() {
         const session = createDevSession();
         window.localStorage.setItem("chemdeck.session", JSON.stringify(session));
         document.cookie = `${appSessionCookie}=${encodeURIComponent(JSON.stringify(session))}; path=/; max-age=2592000; samesite=lax`;
+        window.dispatchEvent(new Event('chemdeck-session-change'));
         router.replace("/dev-dashboard");
         router.refresh();
         return;
