@@ -2,11 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { assertDevRequest } from '@/lib/devTools';
 import {
   buildSpotifyAuthorizeUrl,
+  createSpotifyOAuthState,
   spotifyConfigured,
   spotifyOAuthStateCookie,
 } from '@/lib/spotifySession';
 
 export const dynamic = 'force-dynamic';
+
+const oauthCookieOptions = {
+  httpOnly: true,
+  sameSite: 'lax' as const,
+  secure: process.env.NODE_ENV === 'production',
+  path: '/',
+};
 
 export async function GET(request: NextRequest) {
   const forbidden = assertDevRequest(request);
@@ -20,15 +28,12 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const state = crypto.randomUUID();
+  const state = createSpotifyOAuthState();
   const response = NextResponse.redirect(buildSpotifyAuthorizeUrl(origin, state));
   response.cookies.set({
     name: spotifyOAuthStateCookie,
     value: state,
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
+    ...oauthCookieOptions,
     maxAge: 600,
   });
 

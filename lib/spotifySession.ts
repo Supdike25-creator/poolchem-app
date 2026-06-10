@@ -1,3 +1,4 @@
+import { createHmac, randomUUID } from 'crypto';
 import { cookies } from 'next/headers';
 import type { NextRequest } from 'next/server';
 
@@ -42,6 +43,42 @@ export const getSpotifyConfig = (origin: string) => {
 export const spotifyConfigured = (origin: string) => {
   const { clientId, clientSecret } = getSpotifyConfig(origin);
   return Boolean(clientId && clientSecret);
+};
+
+const spotifyStateSecret = () => process.env.SPOTIFY_CLIENT_SECRET?.trim() || '';
+
+export const createSpotifyOAuthState = () => {
+  const secret = spotifyStateSecret();
+  if (!secret) {
+    throw new Error('Spotify is not configured.');
+  }
+
+  const payload = `${randomUUID()}:${Date.now()}`;
+  const sig = createHmac('sha256', secret).update(payload).digest('hex');
+  return Buffer.from(`${payload}:${sig}`).toString('base64url');
+};
+
+export const verifySpotifyOAuthState = (state: string, maxAgeMs = 600_000) => {
+  const secret = spotifyStateSecret();
+  if (!secret || !state) return false;
+
+  try {
+    const decoded = Buffer.from(state, 'base64url').toString('utf8');
+    const separator = decoded.lastIndexOf(':');
+    if (separator === -1) return false;
+
+    const payload = decoded.slice(0, separator);
+    const sig = decoded.slice(separator + 1);
+    const expected = createHmac('sha256', secret).update(payload).digest('hex');
+    if (sig !== expected) return false;
+
+    const [, ts] = payload.split(':');
+    const createdAt = Number(ts);
+    if (!Number.isFinite(createdAt)) return false;
+    return Date.now() - createdAt <= maxAgeMs;
+  } catch {
+    return false;
+  }
 };
 
 export const readSpotifyTokens = async (): Promise<SpotifyTokens | null> => {

@@ -4,9 +4,17 @@ import {
   exchangeSpotifyCode,
   saveSpotifyTokens,
   spotifyOAuthStateCookie,
+  verifySpotifyOAuthState,
 } from '@/lib/spotifySession';
 
 export const dynamic = 'force-dynamic';
+
+const oauthCookieOptions = {
+  httpOnly: true,
+  sameSite: 'lax' as const,
+  secure: process.env.NODE_ENV === 'production',
+  path: '/',
+};
 
 export async function GET(request: NextRequest) {
   const origin = request.nextUrl.origin;
@@ -14,16 +22,18 @@ export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
   const state = request.nextUrl.searchParams.get('state');
   const savedState = request.cookies.get(spotifyOAuthStateCookie)?.value;
+  const returnCompanyId = request.nextUrl.searchParams.get('companyId');
 
-  const redirectWithMessage = (spotify: string) => {
-    const response = NextResponse.redirect(new URL(`/dev-dashboard?spotify=${encodeURIComponent(spotify)}`, origin));
+  const redirectWithMessage = (spotify: string, detail?: string) => {
+    const params = new URLSearchParams({ spotify });
+    if (detail) params.set('spotify_detail', detail.slice(0, 180));
+    if (returnCompanyId) params.set('companyId', returnCompanyId);
+
+    const response = NextResponse.redirect(new URL(`/dev-dashboard?${params.toString()}`, origin));
     response.cookies.set({
       name: spotifyOAuthStateCookie,
       value: '',
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/',
+      ...oauthCookieOptions,
       maxAge: 0,
     });
     return response;
@@ -33,17 +43,30 @@ export async function GET(request: NextRequest) {
     return redirectWithMessage('denied');
   }
 
-  if (!code || !state || !savedState || state !== savedState) {
-    return redirectWithMessage('invalid_state');
+  const stateValid = Boolean(state && verifySpotifyOAuthState(state));
+  const cookieStateValid = Boolean(state && savedState && state === savedState);
+
+  if (!code || !state || (!stateValid && !cookieStateValid)) {
+    return redirectWithMessage('invalid_state', 'Login session expired during Spotify redirect. Try again.');
   }
 
   try {
     const tokens = await exchangeSpotifyCode(code, origin);
     const response = redirectWithMessage('connected');
-    response.cookies.set(saveSpotifyTokens(tokens));
+    const tokenCookie = saveSpotifyTokens(tokens);
+    response.cookies.set({
+      name: tokenCookie.name,
+      value: tokenCookie.value,
+      httpOnly: tokenCookie.httpOnly,
+      sameSite: tokenCookie.sameSite,
+      secure: tokenCookie.secure,
+      path: tokenCookie.path,
+      maxAge: tokenCookie.maxAge,
+    });
     return response;
   } catch (caughtError) {
-    const response = redirectWithMessage('error');
+    const detail = caughtError instanceof Error ? caughtError.message : 'Spotify token exchange failed.';
+    const response = redirectWithMessage('error', detail);
     response.cookies.set(clearSpotifyTokenCookie());
     console.error('Spotify callback failed:', caughtError);
     return response;

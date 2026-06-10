@@ -81,10 +81,15 @@ export default function SpotifyPlayer() {
 
   const spotifyNotice = useMemo(() => {
     const status = searchParams.get('spotify');
-    if (status === 'connected') return 'Spotify connected.';
+    const detail = searchParams.get('spotify_detail');
+    if (status === 'connected') return 'Spotify connected. Search for a track below.';
     if (status === 'denied') return 'Spotify connection was cancelled.';
-    if (status === 'invalid_state') return 'Spotify login expired. Try again.';
-    if (status === 'error') return 'Spotify connection failed. Check app credentials and redirect URI.';
+    if (status === 'invalid_state') {
+      return detail || 'Spotify login expired during redirect. Click Connect Spotify and try again.';
+    }
+    if (status === 'error') {
+      return detail || 'Spotify connection failed. Check SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, and the redirect URI in your Spotify app.';
+    }
     return '';
   }, [searchParams]);
 
@@ -115,10 +120,15 @@ export default function SpotifyPlayer() {
   }, [loadStatus]);
 
   useEffect(() => {
+    const status = searchParams.get('spotify');
     if (spotifyNotice) {
       setMessage(spotifyNotice);
+      setOpen(true);
     }
-  }, [spotifyNotice]);
+    if (status === 'connected') {
+      void loadStatus();
+    }
+  }, [spotifyNotice, searchParams, loadStatus]);
 
   const initializePlayer = useCallback(async () => {
     if (!window.Spotify || playerRef.current || !connected) return;
@@ -474,7 +484,13 @@ export default function SpotifyPlayer() {
             )}
 
             {message ? (
-              <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700">
+              <p className={`mt-3 rounded-md border px-3 py-2 text-xs font-medium ${
+                searchParams.get('spotify') === 'connected'
+                  ? 'border-[#1DB954]/30 bg-[#1DB954]/10 text-emerald-900'
+                  : searchParams.get('spotify') === 'error' || searchParams.get('spotify') === 'invalid_state'
+                    ? 'border-amber-300 bg-amber-50 text-amber-950'
+                    : 'border-slate-200 bg-slate-50 text-slate-700'
+              }`}>
                 {message}
               </p>
             ) : null}
