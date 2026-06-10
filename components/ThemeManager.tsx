@@ -1,6 +1,11 @@
 'use client';
 
 import { useEffect } from 'react';
+import {
+  applyBrandColor,
+  readStoredBrandColor,
+  resolveThemeMode,
+} from '@/lib/styleTheme';
 
 type Theme = 'light' | 'dark' | 'system';
 type StylePreset = 'default' | 'compact' | 'contrast' | 'soft';
@@ -24,16 +29,8 @@ const getStoredStyle = (): StylePreset => {
   return stylePreset === 'compact' || stylePreset === 'contrast' || stylePreset === 'soft' ? stylePreset : 'default';
 };
 
-const resolveTheme = (theme: Theme) => {
-  if (theme !== 'system') {
-    return theme;
-  }
-
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-};
-
 const applyTheme = (theme: Theme) => {
-  document.documentElement.dataset.theme = resolveTheme(theme);
+  document.documentElement.dataset.theme = resolveThemeMode(theme);
   document.documentElement.dataset.themePreference = theme;
 };
 
@@ -55,9 +52,11 @@ export default function ThemeManager() {
 
     const syncTheme = () => {
       const settings = getStoredSettings();
-      applyTheme(getStoredTheme());
+      const theme = getStoredTheme();
+      applyTheme(theme);
       applyStyle(getStoredStyle());
       applyLargerText(Boolean(settings.largerTextMode));
+      applyBrandColor(readStoredBrandColor(), theme);
     };
 
     syncTheme();

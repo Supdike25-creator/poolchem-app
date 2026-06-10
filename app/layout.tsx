@@ -3,6 +3,7 @@ import { DM_Sans } from "next/font/google";
 import ButtonSoundEffects from "../components/ButtonSoundEffects";
 import NavigationLoadingListener from "../components/NavigationLoadingListener";
 import ServiceWorkerRegister from "../components/ServiceWorkerRegister";
+import StyleThemePicker from "../components/StyleThemePicker";
 import ThemeManager from "../components/ThemeManager";
 import VersionBadge from "../components/VersionBadge";
 import "./globals.css";
@@ -57,6 +58,7 @@ export default function RootLayout({
         <ServiceWorkerRegister />
         <ButtonSoundEffects />
         <NavigationLoadingListener />
+        <StyleThemePicker />
         {children}
         <VersionBadge />
       </body>
