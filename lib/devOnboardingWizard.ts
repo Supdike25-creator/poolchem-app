@@ -45,7 +45,7 @@ export const onboardingWizardSteps: WizardStepDefinition[] = [
     title: 'Email & database config',
     description: 'Service role, Resend, app URL, and core tables are ready for live tests.',
     kind: 'auto',
-    playbookNote: 'When I Work verifies account + billing before you add a location. ChemDeck checks server env first.',
+    playbookNote: 'ChemDeck checks server env and database tables before any invite or email test runs.',
   },
   {
     id: 'company',
@@ -54,7 +54,7 @@ export const onboardingWizardSteps: WizardStepDefinition[] = [
     title: 'Company workspace selected',
     description: 'A test company is scoped so invites and routes target the right tenant.',
     kind: 'auto',
-    playbookNote: 'Similar to picking your business/location in When I Work before inviting staff.',
+    playbookNote: 'Every invite and route test should target one company so results stay isolated.',
   },
   {
     id: 'pool',
@@ -72,7 +72,7 @@ export const onboardingWizardSteps: WizardStepDefinition[] = [
     title: 'Manager team page reachable',
     description: 'The manager invite UI loads (where production managers send team invites).',
     kind: 'auto',
-    playbookNote: 'When I Work’s “Add employees” screen — managers invite from Team, not Dev Lab.',
+    playbookNote: 'In production, managers send invites from Team — the wizard only simulates that path.',
   },
   {
     id: 'create-invite',
@@ -81,7 +81,7 @@ export const onboardingWizardSteps: WizardStepDefinition[] = [
     title: 'Create employee invite',
     description: 'Generates a pending invite row and signup link for your test recipient.',
     kind: 'auto',
-    playbookNote: 'When I Work sends email or share link; ChemDeck uses tokenized /invite URLs.',
+    playbookNote: 'ChemDeck uses tokenized /invite URLs; email delivery is tested separately.',
   },
   {
     id: 'validate-invite',
@@ -99,7 +99,7 @@ export const onboardingWizardSteps: WizardStepDefinition[] = [
     title: 'Invite landing page loads',
     description: 'HTTP check that the public invite page responds successfully.',
     kind: 'auto',
-    playbookNote: 'When I Work’s accept-invite screen — first impression for new hires.',
+    playbookNote: 'The public invite page is the first screen new employees see after clicking a link.',
   },
   {
     id: 'manual-join',
@@ -108,7 +108,7 @@ export const onboardingWizardSteps: WizardStepDefinition[] = [
     title: 'Complete join in browser',
     description: 'Open the invite link in incognito, create account or sign in, and land on the employee home.',
     kind: 'manual',
-    playbookNote: 'When I Work has you download the app or set a password — this step must be done as a real user.',
+    playbookNote: 'Account creation and sign-in must be completed as a real user in an incognito window.',
   },
   {
     id: 'send-email',
@@ -117,7 +117,7 @@ export const onboardingWizardSteps: WizardStepDefinition[] = [
     title: 'Send live invite email',
     description: 'Optional Resend delivery test using the same template as production invites.',
     kind: 'optional',
-    playbookNote: 'When I Work always emails; use this when verifying Resend/domain on staging or production.',
+    playbookNote: 'Run this on staging or production when verifying Resend and your sending domain.',
   },
   {
     id: 'employee-routes',
@@ -135,7 +135,7 @@ export const onboardingWizardSteps: WizardStepDefinition[] = [
     title: 'Submit a test chemistry log',
     description: 'As the new employee, submit one log entry so manager dashboards show real data.',
     kind: 'manual',
-    playbookNote: 'When I Work’s “publish first schedule” moment — proves the loop is closed.',
+    playbookNote: 'A real chemistry log proves the manager → employee → data loop is working end to end.',
   },
   {
     id: 'notification',
@@ -144,7 +144,7 @@ export const onboardingWizardSteps: WizardStepDefinition[] = [
     title: 'Manager alert notification',
     description: 'Fires a test alert email to managers on this company (if any manager emails exist).',
     kind: 'optional',
-    playbookNote: 'When I Work push/email for schedule changes — ChemDeck alerts managers on out-of-range chemistry.',
+    playbookNote: 'ChemDeck emails managers when pool chemistry falls outside configured ranges.',
   },
 ];
 

@@ -147,7 +147,7 @@ export default function DevOnboardingWizard({
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Guided run</p>
             <h3 className="mt-1 text-xl font-semibold text-slate-950">Full onboarding wizard</h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Modeled after workforce apps like When I Work: set up the workspace, invite a team member, complete their
+              Walk through the full ChemDeck onboarding path: set up the workspace, invite a team member, complete their
               first-day task, and optionally verify email alerts. Automated steps run here; account creation must happen
               in an incognito browser like a real hire.
             </p>
@@ -296,7 +296,7 @@ export default function DevOnboardingWizard({
                         </div>
                         <p className="mt-1 text-sm text-slate-600">{definition.description}</p>
                         <p className="mt-2 text-xs leading-5 text-slate-500">
-                          <span className="font-semibold text-slate-600">Like When I Work:</span> {definition.playbookNote}
+                          <span className="font-semibold text-slate-600">Tip:</span> {definition.playbookNote}
                         </p>
 
                         {result?.message ? (
@@ -355,27 +355,25 @@ export default function DevOnboardingWizard({
       })}
 
       <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
-        <p className="text-sm font-semibold text-slate-900">Product ideas from workforce onboarding</p>
+        <p className="text-sm font-semibold text-slate-900">Possible product improvements</p>
         <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6 text-slate-600">
           <li>
-            <strong>Progress persistence</strong> — When I Work saves setup % on the dashboard; ChemDeck could show
-            “Onboarding 3/5” on <code className="text-xs">/management/dashboard</code> until first pool, invite, and log exist.
+            <strong>Progress persistence</strong> — Show “Onboarding 3/5” on{' '}
+            <code className="text-xs">/management/dashboard</code> until the first pool, invite, and log exist.
           </li>
           <li>
-            <strong>Skip & return</strong> — Allow managers to skip invite step and finish later from a persistent banner
-            (like “Add your first employee”).
+            <strong>Skip & return</strong> — Let managers skip the invite step and finish later from a persistent
+            “Add your first employee” banner.
           </li>
           <li>
-            <strong>SMS / copy link</strong> — Besides email, offer copy-invite-link on Team page for floor staff without
-            inbox access (common in When I Work / 7shifts).
+            <strong>Copy invite link</strong> — Offer a copy-link option on the Team page for staff without reliable email.
           </li>
           <li>
-            <strong>Role templates</strong> — Pre-define “Head lifeguard” vs “Pool tech” with default pool assignments on
-            accept, similar to position tags in scheduling apps.
+            <strong>Role templates</strong> — Pre-define roles like “Head lifeguard” vs “Pool tech” with default pool
+            assignments on accept.
           </li>
           <li>
-            <strong>Mobile-first nudge</strong> — After first log, prompt install PWA — parallel to When I Work’s app
-            download step.
+            <strong>Mobile-first nudge</strong> — After the first log, prompt employees to install the PWA.
           </li>
         </ul>
       </div>
