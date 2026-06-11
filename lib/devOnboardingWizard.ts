@@ -300,7 +300,11 @@ export async function runOnboardingWizard(input: {
     id: 'validate-invite',
     ok: validateOk,
     status: validateOk ? 'passed' : 'failed',
-    message: validateOk ? 'Database and API agree — invite is valid.' : preview.message || 'Invite validation failed.',
+    message: validateOk
+      ? 'Database and API agree — invite is valid.'
+      : !preview.ok
+        ? preview.message
+        : 'Invite validation failed.',
     link: inviteLink,
     details: { api_status: apiResponse.status, db: invite ? { email: invite.email, status: invite.status } : null },
   });
