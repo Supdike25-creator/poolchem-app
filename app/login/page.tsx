@@ -85,11 +85,11 @@ export default function LoginPage() {
       return { route: "/create-company", message: "" };
     }
 
-    if (rawRole === "boss" && !accountRecord.company_id && !accountRecord.organization_id) {
+    if (rawRole === "manager" && !accountRecord.company_id && !accountRecord.organization_id) {
       return { route: "/create-company", message: "" };
     }
 
-    if (rawRole === "guard" && !accountRecord.company_id && !accountRecord.organization_id) {
+    if (rawRole === "employee" && !accountRecord.company_id && !accountRecord.organization_id) {
       return { route: "/choose-role", message: "" };
     }
 

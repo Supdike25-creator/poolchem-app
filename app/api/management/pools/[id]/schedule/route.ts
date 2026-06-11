@@ -4,7 +4,7 @@ import { mergePoolOperatingSchedule, type PoolOperatingSchedule } from '@/lib/po
 
 export const dynamic = 'force-dynamic';
 
-const managerRoles = new Set(['boss', 'manager', 'admin', 'supervisor', 'owner']);
+const managerRoles = new Set(['admin', 'manager', 'owner', 'boss', 'supervisor']);
 
 const assertManagerAccess = (scope: { isDevPreview: boolean; account: { role?: string | null } | null }) => {
   if (scope.isDevPreview) return null;

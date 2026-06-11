@@ -4,7 +4,7 @@ import { resolveApiCompanyScope } from '@/lib/apiCompanyScope';
 
 export const dynamic = 'force-dynamic';
 
-const managerRoles = new Set(['boss', 'manager', 'admin', 'supervisor', 'owner']);
+const managerRoles = new Set(['admin', 'manager', 'owner', 'boss', 'supervisor']);
 
 const getManagerSessionContext = async () => {
   const context = await resolveApiCompanyScope();

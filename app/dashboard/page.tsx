@@ -65,9 +65,9 @@ export default async function Dashboard({
   variant = 'manager',
 }: {
   devCompanyId?: string;
-  variant?: 'manager' | 'guard';
+  variant?: 'manager' | 'employee';
 } = {}) {
-  const isGuardView = variant === 'guard';
+  const isGuardView = variant === 'employee';
   let poolsWithStatus: Array<{
     id: string;
     name: string;
@@ -90,13 +90,13 @@ export default async function Dashboard({
   let dbAlertActions: Array<{ tone: StatusTone; title: string; detail: string }> = [];
   let guardId: string | null = null;
 
-  const logHref = isGuardView ? '/guard/log' : '/log';
-  const reviewHref = isGuardView ? '/guard/review' : '/management/logs';
-  const announcementsHref = isGuardView ? '/guard/announcements' : '/management/announcements';
+  const logHref = isGuardView ? '/employee/log' : '/log';
+  const reviewHref = isGuardView ? '/employee/review' : '/management/logs';
+  const announcementsHref = isGuardView ? '/employee/announcements' : '/management/announcements';
   const poolLogHref = (poolId: string) =>
-    isGuardView ? `/guard/log?poolId=${poolId}` : `/log?poolId=${poolId}`;
+    isGuardView ? `/employee/log?poolId=${poolId}` : `/log?poolId=${poolId}`;
   const poolHistoryHref = (poolId: string) =>
-    isGuardView ? `/guard/review?poolId=${poolId}` : `/management/pools/${poolId}`;
+    isGuardView ? `/employee/review?poolId=${poolId}` : `/management/pools/${poolId}`;
   const poolScheduleHref = (poolId: string) => `/management/pools/${poolId}/schedule`;
   const withCompanyQuery = (href: string) => withDevCompanyQuery(href, devCompanyId);
 
@@ -282,7 +282,7 @@ export default async function Dashboard({
       .map((pool) => ({
         tone: 'overdue' as StatusTone,
         title: `${pool.name} is overdue`,
-        detail: isGuardView ? 'Submit a chemical test for this pool now.' : 'Submit a chemical test or assign a guard.',
+        detail: isGuardView ? 'Submit a chemical test for this pool now.' : 'Submit a chemical test or assign an employee.',
       })),
     ...poolsWithStatus
       .filter((pool) => pool.is_baby_pool && outOfRangeStatuses.includes(pool.status))
@@ -330,7 +330,7 @@ export default async function Dashboard({
               {isGuardView ? 'Your Assigned Pools' : "Today's Pool Status"}
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-              {isGuardView ? 'Guard Workbench' : 'Pool Operations Dashboard'}
+              {isGuardView ? 'Employee Workbench' : 'Pool Operations Dashboard'}
             </h1>
             <p className="mt-2 text-sm leading-6 text-slate-500">
               {isGuardView
@@ -349,7 +349,7 @@ export default async function Dashboard({
             }
             action={
               isGuardView ? (
-                <Link href={withCompanyQuery('/guard/log')} className={buttonClass.primary}>
+                <Link href={withCompanyQuery('/employee/log')} className={buttonClass.primary}>
                   <Plus className="mr-2 h-4 w-4" />
                   Submit Log
                 </Link>
@@ -377,7 +377,7 @@ export default async function Dashboard({
                 {isGuardView ? 'Your Assigned Pools' : "Today's Pool Status"}
               </p>
               <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-                {isGuardView ? 'Guard Workbench' : 'Pool Operations Dashboard'}
+                {isGuardView ? 'Employee Workbench' : 'Pool Operations Dashboard'}
               </h1>
               <p className="mt-2 text-sm leading-6 text-slate-500">
                 {isGuardView
@@ -444,7 +444,7 @@ export default async function Dashboard({
                   {urgentPools.length > 0
                     ? isGuardView
                       ? 'Submit tests for overdue or out-of-range pools first.'
-                      : 'Review priority actions before the next guard rotation.'
+                      : 'Review priority actions before the next employee rotation.'
                     : 'No urgent pool chemistry issues are currently flagged.'}
                 </p>
               </div>
@@ -497,7 +497,7 @@ export default async function Dashboard({
             <EmptyState
               icon={<CheckCircle2 className="h-6 w-6" />}
               title="No alerts right now"
-              description="All pools are currently on track. New exceptions will appear here as guards submit tests."
+              description="All pools are currently on track. New exceptions will appear here as employees submit tests."
             />
           )}
         </div>
@@ -506,7 +506,7 @@ export default async function Dashboard({
           <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-slate-950">Pool Card View</h2>
-              <p className="mt-1 text-sm text-slate-500">Fast scan view for guard assignments and exceptions.</p>
+              <p className="mt-1 text-sm text-slate-500">Fast scan view for employee assignments and exceptions.</p>
             </div>
             <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
               <span className="rounded-md bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white">Card View</span>

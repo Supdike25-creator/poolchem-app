@@ -13,7 +13,7 @@ import {
   type SidebarNavItem,
 } from '@/lib/sidebarNavItems';
 
-export type DevPerspective = 'dev' | 'manager' | 'lifeguard';
+export type DevPerspective = 'dev' | 'manager' | 'employee';
 
 export const DEV_PERSPECTIVE_STORAGE_KEY = 'chemdeck.devPerspective';
 
@@ -33,9 +33,9 @@ export const devPerspectiveMeta: Record<
     modeClass: 'dev-pov-mode-manager',
     description: 'Pools, team & alerts',
   },
-  lifeguard: {
-    label: 'Lifeguard',
-    letter: 'L',
+  employee: {
+    label: 'Employee',
+    letter: 'E',
     modeClass: 'dev-pov-mode-lifeguard',
     description: 'Log tests & schedule',
   },
@@ -73,7 +73,7 @@ export const buildPerspectiveNavItems = (
   switch (perspective) {
     case 'manager':
       return buildManagerNavItems(companyId);
-    case 'lifeguard':
+    case 'employee':
       return buildGuardNavItems(companyId);
     default:
       return buildDevHotbarItems(companyId);
@@ -85,7 +85,7 @@ export const perspectiveHomePath = (perspective: DevPerspective, companyId?: str
   switch (perspective) {
     case 'manager':
       return `/manager-view${query}`;
-    case 'lifeguard':
+    case 'employee':
       return `/worker-view${query}`;
     default:
       return companyId ? `/dev-dashboard?companyId=${encodeURIComponent(companyId)}` : '/dev-dashboard';
@@ -93,8 +93,8 @@ export const perspectiveHomePath = (perspective: DevPerspective, companyId?: str
 };
 
 export const detectPerspectiveFromPath = (pathname: string): DevPerspective => {
-  if (pathname.startsWith('/worker-view') || pathname.startsWith('/guard')) {
-    return 'lifeguard';
+  if (pathname.startsWith('/worker-view') || pathname.startsWith('/employee')) {
+    return 'employee';
   }
 
   if (
@@ -111,8 +111,8 @@ export const detectPerspectiveFromPath = (pathname: string): DevPerspective => {
 export const readStoredPerspective = (fallback: DevPerspective) => {
   if (typeof window === 'undefined') return fallback;
   const stored = window.localStorage.getItem(DEV_PERSPECTIVE_STORAGE_KEY);
-  if (stored === 'dev' || stored === 'manager' || stored === 'lifeguard') {
-    return stored;
+  if (stored === 'dev' || stored === 'manager' || stored === 'employee' || stored === 'lifeguard') {
+    return stored === 'lifeguard' ? 'employee' : (stored as DevPerspective);
   }
   return fallback;
 };

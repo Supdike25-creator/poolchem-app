@@ -51,7 +51,7 @@ function DevBranchingPanelInner({
   const urlCompanyId = searchParams.get('companyId');
   const resolvedInitial = resolveCompanyId(initialCompanyId || urlCompanyId, companies);
   const [activeCompanyId, setActiveCompanyId] = useState(resolvedInitial);
-  const [perspective, setPerspective] = useState<'manager' | 'lifeguard' | ''>('');
+  const [perspective, setPerspective] = useState<'manager' | 'employee' | ''>('');
   const [companyName, setCompanyName] = useState('');
   const [companyCode, setCompanyCode] = useState('');
   const [renameValue, setRenameValue] = useState('');
@@ -62,6 +62,7 @@ function DevBranchingPanelInner({
   const [savingAction, setSavingAction] = useState<string | null>(null);
   const [summary, setSummary] = useState<DevCompanySummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const selectedCompany = useMemo(
     () => companies.find((company) => company.id === activeCompanyId) ?? null,
@@ -216,7 +217,7 @@ function DevBranchingPanelInner({
     }
   };
 
-  const choosePerspective = (nextPerspective: 'manager' | 'lifeguard') => {
+  const choosePerspective = (nextPerspective: 'manager' | 'employee') => {
     if (!activeCompanyId) return;
     setPerspective(nextPerspective);
     const route = nextPerspective === 'manager' ? '/manager-view' : '/worker-view';
@@ -234,6 +235,7 @@ function DevBranchingPanelInner({
   };
 
   return (
+    <>
     <section className="mb-6 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
       <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -311,7 +313,7 @@ function DevBranchingPanelInner({
               <div className="mt-4 grid gap-2 sm:grid-cols-4">
                 {[
                   ['Users', summary.user_count],
-                  ['Guards', summary.guard_count],
+                  ['Employees', summary.guard_count],
                   ['Managers', summary.manager_count],
                   ['Pools', summary.pool_count],
                   ['Logs', summary.log_count],
@@ -346,7 +348,7 @@ function DevBranchingPanelInner({
                 className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-                Lifeguard POV
+                Employee POV
               </Link>
               <Link
                 href="/dev-admin/companies"
@@ -461,8 +463,7 @@ function DevBranchingPanelInner({
               disabled={!selectedCompany || savingAction === 'delete-company'}
               onClick={() => {
                 if (!selectedCompany) return;
-                if (!window.confirm(`Delete ${selectedCompany.company_name}? This cannot be undone.`)) return;
-                void runCompanyAction('delete-company');
+                setShowDeleteConfirm(true);
               }}
               className="inline-flex h-9 items-center gap-1 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
             >
@@ -508,15 +509,15 @@ function DevBranchingPanelInner({
           <button
             type="button"
             disabled={!activeCompanyId}
-            onClick={() => choosePerspective('lifeguard')}
+            onClick={() => choosePerspective('employee')}
             className={`inline-flex h-11 items-center justify-center gap-2 rounded-md border px-3 text-sm font-semibold transition ${
-              perspective === 'lifeguard'
+              perspective === 'employee'
                 ? 'border-blue-300 bg-blue-50 text-blue-800'
                 : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45'
             }`}
           >
             <Waves className="h-4 w-4" />
-            Lifeguard POV
+            Employee POV
           </button>
         </div>
 
@@ -525,7 +526,7 @@ function DevBranchingPanelInner({
             <p className="font-semibold text-slate-900">Quick test checklist</p>
             <ul className="mt-2 list-disc space-y-1 pl-5">
               <li>Open Manager POV and verify dashboard loads.</li>
-              <li>Open Lifeguard POV and submit a test log.</li>
+              <li>Open Employee POV and submit a test log.</li>
               <li>Use Tool Actions below for simulate alert / test chem log.</li>
               <li>Confirm company code works on the join-company screen.</li>
             </ul>
@@ -533,6 +534,52 @@ function DevBranchingPanelInner({
         ) : null}
       </div>
     </section>
+
+    {showDeleteConfirm && selectedCompany ? (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-company-title"
+        onClick={() => setShowDeleteConfirm(false)}
+      >
+        <div
+          className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-5 shadow-xl"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <h3 id="delete-company-title" className="text-lg font-semibold text-slate-950">
+            Delete company?
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Are you sure you want to delete{' '}
+            <span className="font-semibold text-slate-900">{selectedCompany.company_name}</span>? This
+            removes its pools, chemical logs, invites, and team links. This cannot be undone.
+          </p>
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(false)}
+              className="inline-flex h-9 items-center rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={savingAction === 'delete-company'}
+              onClick={() => {
+                setShowDeleteConfirm(false);
+                void runCompanyAction('delete-company');
+              }}
+              className="inline-flex h-9 items-center gap-1 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700 disabled:opacity-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {savingAction === 'delete-company' ? 'Deleting…' : 'Delete company'}
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null}
+    </>
   );
 }
 

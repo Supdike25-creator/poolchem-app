@@ -29,7 +29,7 @@ const features = [
   {
     icon: ClipboardList,
     title: 'Digital Chemical Logs',
-    description: 'Guards submit pH, chlorine, and alkalinity readings directly from their phone. No paper, no manual entry.',
+    description: 'Employees submit pH, chlorine, and alkalinity readings directly from their phone. No paper, no manual entry.',
   },
   {
     icon: Bell,
@@ -39,7 +39,7 @@ const features = [
   {
     icon: Users,
     title: 'Team Management',
-    description: 'Invite guards, assign them to specific pools, and manage your entire team from one dashboard.',
+    description: 'Invite employees, assign them to specific pools, and manage your entire team from one dashboard.',
   },
   {
     icon: BarChart3,
@@ -49,12 +49,12 @@ const features = [
   {
     icon: ShieldCheck,
     title: 'Role-Based Access',
-    description: 'Admins see everything. Guards see only their assigned pools. Everyone has exactly the right access.',
+    description: 'Admins see everything. Employees see only their assigned pools. Everyone has exactly the right access.',
   },
   {
     icon: Smartphone,
     title: 'Installable On Any Device',
-    description: 'Works in the browser and installs to your home screen. Guards can log offline and sync when connection returns.',
+    description: 'Works in the browser and installs to your home screen. Employees can log offline and sync when connection returns.',
   },
 ];
 
@@ -69,7 +69,7 @@ const steps = [
   },
   {
     title: 'Start Logging',
-    description: 'Guards submit readings from the field. You get real-time visibility across every pool, instantly.',
+    description: 'Employees submit readings from the field. You get real-time visibility across every pool, instantly.',
   },
 ];
 
@@ -381,7 +381,7 @@ export default function Home() {
         <div className="mx-auto max-w-2xl px-6 text-center">
           <h2 className="mb-4 text-4xl font-bold text-white">Ready to modernize your pool operations?</h2>
           <p className="mb-10 text-lg text-slate-400">
-            Join pool companies already using ChemDeck to stay compliant, keep guards accountable, and protect swimmers.
+            Join pool companies already using ChemDeck to stay compliant, keep employees accountable, and protect swimmers.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link href="/signup" className="rounded-xl bg-blue-600 px-8 py-3 font-semibold text-white transition hover:bg-blue-500">

@@ -2,7 +2,7 @@
 
 import { createClient } from '@/utils/supabase/client';
 
-export type AppRole = 'manager' | 'guard' | 'dev';
+export type AppRole = 'manager' | 'employee' | 'dev';
 
 export type AppAccount = {
   id: string;
@@ -28,16 +28,16 @@ export type AppSession = {
 const sessionKey = 'chemdeck.session';
 export const appSessionCookie = 'chemdeck_app_session';
 
-const managerRoles = new Set(['admin', 'manager', 'supervisor', 'boss']);
-const guardRoles = new Set(['guard', 'worker', 'lifeguard', 'technician']);
+const managerRoles = new Set(['admin', 'manager', 'owner', 'boss', 'supervisor']);
+const guardRoles = new Set(['employee', 'guard', 'worker', 'lifeguard', 'technician']);
 
 export const normalizeAppRole = (role?: string | null): AppRole => {
-  if (!role) return 'guard';
+  if (!role) return 'employee';
   const normalized = role.toLowerCase().trim();
   if (normalized === 'dev') return 'dev';
   if (managerRoles.has(normalized)) return 'manager';
-  if (guardRoles.has(normalized)) return 'guard';
-  return 'guard';
+  if (guardRoles.has(normalized)) return 'employee';
+  return 'employee';
 };
 
 export const getAppBaseUrl = () => {

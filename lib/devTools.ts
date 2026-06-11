@@ -235,3 +235,82 @@ export const readDevTables = async (): Promise<DevTableSummary[]> => {
 
   return results;
 };
+
+const optionalTableMissing = (message?: string) => {
+  const normalized = message?.toLowerCase() ?? '';
+  return normalized.includes('relation') && normalized.includes('does not exist');
+};
+
+/** Dev-only: remove a company and dependent rows blocked by ON DELETE RESTRICT FKs. */
+export const deleteCompanyCascade = async (
+  supabase: NonNullable<ReturnType<typeof getAdminOrError>['supabase']>,
+  companyId: string,
+): Promise<{ ok: true } | { ok: false; message: string }> => {
+  const { data: company, error: companyLookupError } = await supabase
+    .from('companies')
+    .select('id, company_name')
+    .eq('id', companyId)
+    .maybeSingle();
+
+  if (companyLookupError) {
+    return { ok: false, message: companyLookupError.message };
+  }
+
+  if (!company) {
+    return { ok: false, message: 'Company not found.' };
+  }
+
+  const { data: pools, error: poolsError } = await supabase
+    .from('pools')
+    .select('id')
+    .eq('company_id', companyId);
+
+  if (poolsError) {
+    return { ok: false, message: poolsError.message };
+  }
+
+  const poolIds = (pools ?? []).map((pool) => pool.id);
+
+  if (poolIds.length > 0) {
+    const { error: logsError } = await supabase.from('chemical_logs').delete().in('pool_id', poolIds);
+    if (logsError) {
+      return { ok: false, message: logsError.message };
+    }
+  }
+
+  const dependentDeletes = [
+    supabase.from('guard_pool_assignments').delete().eq('company_id', companyId),
+    supabase.from('pool_schedule_events').delete().eq('company_id', companyId),
+    supabase.from('company_invites').delete().eq('company_id', companyId),
+    supabase.from('user_company_memberships').delete().eq('company_id', companyId),
+    supabase.from('announcements').delete().eq('company_id', companyId),
+    supabase.from('alerts').delete().eq('company_id', companyId),
+  ];
+
+  for (const query of dependentDeletes) {
+    const { error } = await query;
+    if (error && !optionalTableMissing(error.message)) {
+      return { ok: false, message: error.message };
+    }
+  }
+
+  const { error: poolsDeleteError } = await supabase.from('pools').delete().eq('company_id', companyId);
+  if (poolsDeleteError) {
+    return { ok: false, message: poolsDeleteError.message };
+  }
+
+  const unlinkTables = ['users', 'profiles', 'app_accounts'] as const;
+  for (const table of unlinkTables) {
+    const { error } = await supabase.from(table).update({ company_id: null }).eq('company_id', companyId);
+    if (error && !optionalTableMissing(error.message)) {
+      return { ok: false, message: error.message };
+    }
+  }
+
+  const { error: deleteError } = await supabase.from('companies').delete().eq('id', companyId);
+  if (deleteError) {
+    return { ok: false, message: deleteError.message };
+  }
+
+  return { ok: true };
+};

@@ -24,7 +24,7 @@ export default function PrivacyPage() {
           <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-7 text-slate-600">
             <li>
               <span className="font-medium text-slate-700">Account information:</span> name, email address, username,
-              role (such as manager or guard), and authentication credentials managed through our identity provider.
+              role (such as manager or employee), and authentication credentials managed through our identity provider.
             </li>
             <li>
               <span className="font-medium text-slate-700">Organization data:</span> company name, company codes,

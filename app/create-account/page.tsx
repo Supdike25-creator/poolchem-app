@@ -79,7 +79,7 @@ function CreateAccountForm() {
         method: "POST",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ role: "boss" }),
+        body: JSON.stringify({ role: "manager" }),
       });
 
       setNotice("Manager account created. Setting up your company...");
@@ -103,7 +103,7 @@ function CreateAccountForm() {
           </div>
           <h1 className="text-4xl font-semibold tracking-tight text-white">Create manager account</h1>
           <p className="mt-3 text-sm leading-6 text-[#D9E1E8]/80">
-            For supervisors setting up a new ChemDeck company. Lifeguards must use the invite link from their supervisor.
+            For supervisors setting up a new ChemDeck company. Employees must use the invite link from their supervisor.
           </p>
         </div>
 
@@ -186,7 +186,7 @@ function CreateAccountForm() {
 
         <div className="mt-8 space-y-3 text-center">
           <p className="text-xs leading-5 text-[#D9E1E8]/60">
-            Lifeguard? Ask your supervisor for a ChemDeck invite email — you cannot sign up here.
+            Employee? Ask your supervisor for a ChemDeck invite email — you cannot sign up here.
           </p>
           <Link
             href="/login"

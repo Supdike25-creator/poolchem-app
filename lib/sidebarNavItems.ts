@@ -21,8 +21,8 @@ export type SidebarNavItem = {
 
 export const mainNavItems: SidebarNavItem[] = [
   { label: 'Overview', href: '/management/dashboard', icon: LayoutDashboard, match: ['/dashboard', '/management/dashboard'] },
-  { label: 'Submit Log', href: '/log', icon: ClipboardPlus, match: ['/log', '/guard/log'] },
-  { label: 'Review Logs', href: '/management/logs', icon: ClipboardList, match: ['/management/logs', '/guard/review'] },
+  { label: 'Submit Log', href: '/log', icon: ClipboardPlus, match: ['/log', '/employee/log'] },
+  { label: 'Review Logs', href: '/management/logs', icon: ClipboardList, match: ['/management/logs', '/employee/review'] },
   { label: 'Alerts', href: '/management/alerts', icon: Bell, match: ['/management/alerts'] },
   { label: 'Compliance', href: '/management/compliance', icon: FileSpreadsheet, match: ['/management/compliance'] },
   { label: 'Pools', href: '/management/pools', icon: Waves, match: ['/management/pools'] },
@@ -46,13 +46,13 @@ export const buildManagerNavItems = (companyId?: string | null): SidebarNavItem[
       label: 'Submit Log',
       href: `/log${query}`,
       icon: ClipboardPlus,
-      match: ['/log', '/guard/log'],
+      match: ['/log', '/employee/log'],
     },
     {
       label: 'Review Logs',
       href: `/management/logs${query}`,
       icon: ClipboardList,
-      match: ['/management/logs', '/guard/review'],
+      match: ['/management/logs', '/employee/review'],
     },
     {
       label: 'Alerts',
@@ -99,33 +99,33 @@ export const buildGuardNavItems = (companyId?: string | null): SidebarNavItem[] 
   return [
     {
       label: 'Overview',
-      href: `/guard${query}`,
+      href: `/employee${query}`,
       icon: LayoutDashboard,
-      match: ['/guard', '/worker-view'],
+      match: ['/employee', '/worker-view'],
     },
     {
       label: 'Submit Log',
-      href: `/guard/log${query}`,
+      href: `/employee/log${query}`,
       icon: ClipboardPlus,
-      match: ['/guard/log'],
+      match: ['/employee/log'],
     },
     {
       label: 'Review Logs',
-      href: `/guard/review${query}`,
+      href: `/employee/review${query}`,
       icon: ClipboardList,
-      match: ['/guard/review'],
+      match: ['/employee/review'],
     },
     {
       label: 'News',
-      href: `/guard/announcements${query}`,
+      href: `/employee/announcements${query}`,
       icon: Megaphone,
-      match: ['/guard/announcements'],
+      match: ['/employee/announcements'],
     },
     {
       label: 'Settings',
-      href: `/guard/settings${query}`,
+      href: `/employee/settings${query}`,
       icon: Settings,
-      match: ['/guard/settings'],
+      match: ['/employee/settings'],
     },
   ];
 };

@@ -13,7 +13,7 @@ type PoolRow = {
   is_baby_pool?: boolean | null;
 };
 
-const guardRoles = new Set(['guard', 'worker', 'lifeguard', 'technician']);
+const guardRoles = new Set(['employee', 'guard', 'worker', 'lifeguard', 'technician']);
 
 export const isGuardRole = (role?: string | null) =>
   guardRoles.has(String(role ?? '').toLowerCase());

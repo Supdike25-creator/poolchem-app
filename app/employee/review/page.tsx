@@ -115,7 +115,7 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
       profile.full_name || profile.email || profile.id,
     ])
   );
-  const title = isFullSheet ? 'Full Guard Sheet' : 'Current Hour Logs';
+  const title = isFullSheet ? 'Full Employee Sheet' : 'Current Hour Logs';
   const subtitle = isFullSheet
     ? 'All of your submitted logs for today.'
     : `Only logs submitted from ${formatTime(rangeStart)} to ${formatTime(rangeEnd)}.`;
@@ -125,9 +125,9 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-wrap gap-2">
-            <BackButton fallbackHref="/guard" label="Back" />
+            <BackButton fallbackHref="/employee" label="Back" />
             <Link
-              href={isFullSheet ? '/guard/review' : '/guard/review?sheet=full'}
+              href={isFullSheet ? '/employee/review' : '/employee/review?sheet=full'}
               data-sound="click"
               className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100"
             >
@@ -135,7 +135,7 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
             </Link>
           </div>
           <Link
-            href="/guard/log"
+            href="/employee/log"
             data-sound="click"
             className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
           >
@@ -194,7 +194,7 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
                         </td>
                         <td className="max-w-sm truncate px-4 py-3 text-sm text-slate-600">{log.notes || '—'}</td>
                         <td className="px-4 py-3 text-right text-sm">
-                          <Link href={`/guard/log?logId=${log.id}&poolId=${log.pool_id}`} data-sound="click" className="font-semibold text-blue-600 hover:text-blue-800">
+                          <Link href={`/employee/log?logId=${log.id}&poolId=${log.pool_id}`} data-sound="click" className="font-semibold text-blue-600 hover:text-blue-800">
                             Edit
                           </Link>
                         </td>

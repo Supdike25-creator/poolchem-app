@@ -21,7 +21,7 @@ import {
 import { EmptyState, PageHeader, SectionCard, StatusBadge, buttonClass } from '../../../components/OperationsUI';
 
 type Priority = 'normal' | 'important' | 'emergency';
-type Audience = 'all_lifeguards' | 'specific_pool' | 'managers_only';
+type Audience = 'all_employees' | 'specific_pool' | 'managers_only';
 
 interface Announcement {
   id: string;
@@ -63,7 +63,7 @@ export default function AnnouncementsPage() {
     title: '',
     message: '',
     priority: 'normal' as Priority,
-    audience: 'all_lifeguards' as Audience,
+    audience: 'all_employees' as Audience,
     pool_id: '',
     send_notification: true,
     require_acknowledgment: false,
@@ -89,7 +89,7 @@ export default function AnnouncementsPage() {
       const response = await fetch('/api/current-account', { cache: 'no-store', credentials: 'same-origin' });
       const result = await response.json().catch(() => null);
       const role = String(result?.account?.role ?? '').toLowerCase();
-      setIsManager(['boss', 'manager', 'admin', 'supervisor', 'owner'].includes(role));
+      setIsManager(['admin', 'manager', 'owner', 'boss', 'supervisor'].includes(role));
     }
 
     if (devSession || companyId) {
@@ -168,7 +168,7 @@ export default function AnnouncementsPage() {
         title: '',
         message: '',
         priority: 'normal',
-        audience: 'all_lifeguards',
+        audience: 'all_employees',
         pool_id: '',
         send_notification: true,
         require_acknowledgment: false,
@@ -337,7 +337,7 @@ export default function AnnouncementsPage() {
                     onChange={(e) => setFormData(prev => ({ ...prev, audience: e.target.value as Audience }))}
                     className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   >
-                    <option value="all_lifeguards">All Lifeguards</option>
+                    <option value="all_employees">All Employees</option>
                     <option value="specific_pool">Specific Pool</option>
                     <option value="managers_only">Managers Only</option>
                   </select>
@@ -480,7 +480,7 @@ export default function AnnouncementsPage() {
                   <div className="flex items-center gap-4 text-sm text-slate-600">
                     <div className="flex items-center gap-1">
                       <Users className="w-4 h-4" />
-                      {announcement.audience === 'all_lifeguards' ? 'All Lifeguards' :
+                      {announcement.audience === 'all_employees' ? 'All Employees' :
                        announcement.audience === 'specific_pool' ? 'Specific Pool' : 'Managers Only'}
                     </div>
                     {announcement.send_notification && (

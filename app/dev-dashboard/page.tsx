@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { Activity, AlertTriangle, Bug, ClipboardList, Database, Server, Users, Waves } from 'lucide-react';
 import { getServerAppSession } from '@/lib/serverAppSession';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isUuid } from '@/lib/devCompanyScope';
 import { StatCard, StatusBadge } from '@/components/OperationsUI';
 import DevBranchingPanel from '@/components/dev/DevBranchingPanel';
 import DevShell from '@/components/dev/DevShell';
@@ -10,6 +11,7 @@ import DevToolPanel from '@/components/dev/DevToolPanel';
 import SpotifyPlayer from '@/components/dev/SpotifyPlayer';
 import {
   defaultFeatureFlags,
+  getAdminOrError,
   readDevApiRequests,
   readDevCompanies,
   readDevRawLogs,
@@ -155,8 +157,16 @@ export default async function DevDashboardPage({
 
   const params = await searchParams;
   const rawCompanyId = params?.companyId?.trim() ?? '';
-  const supabase = createAdminClient();
-  const selectedCompanyId = rawCompanyId ? (await resolveDevCompanyId(supabase, rawCompanyId)) ?? '' : '';
+  const { supabase } = getAdminOrError();
+
+  let selectedCompanyId = '';
+  if (rawCompanyId) {
+    if (supabase) {
+      selectedCompanyId = (await resolveDevCompanyId(supabase, rawCompanyId)) ?? '';
+    } else if (isUuid(rawCompanyId)) {
+      selectedCompanyId = rawCompanyId;
+    }
+  }
 
   if (rawCompanyId && selectedCompanyId && rawCompanyId !== selectedCompanyId) {
     redirect(`/dev-dashboard?companyId=${encodeURIComponent(selectedCompanyId)}`);

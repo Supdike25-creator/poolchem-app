@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
   const guard = members.find((member) => member.id === guardId && isGuardRole(member.role));
 
   if (!guard) {
-    return NextResponse.json({ ok: false, message: 'Guard not found in your company.' }, { status: 404 });
+    return NextResponse.json({ ok: false, message: 'Employee not found in your company.' }, { status: 404 });
   }
 
   await accountDb.from('guard_pool_assignments').delete().eq('company_id', companyId).eq('guard_id', guardId);

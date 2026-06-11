@@ -67,7 +67,7 @@ export function SidebarNav({
   expanded?: boolean;
   items?: SidebarNavItem[];
   showMobileSidebar?: boolean;
-  devPerspective?: 'dev' | 'manager' | 'lifeguard';
+  devPerspective?: 'dev' | 'manager' | 'employee';
 }) {
   return (
     <>

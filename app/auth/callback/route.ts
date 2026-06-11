@@ -86,8 +86,8 @@ export async function GET(request: NextRequest) {
   const accountRecord = userRow as Record<string, unknown> | null;
 
   if (!accountRecord) {
-    await syncAccountRole(user.id, email, 'boss', fullName);
-    response.cookies.set('chemdeck.pendingRole', 'boss', {
+    await syncAccountRole(user.id, email, 'manager', fullName);
+    response.cookies.set('chemdeck.pendingRole', 'manager', {
       path: '/',
       maxAge: 600,
       sameSite: 'lax',
@@ -99,15 +99,15 @@ export async function GET(request: NextRequest) {
   const role = normalizeProfileRole(rawRole || null);
 
   if (!rawRole) {
-    await syncAccountRole(user.id, email, 'boss', fullName);
+    await syncAccountRole(user.id, email, 'manager', fullName);
     return redirectWithCookies('/create-company');
   }
 
-  if (rawRole === 'boss' && !accountRecord.company_id && !accountRecord.organization_id) {
+  if (rawRole === 'manager' && !accountRecord.company_id && !accountRecord.organization_id) {
     return redirectWithCookies('/create-company');
   }
 
-  if (rawRole === 'guard' && !accountRecord.company_id && !accountRecord.organization_id) {
+  if (rawRole === 'employee' && !accountRecord.company_id && !accountRecord.organization_id) {
     return redirectWithCookies('/choose-role');
   }
 

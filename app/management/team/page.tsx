@@ -339,7 +339,7 @@ export default function ManagementTeamPage() {
               type="email"
               value={inviteEmail}
               onChange={(event) => setInviteEmail(event.target.value)}
-              placeholder="lifeguard@example.com"
+              placeholder="employee@example.com"
               className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm"
             />
           </label>
@@ -478,7 +478,7 @@ export default function ManagementTeamPage() {
                   </div>
                   <p className="mt-2 text-xs text-slate-500">
                     Current access: {formatTeamRoleLabel(member.role)}
-                    {currentRole === 'supervisor' ? ' · Can invite and manage team' : ''}
+                    {currentRole === 'manager' ? ' · Can invite and manage team' : ''}
                   </p>
                 </div>
               );
@@ -492,13 +492,13 @@ export default function ManagementTeamPage() {
           <Waves className="h-4 w-4 text-slate-500" />
           <h2 className="text-base font-semibold text-slate-950">Pool assignments</h2>
         </div>
-        <p className="mb-4 text-sm text-slate-600">Choose which pools each lifeguard can log. Leave all unchecked to allow every pool.</p>
+        <p className="mb-4 text-sm text-slate-600">Choose which pools each employee can log. Leave all unchecked to allow every pool.</p>
 
         {guardMembers.length === 0 ? (
           <EmptyState
             icon={<Waves className="h-6 w-6" />}
-            title="No lifeguards to assign yet"
-            description="Pool assignments appear after lifeguards join through an invite."
+            title="No employees to assign yet"
+            description="Pool assignments appear after employees join through an invite."
           />
         ) : (
           <div className="space-y-4">

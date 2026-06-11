@@ -41,20 +41,20 @@ export const appSessionRole = (session: AppSessionPayload | null): AppRole | nul
   return normalizeProfileRole(session.role);
 };
 
-const guardPaths = ['/guard', '/worker-view', '/log'];
+const employeePaths = ['/employee', '/worker-view', '/log'];
 const managerPaths = ['/management', '/manager-view', '/boss-view', '/dashboard'];
 
 export const appSessionCanAccessPath = (role: AppRole, pathname: string) => {
   if (pathname.startsWith('/api/')) return true;
 
-  if (role === 'guard') {
-    return guardPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  if (role === 'employee') {
+    return employeePaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
   }
 
-  if (role === 'manager') {
+  if (role === 'manager' || role === 'admin') {
     return (
       managerPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`))
-      || guardPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`))
+      || employeePaths.some((path) => pathname === path || pathname.startsWith(`${path}/`))
     );
   }
 

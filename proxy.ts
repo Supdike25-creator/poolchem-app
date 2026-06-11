@@ -25,26 +25,32 @@ const PUBLIC_PREFIXES = ["/invite/", "/api/invites/", "/api/cron/"];
 const ROLE_SETUP_PATHS = ["/choose-role", "/api/choose-role"];
 
 const managerDashboardPath = "/management/dashboard";
-const guardDashboardPath = "/guard";
+const employeeDashboardPath = "/employee";
 const DEV_ALLOWED_PATHS = [
   "/dev-dashboard",
   "/dev-admin",
   "/worker-view",
   "/manager-view",
   "/boss-view",
-  "/guard",
+  "/employee",
   "/management",
   "/dashboard",
   "/log",
   "/api/dev",
 ];
 
+const isManagerStoredRole = (role: string) =>
+  role === "manager" || role === "admin" || role === "boss" || role === "supervisor";
+
+const isEmployeeStoredRole = (role: string) =>
+  role === "employee" || role === "guard" || role === "worker";
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasDevSession = isDevRequest(request);
   const hasJustJoinedCompany = request.cookies.get("chemdeck.justJoinedCompany")?.value === "true";
   const pendingRole = request.cookies.get("chemdeck.pendingRole")?.value;
-  const hasPendingRole = pendingRole === "boss" || pendingRole === "guard";
+  const hasPendingRole = pendingRole === "manager" || pendingRole === "employee" || pendingRole === "boss" || pendingRole === "guard";
 
   if (hasDevSession) {
     if (pathname === "/login" || pathname === "/pending") {
@@ -72,11 +78,11 @@ export async function proxy(request: NextRequest) {
       return NextResponse.next({ request });
     }
 
-    if (appRole === "guard" && (pathname === "/management" || pathname.startsWith("/management/"))) {
-      return NextResponse.redirect(new URL(guardDashboardPath, request.url));
+    if (appRole === "employee" && (pathname === "/management" || pathname.startsWith("/management/"))) {
+      return NextResponse.redirect(new URL(employeeDashboardPath, request.url));
     }
 
-    if (appRole === "manager" && pathname.startsWith("/guard/")) {
+    if ((appRole === "manager" || appRole === "admin") && pathname.startsWith("/employee/")) {
       return NextResponse.redirect(new URL(managerDashboardPath, request.url));
     }
   }
@@ -184,7 +190,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/create-company", request.url));
   }
 
-  if (rawRole === "boss" && !hasCompany) {
+  if (isManagerStoredRole(rawRole) && !hasCompany) {
     if (
       pathname !== "/create-company" &&
       pathname !== "/onboarding/company"
@@ -194,7 +200,7 @@ export async function proxy(request: NextRequest) {
     return supabaseResponse;
   }
 
-  if (rawRole === "guard" && !hasCompany) {
+  if (isEmployeeStoredRole(rawRole) && !hasCompany) {
     if (pathname.startsWith("/invite/") || pathname === "/api/accept-invite") {
       return supabaseResponse;
     }
@@ -211,22 +217,22 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(routeForAccess(access), request.url));
   }
 
-  if (role === "guard" && pathname.startsWith("/admin/")) {
-    return NextResponse.redirect(new URL(guardDashboardPath, request.url));
+  if (role === "employee" && pathname.startsWith("/admin/")) {
+    return NextResponse.redirect(new URL(employeeDashboardPath, request.url));
   }
 
   if (
-    role === "manager" &&
-    pathname.startsWith("/guard/")
+    (role === "manager" || role === "admin") &&
+    pathname.startsWith("/employee/")
   ) {
     return NextResponse.redirect(new URL(managerDashboardPath, request.url));
   }
 
   if (
-    role === "guard" &&
+    role === "employee" &&
     (pathname === "/management" || pathname.startsWith("/management/"))
   ) {
-    return NextResponse.redirect(new URL(guardDashboardPath, request.url));
+    return NextResponse.redirect(new URL(employeeDashboardPath, request.url));
   }
 
   return supabaseResponse;

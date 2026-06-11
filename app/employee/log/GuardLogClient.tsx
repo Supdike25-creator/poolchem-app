@@ -70,7 +70,7 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
   const companyId = searchParams.get('companyId');
   const poolIdParam = searchParams.get('poolId');
   const logIdParam = searchParams.get('logId');
-  const guardHomeHref = companyId ? `/worker-view?companyId=${encodeURIComponent(companyId)}` : '/guard';
+  const guardHomeHref = companyId ? `/worker-view?companyId=${encodeURIComponent(companyId)}` : '/employee';
 
   const [pools, setPools] = useState<Pool[]>(initialPools);
   const [selectedPoolId, setSelectedPoolId] = useState<string>(() => poolIdParam || initialPools[0]?.id || '');
@@ -311,7 +311,7 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
         return;
       }
 
-      router.push(`/guard/review?poolId=${selectedPoolId}&chlorine=${chlorine}&ph=${ph}${companyId ? `&companyId=${encodeURIComponent(companyId)}` : ''}`);
+      router.push(`/employee/review?poolId=${selectedPoolId}&chlorine=${chlorine}&ph=${ph}${companyId ? `&companyId=${encodeURIComponent(companyId)}` : ''}`);
       return;
     }
 
@@ -345,7 +345,7 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
         return;
       }
 
-      router.push(`/guard/review?poolId=${selectedPoolId}&chlorine=${chlorine}&ph=${ph}${companyId ? `&companyId=${encodeURIComponent(companyId)}` : ''}`);
+      router.push(`/employee/review?poolId=${selectedPoolId}&chlorine=${chlorine}&ph=${ph}${companyId ? `&companyId=${encodeURIComponent(companyId)}` : ''}`);
     } catch (submitError) {
       setSaving(false);
       if (isLikelyNetworkError(submitError)) {
@@ -379,7 +379,7 @@ export default function GuardLogClient({ initialPools = [] }: { initialPools?: P
             data-sound="back"
             className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
-            Back to Guard Home
+            Back to Employee Home
           </button>
         </div>
 

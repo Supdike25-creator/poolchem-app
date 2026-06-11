@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
-type AccountRole = 'boss' | 'guard';
+type AccountRole = 'manager' | 'employee';
 
 const optionalColumnMissing = (message?: string) => {
   const normalized = message?.toLowerCase() ?? '';

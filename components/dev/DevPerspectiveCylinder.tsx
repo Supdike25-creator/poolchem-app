@@ -2,7 +2,7 @@
 
 import { devPerspectiveMeta, type DevPerspective } from '@/lib/devPerspective';
 
-const faces: DevPerspective[] = ['dev', 'manager', 'lifeguard'];
+const faces: DevPerspective[] = ['dev', 'manager', 'employee'];
 
 type DevPerspectiveCylinderProps = {
   value: DevPerspective;

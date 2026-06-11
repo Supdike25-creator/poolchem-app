@@ -1,4 +1,4 @@
-export type AppRole = "manager" | "guard" | "dev";
+export type AppRole = "manager" | "employee" | "admin" | "dev";
 
 export type AccountAccessReason =
   | "allowed"
@@ -16,8 +16,8 @@ export type AccountAccessResult = {
 export const inactiveAccountMessage =
   "This account cannot access ChemDeck. Please contact your manager or administrator.";
 
-const managerRoles = new Set(["admin", "manager", "supervisor", "owner", "boss"]);
-const guardRoles = new Set(["guard", "worker", "lifeguard", "technician"]);
+const managerRoles = new Set(["admin", "manager", "owner", "boss", "supervisor"]);
+const employeeRoles = new Set(["employee", "guard", "worker", "lifeguard", "technician"]);
 const pendingStatuses = new Set(["pending", "unapproved"]);
 const inactiveStatuses = new Set([
   "inactive",
@@ -34,14 +34,16 @@ const hasOwn = (value: Record<string, unknown>, key: string) =>
 export function normalizeProfileRole(role?: string | null): AppRole {
   const normalized = role?.toLowerCase().trim();
   if (normalized === "dev") return "dev";
+  if (normalized === "admin") return "admin";
   if (normalized && managerRoles.has(normalized)) return "manager";
-  if (normalized && guardRoles.has(normalized)) return "guard";
-  return "guard";
+  if (normalized && employeeRoles.has(normalized)) return "employee";
+  return "employee";
 }
 
 export function routeForRole(role: AppRole) {
   if (role === "dev") return "/dev-dashboard";
-  return role === "manager" ? "/management/dashboard" : "/guard";
+  if (role === "manager" || role === "admin") return "/management/dashboard";
+  return "/employee";
 }
 
 export function routeForAccess(result: AccountAccessResult) {
@@ -54,7 +56,7 @@ export function getAccountAccess(profile: Record<string, unknown> | null | undef
     return {
       allowed: false,
       reason: "missing_profile",
-      role: "guard",
+      role: "employee",
     };
   }
 
@@ -102,7 +104,8 @@ export function getAccountAccess(profile: Record<string, unknown> | null | undef
 
   if (knownWorkspaceFields.length > 0) {
     const hasWorkspace = knownWorkspaceFields.some((field) => Boolean(profile[field]));
-    if (!hasWorkspace && rawRole !== "boss") {
+    const isManagerRole = rawRole === "manager" || rawRole === "admin" || managerRoles.has(rawRole);
+    if (!hasWorkspace && !isManagerRole) {
       return { allowed: false, reason: "missing_workspace", role };
     }
   }

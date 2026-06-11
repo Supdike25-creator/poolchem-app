@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { assertDevRequest, logDevMessage, logDevRequest } from '@/lib/devTools';
-import { normalizeInviteEmail } from '@/lib/companyInvites';
+import { isInviteEmailValid, normalizeInviteEmail } from '@/lib/companyInvites';
 import { getAppBaseUrl } from '@/lib/inviteLinks';
 import { isResendTestModeError, sendInviteEmail } from '@/lib/inviteEmail';
 
 export const dynamic = 'force-dynamic';
-
-const defaultTestEmail = 'supdike25@hotmail.com';
 
 export async function GET(request: NextRequest) {
   const forbidden = assertDevRequest(request);
@@ -24,7 +22,7 @@ export async function GET(request: NextRequest) {
       invite_email_from: from,
       app_url: appUrl,
       test_mode_note:
-        'Without a verified domain, Resend only delivers to your Resend account email (supdike25@hotmail.com). Check spam/junk too.',
+        'Without a verified domain, Resend only delivers to your Resend account email. Check spam/junk too.',
     },
   });
 }
@@ -34,7 +32,13 @@ export async function POST(request: NextRequest) {
   if (forbidden) return forbidden;
 
   const body = await request.json().catch(() => null) as { email?: string } | null;
-  const to = normalizeInviteEmail(body?.email?.trim() || defaultTestEmail);
+  const to = normalizeInviteEmail(body?.email?.trim() ?? '');
+  if (!isInviteEmailValid(to)) {
+    return NextResponse.json(
+      { ok: false, message: 'Enter a valid test recipient email.' },
+      { status: 400 },
+    );
+  }
   const origin = getAppBaseUrl(request.nextUrl.origin);
   const from = process.env.INVITE_EMAIL_FROM?.trim() || 'ChemDeck <onboarding@resend.dev>';
   const apiKey = process.env.RESEND_API_KEY?.trim();

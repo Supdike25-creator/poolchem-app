@@ -1,36 +1,36 @@
-export type WorkplaceRole = 'guard' | 'manager' | 'supervisor' | 'dev';
-export type LoginRole = 'guard' | 'boss' | 'dev';
+export type WorkplaceRole = 'employee' | 'manager' | 'admin' | 'dev';
+export type LoginRole = 'employee' | 'manager' | 'dev';
 
-const managerWorkplaceRoles = new Set(['boss', 'manager', 'admin', 'owner']);
-const guardWorkplaceRoles = new Set(['guard', 'worker', 'lifeguard', 'technician']);
+const managerWorkplaceRoles = new Set(['boss', 'manager', 'admin', 'owner', 'supervisor']);
+const employeeWorkplaceRoles = new Set(['employee', 'guard', 'worker', 'lifeguard', 'technician']);
 
 export const resolveDevUserRoles = (raw?: string | null): { workplaceRole: WorkplaceRole; loginRole: LoginRole } => {
-  const role = raw?.toLowerCase().trim() ?? 'guard';
+  const role = raw?.toLowerCase().trim() ?? 'employee';
 
   if (role === 'dev') {
     return { workplaceRole: 'dev', loginRole: 'dev' };
   }
 
-  if (role === 'supervisor') {
-    return { workplaceRole: 'supervisor', loginRole: 'boss' };
+  if (role === 'admin') {
+    return { workplaceRole: 'admin', loginRole: 'manager' };
   }
 
   if (managerWorkplaceRoles.has(role)) {
-    return { workplaceRole: 'manager', loginRole: 'boss' };
+    return { workplaceRole: 'manager', loginRole: 'manager' };
   }
 
-  if (guardWorkplaceRoles.has(role)) {
-    return { workplaceRole: 'guard', loginRole: 'guard' };
+  if (employeeWorkplaceRoles.has(role)) {
+    return { workplaceRole: 'employee', loginRole: 'employee' };
   }
 
-  return { workplaceRole: 'guard', loginRole: 'guard' };
+  return { workplaceRole: 'employee', loginRole: 'employee' };
 };
 
 export const formatWorkplaceRoleLabel = (role?: string | null) => {
   const normalized = role?.toLowerCase().trim() ?? '';
-  if (normalized === 'supervisor') return 'Supervisor';
+  if (normalized === 'admin') return 'Admin';
   if (managerWorkplaceRoles.has(normalized)) return 'Manager';
   if (normalized === 'dev') return 'Dev';
-  if (guardWorkplaceRoles.has(normalized) || normalized === 'guard') return 'Lifeguard';
+  if (employeeWorkplaceRoles.has(normalized) || normalized === 'employee') return 'Employee';
   return role || 'User';
 };

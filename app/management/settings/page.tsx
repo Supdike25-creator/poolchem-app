@@ -222,11 +222,11 @@ export default function ManagementSettingsPage() {
   };
 
   const rawRole = profile?.role?.toLowerCase().trim() || '';
-  const isManager = ['boss', 'manager', 'admin', 'supervisor', 'owner'].includes(rawRole);
+  const isManager = ['admin', 'manager', 'owner', 'boss', 'supervisor'].includes(rawRole);
   const roleDisplayName = (() => {
-    if (rawRole === 'supervisor') return 'Supervisor';
+    if (rawRole === 'manager') return 'Supervisor';
     if (isManager) return 'Manager';
-    if (['guard', 'worker', 'lifeguard'].includes(rawRole)) return 'Lifeguard';
+    if (['employee', 'guard', 'worker', 'lifeguard', 'technician'].includes(rawRole)) return 'Employee';
     if (rawRole === 'dev') return 'Dev';
     return rawRole || 'User';
   })();
@@ -644,7 +644,7 @@ export default function ManagementSettingsPage() {
                   <CheckCircle className="mt-0.5 h-4 w-4 text-green-600" />
                   <div>
                     <p className="text-sm font-medium text-slate-900">How to submit a chemical log</p>
-                    <p className="mt-1 text-sm leading-5 text-slate-600">Navigate to the Guard section, select a pool, and fill out the chemical readings form.</p>
+                    <p className="mt-1 text-sm leading-5 text-slate-600">Navigate to the Employee section, select a pool, and fill out the chemical readings form.</p>
                   </div>
                 </div>
 

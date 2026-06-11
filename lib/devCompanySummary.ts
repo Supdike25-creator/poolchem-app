@@ -15,8 +15,8 @@ export type DevCompanySummary = {
   alert_count: number;
 };
 
-const managerRoles = new Set(['boss', 'manager', 'admin', 'supervisor', 'owner']);
-const guardRoles = new Set(['guard', 'worker', 'lifeguard', 'technician']);
+const managerRoles = new Set(['admin', 'manager', 'owner', 'boss', 'supervisor']);
+const guardRoles = new Set(['employee', 'guard', 'worker', 'lifeguard', 'technician']);
 
 export const loadDevCompanySummary = async (rawCompanyId: string): Promise<DevCompanySummary | null> => {
   const supabase = createAdminClient();

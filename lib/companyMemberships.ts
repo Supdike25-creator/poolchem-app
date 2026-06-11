@@ -28,7 +28,7 @@ export async function listUserCompanyMemberships(
         .eq('id', activeCompanyId)
         .maybeSingle();
       return company
-        ? [{ company_id: activeCompanyId, company_name: company.company_name, role: 'guard', is_active: true }]
+        ? [{ company_id: activeCompanyId, company_name: company.company_name, role: 'employee', is_active: true }]
         : [];
     }
     throw new Error(error.message);
@@ -37,7 +37,7 @@ export async function listUserCompanyMemberships(
   return (data ?? []).map((row) => ({
     company_id: row.company_id,
     company_name: (row.companies as { company_name?: string } | null)?.company_name || 'Company',
-    role: String(row.role ?? 'guard'),
+    role: String(row.role ?? 'employee'),
     is_active: row.company_id === activeCompanyId,
   }));
 }
@@ -46,7 +46,7 @@ export async function upsertCompanyMembership(
   db: SupabaseClient,
   params: { userId: string; companyId: string; role?: string },
 ) {
-  const role = params.role ?? 'guard';
+  const role = params.role ?? 'employee';
   const { error } = await db.from('user_company_memberships').upsert(
     {
       user_id: params.userId,
@@ -77,7 +77,7 @@ export async function setActiveCompany(
     return { ok: false as const, message: 'You are not a member of that company.' };
   }
 
-  const role = String(membership.role ?? 'guard');
+  const role = String(membership.role ?? 'employee');
   const payload = {
     company_id: companyId,
     role,

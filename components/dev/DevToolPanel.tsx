@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Bell, Database, FlaskConical, ListTree, Mail, Radio, RotateCcw, ShieldCheck, ToggleLeft, Trash2 } from 'lucide-react';
+import { readClientDevTestEmail } from '@/lib/devTestEmail';
 import type { DevApiRequest, DevFeatureFlag, DevRawLog, DevTableSummary } from '@/lib/devTools';
 
 type ApiResult = {
@@ -28,7 +29,7 @@ export default function DevToolPanel({
   const [apiRequests, setApiRequests] = useState(initialRequests);
   const [result, setResult] = useState<ApiResult>({ message: 'Tools ready.' });
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
-  const [resendTestEmail, setResendTestEmail] = useState('supdike25@hotmail.com');
+  const [resendTestEmail, setResendTestEmail] = useState(() => readClientDevTestEmail());
   const [resendConfig, setResendConfig] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
@@ -233,8 +234,11 @@ export default function DevToolPanel({
           <h2 className="text-lg font-semibold text-slate-950">Resend email test</h2>
         </div>
         <p className="mt-2 text-sm text-slate-600">
-          Send a test invite email through Resend. In test mode, only <strong>supdike25@hotmail.com</strong> can receive mail until you verify a domain.
+          Send a test invite email through Resend. Without a verified domain, Resend only delivers to your Resend account email.
         </p>
+        {typeof resendConfig?.test_mode_note === 'string' ? (
+          <p className="mt-2 text-xs text-amber-800">{resendConfig.test_mode_note}</p>
+        ) : null}
         {resendConfig ? (
           <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
             <p><strong>From:</strong> {String(resendConfig.invite_email_from ?? '—')}</p>
@@ -249,6 +253,7 @@ export default function DevToolPanel({
               type="email"
               value={resendTestEmail}
               onChange={(event) => setResendTestEmail(event.target.value)}
+              placeholder="your@email.com"
               className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm"
             />
           </label>

@@ -33,20 +33,20 @@ export default function ChooseRolePage() {
 
       if (userRow?.company_id) {
         router.replace(
-          role === "boss" || role === "manager" || role === "supervisor"
+          role === "manager" || role === "manager" || role === "manager"
             ? "/management/dashboard"
-            : "/guard",
+            : "/employee",
         );
         return;
       }
 
-      if (role === "boss" || !userRow) {
-        if (!userRow || role !== "boss") {
+      if (role === "manager" || !userRow) {
+        if (!userRow || role !== "manager") {
           await fetch("/api/choose-role", {
             method: "POST",
             credentials: "same-origin",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ role: "boss" }),
+            body: JSON.stringify({ role: "manager" }),
           });
         }
         router.replace("/create-company");
@@ -73,7 +73,7 @@ export default function ChooseRolePage() {
           <p className="mt-3 text-sm leading-6 text-[#D9E1E8]/80">
             {checking
               ? "One moment while we route you to the right place."
-              : "Lifeguard accounts are created through an email invite from a supervisor."}
+              : "Employee accounts are created through an email invite from a supervisor."}
           </p>
         </div>
 

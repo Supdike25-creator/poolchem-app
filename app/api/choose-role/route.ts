@@ -4,7 +4,7 @@ import { syncAccountRole } from '@/lib/syncAccountRole';
 
 export const dynamic = 'force-dynamic';
 
-const validRoles = new Set(['boss', 'guard']);
+const validRoles = new Set(['manager', 'employee']);
 
 const jsonError = (message: string, status = 400) =>
   NextResponse.json({ ok: false, message }, { status });
@@ -24,10 +24,10 @@ export async function POST(request: NextRequest) {
   const role = body?.role?.trim().toLowerCase();
 
   if (!role || !validRoles.has(role)) {
-    return jsonError('Choose Manager or Lifeguard.');
+    return jsonError('Choose Manager or Employee.');
   }
 
-  const selectedRole = role as 'boss' | 'guard';
+  const selectedRole = role as 'manager' | 'employee';
   const email = user.email?.trim().toLowerCase() || `${user.id}@chemdeck.local`;
   const fullName =
     typeof user.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : null;
@@ -40,10 +40,10 @@ export async function POST(request: NextRequest) {
   const response = NextResponse.json({
     ok: true,
     role: selectedRole,
-    redirectTo: selectedRole === 'boss' ? '/create-company' : '/choose-role',
+    redirectTo: selectedRole === 'manager' ? '/create-company' : '/choose-role',
   });
 
-  if (selectedRole === 'boss') {
+  if (selectedRole === 'manager') {
     response.cookies.set('chemdeck.pendingRole', selectedRole, {
       path: '/',
       maxAge: 600,

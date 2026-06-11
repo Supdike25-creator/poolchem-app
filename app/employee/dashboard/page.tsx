@@ -7,7 +7,7 @@ export default function GuardDashboard() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/guard");
+    router.replace("/employee");
   }, [router]);
 
   return (

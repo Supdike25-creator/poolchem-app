@@ -51,7 +51,7 @@ export default function CompanySwitcher() {
       return;
     }
 
-    window.location.assign(result.redirectTo || '/guard');
+    window.location.assign(result.redirectTo || '/employee');
   };
 
   return (

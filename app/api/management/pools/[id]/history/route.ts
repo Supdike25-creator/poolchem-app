@@ -3,7 +3,7 @@ import { resolveApiCompanyScope } from '@/lib/apiCompanyScope';
 
 export const dynamic = 'force-dynamic';
 
-const managerRoles = new Set(['boss', 'manager', 'admin', 'supervisor', 'owner']);
+const managerRoles = new Set(['admin', 'manager', 'owner', 'boss', 'supervisor']);
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

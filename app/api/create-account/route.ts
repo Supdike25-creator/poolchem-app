@@ -26,7 +26,7 @@ const isMissingOptionalTable = (message?: string) => {
 const accountPayload = (
   id: string,
   email: string,
-  role: 'boss' | 'guard',
+  role: 'manager' | 'employee',
   fullName?: string | null,
 ) => ({
   id,
@@ -43,7 +43,7 @@ async function createAccountWithAdminClient(
   fullName: string | null,
   signupAs: SignupAs,
 ) {
-  const role = signupAs === 'manager' ? 'boss' : 'guard';
+  const role = signupAs === 'manager' ? 'manager' : 'employee';
   const supabase = createAdminClient();
 
   const { data: existingProfile, error: profileLookupError } = await supabase
@@ -117,7 +117,7 @@ async function createAccountWithPublicAuth(
   fullName: string | null,
   signupAs: SignupAs,
 ) {
-  const role = signupAs === 'manager' ? 'boss' : 'guard';
+  const role = signupAs === 'manager' ? 'manager' : 'employee';
   const supabase = await createClient();
 
   const { data, error: createError } = await supabase.auth.signUp({
