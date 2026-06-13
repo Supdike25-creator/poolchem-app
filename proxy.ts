@@ -10,6 +10,7 @@ const PUBLIC_PATHS = [
   "/features",
   "/pricing",
   "/about",
+  "/contact",
   "/login",
   "/create-account",
   "/signup",
@@ -20,6 +21,7 @@ const PUBLIC_PATHS = [
   "/offline",
   "/manifest.json",
   "/sw.js",
+  "/api/contact",
   "/api/create-account",
   "/auth/callback",
   "/api/spotify/callback",
@@ -51,7 +53,7 @@ const isEmployeeStoredRole = (role: string) =>
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (pathname === "/features" || pathname === "/pricing" || pathname === "/about") {
+  if (pathname === "/features" || pathname === "/pricing" || pathname === "/about" || pathname === "/contact") {
     return NextResponse.next({ request });
   }
 

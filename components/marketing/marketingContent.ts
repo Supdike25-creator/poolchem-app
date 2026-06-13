@@ -8,7 +8,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-export const marketingPublicPaths = ['/', '/features', '/pricing', '/about'] as const;
+export const marketingPublicPaths = ['/', '/features', '/pricing', '/about', '/contact'] as const;
 
 export const isMarketingPath = (pathname: string) =>
   marketingPublicPaths.includes(pathname as (typeof marketingPublicPaths)[number]);
@@ -20,7 +20,7 @@ export const marketingNavLinks = [
   { label: 'Features', href: '/features' },
   { label: 'Pricing', href: '/pricing' },
   { label: 'About', href: '/about' },
-  { label: 'Contact', href: 'mailto:ChemdeckCo@gmail.com' },
+  { label: 'Contact', href: '/contact' },
 ] as const;
 
 export const marketingFooterColumns = [
@@ -36,7 +36,7 @@ export const marketingFooterColumns = [
     title: 'Company',
     links: [
       { label: 'About', href: '/about' },
-      { label: 'Contact', href: 'mailto:ChemdeckCo@gmail.com' },
+      { label: 'Contact', href: '/contact' },
     ],
   },
   {
