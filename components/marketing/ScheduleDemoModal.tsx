@@ -19,25 +19,36 @@ type ScheduleDemoModalProps = {
   onClose: () => void;
 };
 
-const timeSlots = [
-  '9:00 AM',
-  '9:30 AM',
-  '10:00 AM',
-  '10:30 AM',
-  '11:00 AM',
-  '11:30 AM',
-  '12:00 PM',
-  '12:30 PM',
-  '1:00 PM',
-  '1:30 PM',
-  '2:00 PM',
-  '2:30 PM',
-  '3:00 PM',
-  '3:30 PM',
-  '4:00 PM',
-  '4:30 PM',
-  '5:00 PM',
+const timeSlotOptions = [
+  '09:00',
+  '09:30',
+  '10:00',
+  '10:30',
+  '11:00',
+  '11:30',
+  '12:00',
+  '12:30',
+  '13:00',
+  '13:30',
+  '14:00',
+  '14:30',
+  '15:00',
+  '15:30',
+  '16:00',
+  '16:30',
+  '17:00',
 ];
+
+const formatTimeLabel = (value: string) => {
+  if (!value) return '0:00';
+  const [hourPart, minutePart] = value.split(':');
+  const hour = Number(hourPart);
+  const minute = Number(minutePart);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return value;
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${`${minute}`.padStart(2, '0')} ${period}`;
+};
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -68,7 +79,6 @@ export default function ScheduleDemoModal({ open, onClose }: ScheduleDemoModalPr
   const [viewMonth, setViewMonth] = useState(() => startOfDay(new Date()));
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState('');
-  const [schedulingNotes, setSchedulingNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -76,7 +86,7 @@ export default function ScheduleDemoModal({ open, onClose }: ScheduleDemoModalPr
   const calendarDays = useMemo(() => buildCalendarDays(viewMonth), [viewMonth]);
   const emailValid = emailPattern.test(email.trim());
   const topicsReady = topics.length > 0;
-  const scheduleReady = Boolean((selectedDate && selectedTime) || schedulingNotes.trim().length >= 4);
+  const scheduleReady = Boolean(selectedDate && selectedTime);
 
   const toggleTopic = (topicId: DemoTopicId) => {
     setTopics((current) =>
@@ -91,7 +101,6 @@ export default function ScheduleDemoModal({ open, onClose }: ScheduleDemoModalPr
     setViewMonth(startOfDay(new Date()));
     setSelectedDate(null);
     setSelectedTime('');
-    setSchedulingNotes('');
     setSubmitting(false);
     setError('');
   };
@@ -136,9 +145,8 @@ export default function ScheduleDemoModal({ open, onClose }: ScheduleDemoModalPr
           scheduledTime: selectedTime || null,
           scheduledLabel:
             selectedDate && selectedTime
-              ? `${formatSelectedDate(selectedDate)} at ${selectedTime}`
+              ? `${formatSelectedDate(selectedDate)} at ${formatTimeLabel(selectedTime)}`
               : null,
-          schedulingNotes: schedulingNotes.trim() || null,
         }),
       });
 
@@ -267,14 +275,14 @@ export default function ScheduleDemoModal({ open, onClose }: ScheduleDemoModalPr
           {step === 'schedule' ? (
             <div className="space-y-4">
               <p className="text-sm leading-6 text-slate-600">
-                Choose an available slot from the calendar, or provide scheduling notes if you need a different time.
+                Select a date on the calendar, then choose a time from the dropdown.
               </p>
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="rounded-xl border border-slate-200 p-4">
                   <div className="mb-3 flex items-center justify-between">
                     <p className="flex items-center gap-2 text-sm font-semibold text-slate-950">
                       <CalendarDays className="h-4 w-4 text-blue-600" />
-                      Calendar availability
+                      Calendar
                     </p>
                     <div className="flex gap-1">
                       <button
@@ -322,7 +330,10 @@ export default function ScheduleDemoModal({ open, onClose }: ScheduleDemoModalPr
                           key={day.toISOString()}
                           type="button"
                           disabled={disabled}
-                          onClick={() => setSelectedDate(day)}
+                          onClick={() => {
+                            setSelectedDate(day);
+                            setSelectedTime('');
+                          }}
                           className={`h-9 rounded-lg text-sm font-medium transition ${
                             selected
                               ? 'bg-blue-600 text-white'
@@ -336,45 +347,49 @@ export default function ScheduleDemoModal({ open, onClose }: ScheduleDemoModalPr
                       );
                     })}
                   </div>
-                  {selectedDate ? (
-                    <div className="mt-4">
-                      <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                        <Clock className="h-4 w-4" />
-                        Time for {formatSelectedDate(selectedDate)}
-                      </p>
-                      <div className="grid max-h-36 grid-cols-2 gap-2 overflow-y-auto">
-                        {timeSlots.map((slot) => (
-                          <button
-                            key={slot}
-                            type="button"
-                            onClick={() => setSelectedTime(slot)}
-                            className={`rounded-lg border px-2 py-2 text-xs font-semibold transition ${
-                              selectedTime === slot
-                                ? 'border-blue-300 bg-blue-50 text-blue-800'
-                                : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-                            }`}
-                          >
-                            {slot}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
                 </div>
 
                 <div className="rounded-xl border border-slate-200 p-4">
-                  <p className="text-sm font-semibold text-slate-950">Scheduling notes</p>
-                  <p className="mb-3 mt-1 text-xs leading-5 text-slate-500">
-                    Share your preferred availability if the calendar times do not work — for example, “Thursday at 2:00 PM ET”
-                    or “Any weekday morning next week.”
+                  <p className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-950">
+                    <Clock className="h-4 w-4 text-blue-600" />
+                    Date & time
                   </p>
-                  <textarea
-                    value={schedulingNotes}
-                    onChange={(event) => setSchedulingNotes(event.target.value)}
-                    rows={8}
-                    placeholder="Preferred dates, times, or timezone…"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-                  />
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Date</p>
+                      <p className="mt-1 text-sm font-medium text-slate-900">
+                        {selectedDate ? formatSelectedDate(selectedDate) : 'Select a date on the calendar'}
+                      </p>
+                    </div>
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                        Time
+                      </span>
+                      <div className="relative">
+                        <select
+                          value={selectedTime}
+                          onChange={(event) => setSelectedTime(event.target.value)}
+                          disabled={!selectedDate}
+                          className="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pr-10 text-sm font-semibold text-slate-900 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                        >
+                          <option value="">0:00</option>
+                          {timeSlotOptions.map((slot) => (
+                            <option key={slot} value={slot}>
+                              {formatTimeLabel(slot)}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
+                          ▾
+                        </span>
+                      </div>
+                    </label>
+                    {selectedDate && selectedTime ? (
+                      <p className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                        {formatSelectedDate(selectedDate)} at {formatTimeLabel(selectedTime)}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </div>

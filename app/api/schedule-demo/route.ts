@@ -22,13 +22,11 @@ export async function POST(request: NextRequest) {
     scheduledDate?: string | null;
     scheduledTime?: string | null;
     scheduledLabel?: string | null;
-    schedulingNotes?: string | null;
   } | null;
 
   const email = body?.email?.trim().toLowerCase() ?? '';
   const topics = (body?.topics ?? []).filter((topic): topic is DemoTopicId => validTopicIds.has(topic as DemoTopicId));
   const scheduledLabel = body?.scheduledLabel?.trim() || null;
-  const schedulingNotes = body?.schedulingNotes?.trim() || null;
   const hasCalendarPick = Boolean(body?.scheduledDate && body?.scheduledTime);
 
   if (!emailPattern.test(email)) {
@@ -39,17 +37,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, message: 'Select at least one demo topic.' }, { status: 400 });
   }
 
-  if (!hasCalendarPick && !schedulingNotes) {
+  if (!hasCalendarPick) {
     return NextResponse.json(
-      { ok: false, message: 'Select a date and time or add scheduling notes.' },
+      { ok: false, message: 'Select a date and time.' },
       { status: 400 },
     );
   }
 
   const topicsLabel = formatDemoTopics(topics);
-  const whenLabel =
-    [scheduledLabel, schedulingNotes].filter(Boolean).join(schedulingNotes && scheduledLabel ? ' · Notes: ' : '') ||
-    'Not specified';
+  const whenLabel = scheduledLabel || 'Not specified';
 
   await saveDemoRequest({
     email,
@@ -57,7 +53,7 @@ export async function POST(request: NextRequest) {
     scheduledDate: body?.scheduledDate ?? null,
     scheduledTime: body?.scheduledTime ?? null,
     scheduledLabel,
-    schedulingNotes,
+    schedulingNotes: null,
   });
 
   const html = buildChemDeckEmailHtml({
