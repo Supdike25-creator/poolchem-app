@@ -10,6 +10,7 @@ const PUBLIC_PATHS = [
   "/features",
   "/pricing",
   "/about",
+  "/contact",
   "/login",
   "/create-account",
   "/signup",
@@ -20,6 +21,7 @@ const PUBLIC_PATHS = [
   "/offline",
   "/manifest.json",
   "/sw.js",
+  "/api/contact",
   "/api/create-account",
   "/api/schedule-demo",
   "/auth/callback",
@@ -58,7 +60,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (pathname === "/features" || pathname === "/pricing" || pathname === "/about") {
+  if (pathname === "/features" || pathname === "/pricing" || pathname === "/about" || pathname === "/contact") {
     return NextResponse.next({ request });
   }
 

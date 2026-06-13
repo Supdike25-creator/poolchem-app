@@ -77,6 +77,7 @@ export async function sendResendEmail(params: {
   subject: string;
   html: string;
   text: string;
+  replyTo?: string;
 }): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.INVITE_EMAIL_FROM?.trim() || 'ChemDeck <onboarding@resend.dev>';
@@ -107,6 +108,7 @@ export async function sendResendEmail(params: {
       subject: params.subject,
       html: params.html,
       text: params.text,
+      ...(params.replyTo ? { reply_to: params.replyTo } : {}),
     }),
   });
 
