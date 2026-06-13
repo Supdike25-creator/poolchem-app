@@ -83,6 +83,7 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
   const skipCompanyLogs = Boolean(companyId && poolIds.length === 0);
 
   let guardLogs: ChemicalLogRow[] = [];
+  let logsError: { message: string } | null = null;
   if (!skipCompanyLogs) {
     const query = supabase
       .from('chemical_logs')
@@ -98,6 +99,7 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
     }
 
     const { data: logs, error } = await query;
+    logsError = error;
 
     if (error && !temporaryLoginBypass) {
       throw new Error(`Unable to load guard logs: ${error.message}`);
@@ -151,7 +153,7 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
           <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-600">{subtitle}</p>
         </div>
-        {temporaryLoginBypass && error ? (
+        {temporaryLoginBypass && logsError ? (
           <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
             Login bypass is active, so live Supabase log data may be hidden until the auth work is finished.
           </div>

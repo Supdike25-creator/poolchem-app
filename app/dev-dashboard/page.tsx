@@ -78,16 +78,22 @@ async function loadSnapshot(selectedCompanyId?: string): Promise<DevSnapshot> {
     const poolIds = (poolsForScope.data ?? []).map((pool) => pool.id);
     const skipScopedLogs = Boolean(selectedCompanyId && poolIds.length === 0);
 
-    const logsQuery = skipScopedLogs
-      ? null
-      : supabase
-          .from('chemical_logs')
-          .select('id, free_chlorine, ph, created_at, pools(name)')
-          .order('created_at', { ascending: false })
-          .limit(10);
-    if (logsQuery && selectedCompanyId) {
-      logsQuery.in('pool_id', poolIds);
-    }
+    const logsPromise = (async () => {
+      if (skipScopedLogs) {
+        return { data: [] as RecentLog[], error: null };
+      }
+
+      const query = supabase
+        .from('chemical_logs')
+        .select('id, free_chlorine, ph, created_at, pools(name)')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (selectedCompanyId) {
+        query.in('pool_id', poolIds);
+      }
+
+      return query;
+    })();
 
     const alertsQuery = supabase.from('dev_alerts').select('id', { count: 'exact', head: true });
     if (selectedCompanyId) alertsQuery.contains('metadata', { company_id: selectedCompanyId });
@@ -104,7 +110,7 @@ async function loadSnapshot(selectedCompanyId?: string): Promise<DevSnapshot> {
 
     const [usersResult, logsResult, alertsResult, errorLogsResult, flags, rawLogs, apiRequests, tables] = await Promise.all([
       usersQuery,
-      skipScopedLogs ? Promise.resolve({ data: [], error: null }) : logsQuery,
+      logsPromise,
       alertsQuery,
       errorLogsQuery,
       readFeatureFlags(),
