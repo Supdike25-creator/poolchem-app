@@ -5,6 +5,7 @@ import { getServerAppSession } from '@/lib/serverAppSession';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { StatCard, StatusBadge } from '@/components/OperationsUI';
 import DevBranchingPanel from '@/components/dev/DevBranchingPanel';
+import DemoRequestsPanel from '@/components/dev/DemoRequestsPanel';
 import DevShell from '@/components/dev/DevShell';
 import DevToolPanel from '@/components/dev/DevToolPanel';
 import SpotifyPlayer from '@/components/dev/SpotifyPlayer';
@@ -204,6 +205,10 @@ export default async function DevDashboardPage({
         </div>
 
         <DevBranchingPanel companies={companies} initialCompanyId={selectedCompanyId} />
+
+        <div className="mt-6">
+          <DemoRequestsPanel />
+        </div>
 
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Active users" value={snapshot.activeUsers} icon={<Users className="h-5 w-5" />} tone="info" />
