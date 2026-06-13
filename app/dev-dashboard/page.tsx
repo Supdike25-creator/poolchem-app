@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { Activity, AlertTriangle, Bug, ClipboardList, Database, Server, Users, Waves } from 'lucide-react';
 import { getServerAppSession } from '@/lib/serverAppSession';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isUuid } from '@/lib/devCompanyScope';
 import { StatCard, StatusBadge } from '@/components/OperationsUI';
 import DevBranchingPanel from '@/components/dev/DevBranchingPanel';
 import DemoRequestsPanel from '@/components/dev/DemoRequestsPanel';
@@ -11,6 +12,7 @@ import DevToolPanel from '@/components/dev/DevToolPanel';
 import SpotifyPlayer from '@/components/dev/SpotifyPlayer';
 import {
   defaultFeatureFlags,
+  getAdminOrError,
   readDevApiRequests,
   readDevCompanies,
   readDevRawLogs,
@@ -75,19 +77,24 @@ async function loadSnapshot(selectedCompanyId?: string): Promise<DevSnapshot> {
     if (selectedCompanyId) scopedPoolsQuery.eq('company_id', selectedCompanyId);
     const poolsForScope = await scopedPoolsQuery;
     const poolIds = (poolsForScope.data ?? []).map((pool) => pool.id);
+    const skipScopedLogs = Boolean(selectedCompanyId && poolIds.length === 0);
 
-    const logsQuery = supabase
-      .from('chemical_logs')
-      .select('id, free_chlorine, ph, created_at, pools(name)')
-      .order('created_at', { ascending: false })
-      .limit(10);
-    if (selectedCompanyId) {
-      if (poolIds.length === 0) {
-        logsQuery.eq('pool_id', '__no_pools_for_company__');
-      } else {
-        logsQuery.in('pool_id', poolIds);
+    const logsPromise = (async () => {
+      if (skipScopedLogs) {
+        return { data: [] as RecentLog[], error: null };
       }
-    }
+
+      const query = supabase
+        .from('chemical_logs')
+        .select('id, free_chlorine, ph, created_at, pools(name)')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (selectedCompanyId) {
+        query.in('pool_id', poolIds);
+      }
+
+      return query;
+    })();
 
     const alertsQuery = supabase.from('dev_alerts').select('id', { count: 'exact', head: true });
     if (selectedCompanyId) alertsQuery.contains('metadata', { company_id: selectedCompanyId });
@@ -104,7 +111,7 @@ async function loadSnapshot(selectedCompanyId?: string): Promise<DevSnapshot> {
 
     const [usersResult, logsResult, alertsResult, errorLogsResult, flags, rawLogs, apiRequests, tables] = await Promise.all([
       usersQuery,
-      logsQuery,
+      logsPromise,
       alertsQuery,
       errorLogsQuery,
       readFeatureFlags(),
@@ -156,8 +163,16 @@ export default async function DevDashboardPage({
 
   const params = await searchParams;
   const rawCompanyId = params?.companyId?.trim() ?? '';
-  const supabase = createAdminClient();
-  const selectedCompanyId = rawCompanyId ? (await resolveDevCompanyId(supabase, rawCompanyId)) ?? '' : '';
+  const { supabase } = getAdminOrError();
+
+  let selectedCompanyId = '';
+  if (rawCompanyId) {
+    if (supabase) {
+      selectedCompanyId = (await resolveDevCompanyId(supabase, rawCompanyId)) ?? '';
+    } else if (isUuid(rawCompanyId)) {
+      selectedCompanyId = rawCompanyId;
+    }
+  }
 
   if (rawCompanyId && selectedCompanyId && rawCompanyId !== selectedCompanyId) {
     redirect(`/dev-dashboard?companyId=${encodeURIComponent(selectedCompanyId)}`);

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import ChemDeckLoadingScreen from '@/components/ChemDeckLoadingScreen';
+import DevOnboardingWizard from '@/components/dev/DevOnboardingWizard';
+import { readClientDevTestEmail } from '@/lib/devTestEmail';
 import { prepareEmailPreviewForIframe } from '@/lib/emailPreviewHtml';
 import {
   CheckCircle2,
@@ -77,7 +79,7 @@ const tabs = [
   { id: 'emails', label: 'Emails' },
   { id: 'invites', label: 'Invites' },
   { id: 'routes', label: 'Routes' },
-  { id: 'runner', label: 'Runner' },
+  { id: 'wizard', label: 'Wizard' },
 ] as const;
 
 type TabId = (typeof tabs)[number]['id'];
@@ -106,8 +108,8 @@ export default function DevTestLabPanel({ selectedCompanyId }: { selectedCompany
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState<string | null>(null);
   const [selectedEmail, setSelectedEmail] = useState('invite_unlinked');
-  const [testRecipient, setTestRecipient] = useState('supdike25@hotmail.com');
-  const [linkedEmail, setLinkedEmail] = useState('supdike25@hotmail.com');
+  const [testRecipient, setTestRecipient] = useState(() => readClientDevTestEmail());
+  const [linkedEmail, setLinkedEmail] = useState(() => readClientDevTestEmail());
   const [runLog, setRunLog] = useState<RunEntry[]>([]);
 
   const query = useMemo(() => {
@@ -311,7 +313,7 @@ export default function DevTestLabPanel({ selectedCompanyId }: { selectedCompany
                   <input
                     value={linkedEmail}
                     onChange={(event) => setLinkedEmail(event.target.value)}
-                    placeholder="email that already has a ChemDeck account"
+                    placeholder="Email with an existing ChemDeck account"
                     className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3"
                   />
                   <p className="mt-1 text-xs text-slate-500">
@@ -442,15 +444,17 @@ export default function DevTestLabPanel({ selectedCompanyId }: { selectedCompany
                 <label className="block text-sm">
                   <span className="mb-1 block font-semibold text-slate-700">Test recipient</span>
                   <input
+                    type="email"
                     value={testRecipient}
                     onChange={(event) => setTestRecipient(event.target.value)}
+                    placeholder="your@email.com"
                     className="h-10 w-full rounded-lg border border-slate-200 px-3"
                   />
                 </label>
                 <div className="flex flex-col justify-end gap-2 sm:flex-row">
                   <button
                     type="button"
-                    disabled={!selectedCompanyId || running !== null}
+                    disabled={!selectedCompanyId || !testRecipient.trim() || running !== null}
                     onClick={() => void runAction('Create test invite', { action: 'create-test-invite', email: testRecipient })}
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 disabled:opacity-50"
                   >
@@ -459,7 +463,7 @@ export default function DevTestLabPanel({ selectedCompanyId }: { selectedCompany
                   </button>
                   <button
                     type="button"
-                    disabled={!selectedCompanyId || running !== null}
+                    disabled={!selectedCompanyId || !testRecipient.trim() || running !== null}
                     onClick={() => void runAction('Send test invite email', { action: 'send-test-invite', email: testRecipient })}
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
                   >
@@ -532,29 +536,22 @@ export default function DevTestLabPanel({ selectedCompanyId }: { selectedCompany
             </div>
           ) : null}
 
-          {activeTab === 'runner' ? (
-            <div className="space-y-3">
-              <p className="text-sm text-slate-600">Run bundled checks for the selected company.</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {[
-                  { label: 'Send test notification', action: 'send-test-notification', needsCompany: true },
-                  { label: 'Create test invite', action: 'create-test-invite', needsCompany: true, email: testRecipient },
-                  { label: 'Send test invite email', action: 'send-test-invite', needsCompany: true, email: testRecipient },
-                ].map((item) => (
-                  <button
-                    key={item.action}
-                    type="button"
-                    disabled={(item.needsCompany && !selectedCompanyId) || running !== null}
-                    onClick={() => void runAction(item.label, { action: item.action, email: item.email })}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-800 transition hover:bg-white disabled:opacity-50"
-                  >
-                    {running === item.label ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-slate-500">Results appear in the live log on the right →</p>
-            </div>
+          {activeTab === 'wizard' ? (
+            <DevOnboardingWizard
+              selectedCompanyId={selectedCompanyId}
+              companyName={snapshot?.company?.name}
+              testRecipient={testRecipient}
+              configReady={configOk}
+              query={query}
+              onRunComplete={(result) => {
+                pushLog({
+                  label: 'Onboarding wizard',
+                  ok: Boolean(result.ok),
+                  message: result.message || 'Wizard finished.',
+                  details: result,
+                });
+              }}
+            />
           ) : null}
         </div>
 

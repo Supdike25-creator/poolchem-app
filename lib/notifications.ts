@@ -13,7 +13,7 @@ const escapeHtml = (value: string) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-const managerRoles = new Set(['boss', 'manager', 'admin', 'supervisor', 'owner']);
+const managerRoles = new Set(['admin', 'manager', 'owner', 'boss', 'supervisor']);
 
 export type AlertNotificationRow = {
   id: string;
@@ -127,7 +127,7 @@ async function loadAnnouncementRecipients(
   audience?: string | null,
   poolId?: string | null,
 ) {
-  const normalizedAudience = String(audience ?? 'all_lifeguards').toLowerCase();
+  const normalizedAudience = String(audience ?? 'all_employees').toLowerCase();
 
   if (normalizedAudience === 'managers_only') {
     return loadManagerEmails(db, companyId);
@@ -165,7 +165,7 @@ async function loadCompanyName(db: SupabaseClient, companyId: string) {
 }
 
 const managementUrl = (origin: string) => `${getAppBaseUrl(origin)}/management/alerts`;
-const announcementsUrl = (origin: string) => `${getAppBaseUrl(origin)}/guard/announcements`;
+const announcementsUrl = (origin: string) => `${getAppBaseUrl(origin)}/employee/announcements`;
 
 export async function dispatchAlertNotifications(
   db: SupabaseClient,

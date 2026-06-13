@@ -91,7 +91,7 @@ export default function OfflineLogSync() {
       ) : null}
       {count > 0 ? (
         <p className="mt-2 text-xs text-amber-800/80">
-          <Link href="/guard/review" className="font-semibold underline">
+          <Link href="/employee/review" className="font-semibold underline">
             Review recent logs
           </Link>
         </p>

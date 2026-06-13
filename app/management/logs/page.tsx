@@ -117,8 +117,8 @@ export default async function ManagementLogsPage({ searchParams }: { searchParam
         redirect('/choose-role');
       }
 
-      if (!['boss', 'manager', 'supervisor', 'admin'].includes(profileData?.role ?? '')) {
-        redirect('/guard');
+      if (!['admin', 'manager', 'boss', 'supervisor'].includes(profileData?.role ?? '')) {
+        redirect('/employee');
       }
     }
   }

@@ -157,7 +157,7 @@ export default function ManagementAlertsPage() {
         <EmptyState
           icon={<Bell className="h-6 w-6" />}
           title="No alerts yet"
-          description="Alerts appear when guards submit out-of-range chemistry or miss required photos."
+          description="Alerts appear when employees submit out-of-range chemistry or miss required photos."
         />
       ) : (
         <div className="space-y-3">

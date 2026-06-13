@@ -162,8 +162,8 @@ export default function LogPageClient() {
       const response = await fetch('/api/current-account', { cache: 'no-store', credentials: 'same-origin' });
       const result = await response.json().catch(() => null);
       const role = String(result?.account?.role ?? '').toLowerCase();
-      if (['guard', 'worker', 'lifeguard', 'technician'].includes(role)) {
-        router.replace(companyId ? `/guard/log?companyId=${encodeURIComponent(companyId)}` : '/guard/log');
+      if (['employee', 'guard', 'worker', 'lifeguard', 'technician'].includes(role)) {
+        router.replace(companyId ? `/employee/log?companyId=${encodeURIComponent(companyId)}` : '/employee/log');
       }
     };
 

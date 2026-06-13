@@ -21,7 +21,7 @@ export type ManagerApiScope = {
 type ScopeSuccess = { ok: true; scope: ManagerApiScope };
 type ScopeFailure = { ok: false; response: NextResponse };
 
-const managerRoles = new Set(['boss', 'manager', 'admin', 'supervisor', 'owner']);
+const managerRoles = new Set(['admin', 'manager', 'owner', 'boss', 'supervisor']);
 
 export async function resolveManagerApiScope(request: NextRequest): Promise<ScopeSuccess | ScopeFailure> {
   const context = await resolveApiCompanyScope(request);

@@ -20,6 +20,7 @@ import { buildInviteEmailContent, sendInviteEmail } from '@/lib/inviteEmail';
 import { getAppBaseUrl } from '@/lib/inviteLinks';
 import { dispatchAlertNotifications } from '@/lib/notifications';
 import { mergeCompanySettings } from '@/lib/companySettings';
+import { runOnboardingWizard } from '@/lib/devOnboardingWizard';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
   let tableHealth: Record<string, string> = {};
   let labTokens: { unlinkedToken: string; linkedToken: string } | null = null;
   let linkedScenario = {
-    linkedEmail: linkedEmailParam || 'supdike25@hotmail.com',
+    linkedEmail: linkedEmailParam,
     hasAccount: false,
   };
 
@@ -91,6 +92,8 @@ export async function POST(request: NextRequest) {
     companyId?: string | null;
     email?: string;
     token?: string;
+    sendEmail?: boolean;
+    sendNotification?: boolean;
   } | null;
 
   const action = body?.action?.trim();
@@ -248,6 +251,29 @@ export async function POST(request: NextRequest) {
           : result.failures[0] || 'No notification sent.',
         details: result,
       });
+    }
+
+    if (action === 'run-onboarding-wizard') {
+      if (!companyId) {
+        return NextResponse.json({ ok: false, message: 'Select a company first.' }, { status: 400 });
+      }
+
+      const result = await runOnboardingWizard({
+        db,
+        companyId,
+        origin,
+        testEmail: body?.email?.trim() ?? '',
+        sendEmail: Boolean(body?.sendEmail),
+        sendNotification: Boolean(body?.sendNotification),
+      });
+
+      await logDevMessage(result.ok ? 'info' : 'warn', result.message, {
+        companyId,
+        invite_link: result.invite_link,
+        step_count: result.steps.length,
+      });
+
+      return NextResponse.json(result);
     }
 
     if (action === 'probe-url') {

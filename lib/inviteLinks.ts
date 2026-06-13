@@ -10,7 +10,7 @@ export const buildInviteLink = (token: string, baseUrl = '') => {
 };
 
 /** @deprecated Company codes are no longer used for invites. */
-export const buildSignupInviteLink = (_companyCode: string, _role: 'guard' | 'boss' = 'guard', baseUrl = '') =>
+export const buildSignupInviteLink = (_companyCode: string, _role: 'employee' | 'manager' = 'employee', baseUrl = '') =>
   `${getAppBaseUrl(baseUrl)}/create-account`;
 
 /** @deprecated Company codes are no longer used for invites. */

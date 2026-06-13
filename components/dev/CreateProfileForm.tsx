@@ -21,7 +21,7 @@ export default function CreateProfileForm({ companies }: { companies: AdminCompa
   const [passcode, setPasscode] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState('guard');
+  const [role, setRole] = useState('employee');
   const [companyId, setCompanyId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<CreateResult | null>(null);
@@ -59,7 +59,7 @@ export default function CreateProfileForm({ companies }: { companies: AdminCompa
       setPasscode('');
       setUsername('');
       setEmail('');
-      setRole('guard');
+      setRole('employee');
       setCompanyId('');
       window.setTimeout(() => window.location.reload(), 1200);
     } catch (error) {
@@ -124,9 +124,9 @@ export default function CreateProfileForm({ companies }: { companies: AdminCompa
         <label className="block text-sm">
           <span className="mb-1 block font-semibold text-slate-700">Role</span>
           <select value={role} onChange={(event) => setRole(event.target.value)} className="h-10 w-full rounded-lg border border-slate-300 px-3">
-            <option value="guard">lifeguard</option>
+            <option value="employee">Employee</option>
             <option value="manager">manager</option>
-            <option value="supervisor">supervisor</option>
+            <option value="manager">Manager</option>
             <option value="dev">dev</option>
           </select>
         </label>

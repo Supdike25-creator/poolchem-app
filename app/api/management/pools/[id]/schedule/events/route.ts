@@ -3,7 +3,7 @@ import { resolveApiCompanyScope } from '@/lib/apiCompanyScope';
 
 export const dynamic = 'force-dynamic';
 
-const managerRoles = new Set(['boss', 'manager', 'admin', 'supervisor', 'owner']);
+const managerRoles = new Set(['admin', 'manager', 'owner', 'boss', 'supervisor']);
 const validTypes = new Set(['holiday', 'party', 'maintenance', 'extended', 'custom']);
 
 const assertManagerAccess = (scope: { isDevPreview: boolean; account: { role?: string | null } | null }) => {

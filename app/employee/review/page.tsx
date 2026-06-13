@@ -80,28 +80,33 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
   const dayEnd = new Date(dayStart);
   dayEnd.setDate(dayEnd.getDate() + 1);
 
-  const query = supabase
-    .from('chemical_logs')
-    .select('id,pool_id,submitted_by,free_chlorine,ph,notes,created_at')
-    .gte('created_at', (isFullSheet ? dayStart : rangeStart).toISOString())
-    .lt('created_at', (isFullSheet ? dayEnd : rangeEnd).toISOString())
-    .order('created_at', { ascending: false });
-  if (poolIds.length) {
-    query.in('pool_id', poolIds);
-  } else if (companyId) {
-    query.in('pool_id', ['__no_pools_for_company__']);
-  }
-  if (!devCompanyId && user) {
-    query.eq('submitted_by', user.id);
-  }
+  const skipCompanyLogs = Boolean(companyId && poolIds.length === 0);
 
-  const { data: logs, error } = await query;
+  let guardLogs: ChemicalLogRow[] = [];
+  let logsError: { message: string } | null = null;
+  if (!skipCompanyLogs) {
+    const query = supabase
+      .from('chemical_logs')
+      .select('id,pool_id,submitted_by,free_chlorine,ph,notes,created_at')
+      .gte('created_at', (isFullSheet ? dayStart : rangeStart).toISOString())
+      .lt('created_at', (isFullSheet ? dayEnd : rangeEnd).toISOString())
+      .order('created_at', { ascending: false });
+    if (poolIds.length) {
+      query.in('pool_id', poolIds);
+    }
+    if (!devCompanyId && user) {
+      query.eq('submitted_by', user.id);
+    }
 
-  if (error && !temporaryLoginBypass) {
-    throw new Error(`Unable to load guard logs: ${error.message}`);
+    const { data: logs, error } = await query;
+    logsError = error;
+
+    if (error && !temporaryLoginBypass) {
+      throw new Error(`Unable to load guard logs: ${error.message}`);
+    }
+
+    guardLogs = (error ? [] : logs ?? []) as ChemicalLogRow[];
   }
-
-  const guardLogs = (error ? [] : logs ?? []) as ChemicalLogRow[];
   const submitterIds = Array.from(new Set(guardLogs.map((log) => log.submitted_by).filter(Boolean))) as string[];
   const { data: submitters } = submitterIds.length > 0
     ? await supabase
@@ -115,7 +120,7 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
       profile.full_name || profile.email || profile.id,
     ])
   );
-  const title = isFullSheet ? 'Full Guard Sheet' : 'Current Hour Logs';
+  const title = isFullSheet ? 'Full Employee Sheet' : 'Current Hour Logs';
   const subtitle = isFullSheet
     ? 'All of your submitted logs for today.'
     : `Only logs submitted from ${formatTime(rangeStart)} to ${formatTime(rangeEnd)}.`;
@@ -125,9 +130,9 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-wrap gap-2">
-            <BackButton fallbackHref="/guard" label="Back" />
+            <BackButton fallbackHref="/employee" label="Back" />
             <Link
-              href={isFullSheet ? '/guard/review' : '/guard/review?sheet=full'}
+              href={isFullSheet ? '/employee/review' : '/employee/review?sheet=full'}
               data-sound="click"
               className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100"
             >
@@ -135,7 +140,7 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
             </Link>
           </div>
           <Link
-            href="/guard/log"
+            href="/employee/log"
             data-sound="click"
             className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
           >
@@ -148,7 +153,7 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
           <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-600">{subtitle}</p>
         </div>
-        {temporaryLoginBypass && error ? (
+        {temporaryLoginBypass && logsError ? (
           <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
             Login bypass is active, so live Supabase log data may be hidden until the auth work is finished.
           </div>
@@ -194,7 +199,7 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
                         </td>
                         <td className="max-w-sm truncate px-4 py-3 text-sm text-slate-600">{log.notes || '—'}</td>
                         <td className="px-4 py-3 text-right text-sm">
-                          <Link href={`/guard/log?logId=${log.id}&poolId=${log.pool_id}`} data-sound="click" className="font-semibold text-blue-600 hover:text-blue-800">
+                          <Link href={`/employee/log?logId=${log.id}&poolId=${log.pool_id}`} data-sound="click" className="font-semibold text-blue-600 hover:text-blue-800">
                             Edit
                           </Link>
                         </td>

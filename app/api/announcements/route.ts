@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       title,
       message,
       priority: body?.priority || 'normal',
-      audience: body?.audience || 'all_lifeguards',
+      audience: body?.audience || 'all_employees',
       pool_id: body?.pool_id || null,
       created_by: isValidUuid(userId) ? userId : null,
       send_notification: body?.send_notification ?? true,

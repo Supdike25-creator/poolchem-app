@@ -137,7 +137,7 @@ export default function PoolHistoryPage({ params }: { params: { id: string } }) 
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
               <Clock3 className="mx-auto mb-3 h-6 w-6 text-slate-400" />
               <p className="text-sm font-semibold text-slate-950">No history yet.</p>
-              <p className="mt-1 text-sm text-slate-500">Once guards submit chemical tests, they&apos;ll appear here.</p>
+              <p className="mt-1 text-sm text-slate-500">Once employees submit chemical tests, they&apos;ll appear here.</p>
             </div>
           ) : (
             <div className="space-y-3">

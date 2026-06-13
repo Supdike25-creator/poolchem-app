@@ -93,7 +93,7 @@ export default function GuardSettingsPage() {
     window.location.href = '/';
   };
 
-  const backHref = companyId ? `/guard?companyId=${encodeURIComponent(companyId)}` : '/guard';
+  const backHref = companyId ? `/employee?companyId=${encodeURIComponent(companyId)}` : '/employee';
 
   if (loading) {
     return <p className="text-sm text-slate-500">Loading settings...</p>;

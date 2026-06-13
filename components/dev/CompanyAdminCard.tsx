@@ -32,6 +32,7 @@ export default function CompanyAdminCard({ company: initialCompany }: { company:
           scope="company"
           id={company.id}
           currentCode={company.company_code}
+          displayName={company.company_name}
           onActionComplete={(action, result) => {
             const details = result.details as { company_name?: string; company_code?: string } | undefined;
             if (result.ok && details?.company_code) {

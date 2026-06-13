@@ -130,7 +130,7 @@ async function upsertInvitedUserProfile(
     id: userId,
     email,
     full_name: fullName || email,
-    role: 'guard',
+    role: 'employee',
     status: 'active',
     active: true,
     company_id: companyId,
@@ -140,7 +140,7 @@ async function upsertInvitedUserProfile(
     id: userId,
     email,
     full_name: fullName || email,
-    role: 'guard',
+    role: 'employee',
     status: 'active',
     company_id: companyId,
   };
@@ -157,7 +157,7 @@ async function upsertInvitedUserProfile(
 
   await db
     .from('app_accounts')
-    .update({ company_id: companyId, role: 'guard' })
+    .update({ company_id: companyId, role: 'employee' })
     .eq('auth_user_id', userId);
 }
 
@@ -176,7 +176,7 @@ async function updateAuthCompanyMetadata(userId: string, companyId: string) {
     user_metadata: {
       ...(currentUser?.user_metadata ?? {}),
       company_id: companyId,
-      role: 'guard',
+      role: 'employee',
     },
   });
 }
@@ -206,7 +206,7 @@ export async function acceptCompanyInvite(
         ok: true,
         message: `You're already part of ${companyName}.`,
         company_name: companyName,
-        redirectTo: routeForRole(normalizeProfileRole('guard')),
+        redirectTo: routeForRole(normalizeProfileRole('employee')),
       };
     }
 
@@ -238,7 +238,7 @@ export async function acceptCompanyInvite(
     await upsertCompanyMembership(db, {
       userId: params.userId,
       companyId: existingUser.company_id,
-      role: existingUser.role ?? 'guard',
+      role: existingUser.role ?? 'employee',
     });
   }
 
@@ -253,7 +253,7 @@ export async function acceptCompanyInvite(
   await upsertCompanyMembership(db, {
     userId: params.userId,
     companyId: invite.company_id,
-    role: 'guard',
+    role: 'employee',
   });
 
   await db
@@ -275,7 +275,7 @@ export async function acceptCompanyInvite(
       ? `Welcome to ${companyName}! You can switch companies anytime in Settings.`
       : `Welcome to ${companyName}!`,
     company_name: companyName,
-    redirectTo: routeForRole(normalizeProfileRole('guard')),
+    redirectTo: routeForRole(normalizeProfileRole('employee')),
     switched_company: switchedCompany,
   };
 }
@@ -312,7 +312,7 @@ export async function createCompanyInvite(
       company_id: params.companyId,
       email,
       token,
-      invited_role: 'guard',
+      invited_role: 'employee',
       status: 'pending',
       created_by: params.createdBy ?? null,
     })

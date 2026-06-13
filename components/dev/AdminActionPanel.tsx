@@ -29,12 +29,14 @@ export default function AdminActionPanel({
   id,
   companies = [],
   currentCode = '',
+  displayName = '',
   onActionComplete,
 }: {
   scope: 'profile' | 'company' | 'pool' | 'system';
   id?: string;
   companies?: AdminCompany[];
   currentCode?: string;
+  displayName?: string;
   onActionComplete?: (action: string, result: Result) => void;
 }) {
   const [result, setResult] = useState<Result>({});
@@ -46,6 +48,17 @@ export default function AdminActionPanel({
   }, [currentCode]);
 
   const run = async (action: string, payload: Record<string, unknown> = {}) => {
+    if (action === 'delete-company') {
+      const label = displayName.trim() || 'this company';
+      if (
+        !window.confirm(
+          `Are you sure you want to delete ${label}? This removes its pools, chemical logs, invites, and team links. This cannot be undone.`,
+        )
+      ) {
+        return;
+      }
+    }
+
     setBusy(action);
     try {
       const response = await fetch('/api/dev/admin', {
@@ -108,9 +121,8 @@ export default function AdminActionPanel({
           defaultValue=""
         >
           <option value="" disabled>Change role</option>
-          <option value="guard">lifeguard</option>
-          <option value="manager">manager</option>
-          <option value="supervisor">supervisor</option>
+          <option value="employee">Employee</option>
+          <option value="manager">Manager</option>
           <option value="dev">dev</option>
         </select>
         <select

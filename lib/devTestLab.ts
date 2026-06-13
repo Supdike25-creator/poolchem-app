@@ -1,7 +1,7 @@
 import { buildChemDeckEmailHtml } from '@/lib/email';
 import { buildInviteEmailContent, inviteEmailHasAccount } from '@/lib/inviteEmail';
 import { getAppBaseUrl } from '@/lib/inviteLinks';
-import { buildInviteUrl, createCompanyInvite, listPendingInvites } from '@/lib/companyInvites';
+import { buildInviteUrl, createCompanyInvite, isInviteEmailValid, listPendingInvites } from '@/lib/companyInvites';
 import { mergeCompanySettings } from '@/lib/companySettings';
 import { buildDevHotbarItems, perspectiveHomePath } from '@/lib/devPerspective';
 import {
@@ -79,7 +79,7 @@ export function buildEmailPreviews(input: {
 }): DevTestLabEmailPreview[] {
   const origin = getAppBaseUrl(input.origin);
   const unlinkedEmail = DEV_LAB_UNLINKED_EMAIL;
-  const linkedEmail = input.linkedEmail?.trim().toLowerCase() || 'existing.lifeguard@example.com';
+  const linkedEmail = input.linkedEmail?.trim().toLowerCase() || 'existing.employee@example.com';
   const linkedHasAccount = input.linkedHasAccount ?? true;
   const unlinkedToken = input.unlinkedToken ?? '';
   const linkedToken = input.linkedToken ?? '';
@@ -129,7 +129,7 @@ export function buildEmailPreviews(input: {
     title: 'Pool closed for maintenance',
     bodyHtml: `<p style="margin:0;font-size:16px;line-height:1.7;">Main pool is closed until 2 PM for chemical balance adjustment.</p>`,
     actionLabel: 'View announcement',
-    actionUrl: `${origin}/guard/announcements`,
+    actionUrl: `${origin}/employee/announcements`,
     footer: 'You are receiving this because announcement notifications are enabled in ChemDeck settings.',
   });
 
@@ -171,8 +171,8 @@ export function buildEmailPreviews(input: {
       kind: 'announcement',
       subject: `[ChemDeck] Pool closed for maintenance`,
       html: announcementHtml,
-      text: `Announcement\n\nView: ${origin}/guard/announcements`,
-      links: [{ label: 'View announcement', url: `${origin}/guard/announcements` }],
+      text: `Announcement\n\nView: ${origin}/employee/announcements`,
+      links: [{ label: 'View announcement', url: `${origin}/employee/announcements` }],
     },
     {
       kind: 'daily_summary',
@@ -193,20 +193,20 @@ export function buildRouteGroups(companyId?: string | null) {
       { label: 'Create manager account', url: '/create-account', description: 'Public manager signup' },
       { label: 'Sign in', url: '/login', description: 'Existing users' },
       { label: 'Create company', url: '/create-company', description: 'After manager signup' },
-      { label: 'Invite required (lifeguard)', url: '/choose-role', description: 'Guard without invite' },
+      { label: 'Invite required (employee)', url: '/choose-role', description: 'Guard without invite' },
     ] satisfies DevTestLabLink[],
     dev: toNavRouteLinks(buildDevHotbarItems(companyId), 'Dev console'),
     manager: toNavRouteLinks(buildManagerNavItems(companyId), 'Manager POV'),
-    lifeguard: toNavRouteLinks(buildGuardNavItems(companyId), 'Lifeguard POV'),
+    employee: toNavRouteLinks(buildGuardNavItems(companyId), 'Employee POV'),
     pov_homes: [
       { label: 'Dev home', url: perspectiveHomePath('dev', companyId), description: 'D perspective' },
       { label: 'Manager home', url: perspectiveHomePath('manager', companyId), description: 'M perspective' },
-      { label: 'Lifeguard home', url: perspectiveHomePath('lifeguard', companyId), description: 'L perspective' },
+      { label: 'Employee home', url: perspectiveHomePath('employee', companyId), description: 'E perspective' },
     ] satisfies DevTestLabLink[],
     auth_preview: [
       { label: 'Manager settings', url: app('/management/settings') },
       { label: 'Team invites', url: app('/management/team') },
-      { label: 'Submit log', url: app('/guard/log') },
+      { label: 'Submit log', url: app('/employee/log') },
     ] satisfies DevTestLabLink[],
   };
 }
@@ -259,18 +259,21 @@ export async function ensureDevLabInvites(
   linkedEmail: string,
 ) {
   const normalizedLinked = linkedEmail.trim().toLowerCase();
-  const [{ token: unlinkedToken }, { token: linkedToken }] = await Promise.all([
-    createCompanyInvite(db, {
-      companyId,
-      email: DEV_LAB_UNLINKED_EMAIL,
-      createdBy: null,
-    }),
-    createCompanyInvite(db, {
-      companyId,
-      email: normalizedLinked,
-      createdBy: null,
-    }),
-  ]);
+  const { token: unlinkedToken } = await createCompanyInvite(db, {
+    companyId,
+    email: DEV_LAB_UNLINKED_EMAIL,
+    createdBy: null,
+  });
+
+  if (!isInviteEmailValid(normalizedLinked)) {
+    return { unlinkedToken, linkedToken: '', linkedEmail: normalizedLinked };
+  }
+
+  const { token: linkedToken } = await createCompanyInvite(db, {
+    companyId,
+    email: normalizedLinked,
+    createdBy: null,
+  });
 
   return { unlinkedToken, linkedToken, linkedEmail: normalizedLinked };
 }
@@ -281,7 +284,7 @@ export async function resolveLinkedInviteScenario(
 ) {
   const normalized = linkedEmail.trim().toLowerCase();
   const hasAccount = normalized ? await inviteEmailHasAccount(db, normalized) : false;
-  return { linkedEmail: normalized || 'existing.lifeguard@example.com', hasAccount };
+  return { linkedEmail: normalized || 'existing.employee@example.com', hasAccount };
 }
 
 export async function loadCompanySettings(db: SupabaseClient, companyId: string) {

@@ -39,7 +39,7 @@ const createWorkerProfilePayload = (userId: string, email: string) => ({
   id: userId,
   email,
   full_name: email,
-  role: "guard",
+  role: "employee",
   status: "active",
   active: true,
   company_id: null,
@@ -87,7 +87,7 @@ async function upsertWorkerRows(db: SupabaseClient, userId: string, email: strin
     id: userId,
     email,
     full_name: email,
-    role: "guard",
+    role: "employee",
     status: "active",
     company_id: null,
   };
@@ -135,7 +135,7 @@ async function updateAuthCompanyMetadata(userId: string, companyId: string, role
     user_metadata: {
       ...(currentUser?.user_metadata ?? {}),
       company_id: companyId,
-      role: role || currentUser?.user_metadata?.role || "guard",
+      role: role || currentUser?.user_metadata?.role || "employee",
     },
   });
 }
@@ -223,7 +223,7 @@ export async function POST(request: NextRequest) {
     return jsonError("Invalid or expired company code.", 404);
   }
 
-  const membershipStatus = normalizeProfileRole(account.role) === "guard" ? "pending" : "active";
+  const membershipStatus = normalizeProfileRole(account.role) === "employee" ? "pending" : "active";
 
   const { error: updateUserError } = await updateCompanyMembership(db, "users", "id", user.id, company.id, membershipStatus);
 

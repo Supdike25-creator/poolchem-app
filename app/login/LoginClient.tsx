@@ -24,7 +24,7 @@ import { createClient } from '@/utils/supabase/client';
 
 const roleLabels: Record<AppRole, string> = {
   manager: 'Manager',
-  guard: 'Lifeguard',
+  employee: 'Employee',
   dev: 'Dev',
 };
 
@@ -40,7 +40,7 @@ const devAccount: AppAccount = {
 
 const redirectRoute = (role: AppRole) => {
   if (role === 'dev') return '/dev-dashboard';
-  return role === 'manager' ? '/management/dashboard' : '/guard';
+  return role === 'manager' ? '/management/dashboard' : '/employee';
 };
 const pendingAuthKey = 'chemdeck.pendingEmailAuth';
 type AuthAction = 'create' | 'recover';

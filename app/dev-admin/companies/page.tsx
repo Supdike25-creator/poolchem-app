@@ -16,7 +16,7 @@ export default async function DevAdminCompaniesPage() {
         <CreateCompanyForm />
         {companies.length === 0 ? (
           <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-600">
-            No companies yet. Create one above to start testing manager and lifeguard flows.
+            No companies yet. Create one above to start testing manager and employee flows.
           </div>
         ) : (
           <div className="grid gap-4">

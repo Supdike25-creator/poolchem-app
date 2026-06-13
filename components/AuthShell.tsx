@@ -32,7 +32,8 @@ type Profile = {
 
 const roleLabels: Record<AppRole, string> = {
   manager: 'Manager',
-  guard: 'Lifeguard',
+  employee: 'Employee',
+  admin: 'Admin',
   dev: 'Dev',
 };
 
@@ -131,7 +132,7 @@ function AuthShellSidebarHeader({ role }: { role: AppRole }) {
       <ChemDeckLogo variant="mark" className="h-10 w-10 group-hover:hidden group-focus-within:hidden" />
       <div className="sidebar-label hidden min-w-0 group-hover:block group-focus-within:block">
         <ChemDeckLogo variant="full" className="w-40" />
-        <p className="mt-1 truncate text-sm font-semibold text-slate-950">{role === 'manager' ? 'Management' : 'Lifeguard'}</p>
+        <p className="mt-1 truncate text-sm font-semibold text-slate-950">{role === 'manager' ? 'Management' : 'Employee'}</p>
       </div>
     </div>
   );
@@ -187,7 +188,7 @@ function AuthShellFrame({
                 <ChemDeckLogo variant="full" className="hidden w-40 sm:block" />
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{roleLabels[role]}</p>
-                  <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{role === 'manager' ? 'Management Workspace' : 'Lifeguard Workbench'}</h1>
+                  <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{role === 'manager' ? 'Management Workspace' : 'Employee Workbench'}</h1>
                 </div>
               </div>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
@@ -257,10 +258,10 @@ function AuthShellFrame({
               </div>
             </div>
           ) : null}
-          <WorkspaceBackLink role={role === 'manager' ? 'manager' : 'guard'} />
+          <WorkspaceBackLink role={role === 'manager' ? 'manager' : 'employee'} />
           {children}
         </div>
-        {role === 'guard' ? <InstallAppBanner /> : null}
+        {role === 'employee' ? <InstallAppBanner /> : null}
       </main>
     </div>
   );
@@ -275,7 +276,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
   const isDevPreview = profile?.role === 'dev' && role !== 'dev';
   const companyId = searchParams.get('companyId');
   const sidebarItems = useMemo(() => {
-    if (role === 'guard') return buildGuardNavItems(companyId);
+    if (role === 'employee') return buildGuardNavItems(companyId);
     if (role === 'manager') return buildManagerNavItems(companyId);
     return undefined;
   }, [role, companyId]);
@@ -296,7 +297,7 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
           return;
         }
 
-        if (appSession && (appSession.role === 'guard' || appSession.role === 'manager')) {
+        if (appSession && (appSession.role === 'employee' || appSession.role === 'manager')) {
           if (appSession.role !== role) {
             router.replace(routeForRole(appSession.role));
             return;
@@ -354,12 +355,12 @@ export default function AuthShell({ role, children }: { role: AppRole; children:
           return;
         }
 
-        if (rawRole === 'boss' && !hasCompany) {
+        if (rawRole === 'manager' && !hasCompany) {
           router.replace('/create-company');
           return;
         }
 
-        if (rawRole === 'guard' && !hasCompany) {
+        if (rawRole === 'employee' && !hasCompany) {
           router.replace('/choose-role');
           return;
         }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { assertDevRequest, logDevMessage, logDevRequest } from '@/lib/devTools';
+import { assertDevRequest, deleteCompanyCascade, logDevMessage, logDevRequest } from '@/lib/devTools';
 import { resolveDevUserRoles } from '@/lib/devRoleMapping';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
           return jsonError('Passcode must be at least 4 characters.');
         }
 
-        const { workplaceRole } = resolveDevUserRoles(body.role ?? 'guard');
+        const { workplaceRole } = resolveDevUserRoles(body.role ?? 'employee');
 
         const { data, error } = await supabase.rpc('dev_admin_create_user', {
           p_name: displayName,
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
 
       if (body.action === 'change-role') {
         const { workplaceRole, loginRole } = resolveDevUserRoles(body.role ?? '');
-        if (!['manager', 'supervisor', 'guard', 'dev'].includes(workplaceRole)) {
+        if (!['manager', 'employee', 'dev'].includes(workplaceRole)) {
           return jsonError('Invalid role.');
         }
 
@@ -360,9 +360,13 @@ export async function POST(request: NextRequest) {
       }
 
       if (body.action === 'delete-company') {
-        const { error } = await supabase.from('companies').delete().eq('id', body.id);
-        if (error) return dbError(error);
-        response = { ok: true, message: 'Company deleted.' };
+        if (!body.id) return jsonError('Missing company id.');
+        const result = await deleteCompanyCascade(supabase, body.id);
+        if (!result.ok) return dbError({ message: result.message });
+        response = {
+          ok: true,
+          message: 'Company deleted along with its pools, logs, invites, and related records.',
+        };
       }
 
       if (body.action === 'view-users') {

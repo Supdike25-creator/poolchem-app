@@ -42,7 +42,7 @@ export default function InvitePageClient({ token }: { token: string }) {
   const finishJoin = (acceptResult: { message?: string; redirectTo?: string }) => {
     setNotice(acceptResult.message || 'Welcome aboard!');
     window.setTimeout(() => {
-      window.location.assign(acceptResult.redirectTo || '/guard');
+      window.location.assign(acceptResult.redirectTo || '/employee');
     }, 700);
   };
 
