@@ -80,28 +80,31 @@ export default async function GuardReviewPage({ searchParams }: { searchParams: 
   const dayEnd = new Date(dayStart);
   dayEnd.setDate(dayEnd.getDate() + 1);
 
-  const query = supabase
-    .from('chemical_logs')
-    .select('id,pool_id,submitted_by,free_chlorine,ph,notes,created_at')
-    .gte('created_at', (isFullSheet ? dayStart : rangeStart).toISOString())
-    .lt('created_at', (isFullSheet ? dayEnd : rangeEnd).toISOString())
-    .order('created_at', { ascending: false });
-  if (poolIds.length) {
-    query.in('pool_id', poolIds);
-  } else if (companyId) {
-    query.in('pool_id', ['__no_pools_for_company__']);
-  }
-  if (!devCompanyId && user) {
-    query.eq('submitted_by', user.id);
-  }
+  const skipCompanyLogs = Boolean(companyId && poolIds.length === 0);
 
-  const { data: logs, error } = await query;
+  let guardLogs: ChemicalLogRow[] = [];
+  if (!skipCompanyLogs) {
+    const query = supabase
+      .from('chemical_logs')
+      .select('id,pool_id,submitted_by,free_chlorine,ph,notes,created_at')
+      .gte('created_at', (isFullSheet ? dayStart : rangeStart).toISOString())
+      .lt('created_at', (isFullSheet ? dayEnd : rangeEnd).toISOString())
+      .order('created_at', { ascending: false });
+    if (poolIds.length) {
+      query.in('pool_id', poolIds);
+    }
+    if (!devCompanyId && user) {
+      query.eq('submitted_by', user.id);
+    }
 
-  if (error && !temporaryLoginBypass) {
-    throw new Error(`Unable to load guard logs: ${error.message}`);
+    const { data: logs, error } = await query;
+
+    if (error && !temporaryLoginBypass) {
+      throw new Error(`Unable to load guard logs: ${error.message}`);
+    }
+
+    guardLogs = (error ? [] : logs ?? []) as ChemicalLogRow[];
   }
-
-  const guardLogs = (error ? [] : logs ?? []) as ChemicalLogRow[];
   const submitterIds = Array.from(new Set(guardLogs.map((log) => log.submitted_by).filter(Boolean))) as string[];
   const { data: submitters } = submitterIds.length > 0
     ? await supabase
