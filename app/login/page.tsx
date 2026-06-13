@@ -372,7 +372,7 @@ export default function LoginPage() {
             {loading ? "Signing in..." : "Sign In"}
           </button>
           <Link
-            href="/create-account"
+            href="/signup"
             className="flex h-12 w-full items-center justify-center rounded-md border border-[#3EC6FF] bg-[rgba(62,198,255,0.15)] px-4 text-sm font-semibold text-[#3EC6FF] transition hover:bg-[rgba(62,198,255,0.25)]"
           >
             Create manager account

@@ -7,6 +7,9 @@ import { isDevRequest } from "@/lib/auth/devSession";
 
 const PUBLIC_PATHS = [
   "/",
+  "/features",
+  "/pricing",
+  "/about",
   "/login",
   "/create-account",
   "/signup",
@@ -47,6 +50,11 @@ const isEmployeeStoredRole = (role: string) =>
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (pathname === "/features" || pathname === "/pricing" || pathname === "/about") {
+    return NextResponse.next({ request });
+  }
+
   const hasDevSession = isDevRequest(request);
   const hasJustJoinedCompany = request.cookies.get("chemdeck.justJoinedCompany")?.value === "true";
   const pendingRole = request.cookies.get("chemdeck.pendingRole")?.value;

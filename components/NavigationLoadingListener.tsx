@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import ChemDeckLoadingScreen from '@/components/ChemDeckLoadingScreen';
+import { isMarketingPath } from '@/components/marketing/marketingContent';
 
 function NavigationLoadingListenerInner() {
   const pathname = usePathname();
@@ -45,6 +46,10 @@ function NavigationLoadingListenerInner() {
       const destination = `${url.pathname}${url.search}`;
       const current = `${window.location.pathname}${window.location.search}`;
       if (destination === current) return;
+
+      if (isMarketingPath(url.pathname) || isMarketingPath(window.location.pathname)) {
+        return;
+      }
 
       setLoading(true);
     };
