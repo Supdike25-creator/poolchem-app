@@ -16,6 +16,7 @@ import {
 import { useState } from 'react';
 import ChemDeckLogo from '@/components/ChemDeckLogo';
 import InstallAppBanner from '@/components/InstallAppBanner';
+import ScheduleDemoModal from '@/components/marketing/ScheduleDemoModal';
 import PwaLaunchRedirect from '@/components/PwaLaunchRedirect';
 
 const navLinks = [
@@ -116,9 +117,11 @@ const SkeletonLines = ({ count, dark = false }: { count: number; dark?: boolean 
 
 export default function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [demoOpen, setDemoOpen] = useState(false);
 
   return (
     <main className="min-h-screen scroll-smooth bg-slate-50 text-slate-950">
+      <ScheduleDemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
       <PwaLaunchRedirect />
       <header className="fixed inset-x-0 top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur">
         <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
@@ -135,17 +138,24 @@ export default function Home() {
           </div>
 
           <div className="hidden items-center gap-3 md:flex">
+            <button
+              type="button"
+              onClick={() => setDemoOpen(true)}
+              className="rounded-lg bg-[#0A1A2F] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#12345c]"
+            >
+              Schedule Demo
+            </button>
+            <Link
+              href="/signup"
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+            >
+              Start Free Trial
+            </Link>
             <Link
               href="/login"
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
               Log In
-            </Link>
-            <Link
-              href="/signup"
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-            >
-              Get Started
             </Link>
           </div>
 
@@ -173,21 +183,33 @@ export default function Home() {
                   {link.label}
                 </Link>
               ))}
-              <div className="mt-2 grid grid-cols-2 gap-3">
-                <Link
-                  href="/login"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-50"
+              <div className="mt-2 grid gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setDemoOpen(true);
+                  }}
+                  className="rounded-lg bg-[#0A1A2F] px-4 py-2 text-center text-sm font-medium text-white hover:bg-[#12345c]"
                 >
-                  Log In
-                </Link>
-                <Link
-                  href="/signup"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-blue-700"
-                >
-                  Get Started
-                </Link>
+                  Schedule Demo
+                </button>
+                <div className="grid grid-cols-2 gap-3">
+                  <Link
+                    href="/login"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Log In
+                  </Link>
+                  <Link
+                    href="/signup"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-blue-700"
+                  >
+                    Start Free Trial
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
@@ -226,7 +248,7 @@ export default function Home() {
               href="#features"
               className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-base font-semibold text-slate-700 transition hover:bg-slate-50"
             >
-              See How It Works
+              See Features
             </Link>
           </div>
           <p className="mt-6 text-center text-sm text-slate-400">No credit card required · Setup in under 5 minutes</p>

@@ -18,6 +18,7 @@ const PUBLIC_PATHS = [
   "/manifest.json",
   "/sw.js",
   "/api/create-account",
+  "/api/schedule-demo",
   "/auth/callback",
   "/api/spotify/callback",
 ];
