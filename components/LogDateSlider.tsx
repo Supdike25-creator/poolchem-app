@@ -34,22 +34,18 @@ export default function LogDateSlider({ selectedDate }: { selectedDate: string }
     router.push(`/management/logs?${params.toString()}`);
   };
 
-  const presets = [
-    { label: 'Yesterday', value: getPresetDate(-1) },
-    { label: 'Today', value: getPresetDate(0) },
-    { label: 'Tomorrow', value: getPresetDate(1) },
-  ];
+  const todayDate = getPresetDate(0);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-700">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700">
             <CalendarDays className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Selected Day</p>
-            <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950">{formatSelectedDate(selectedDate)}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Selected day</p>
+            <p className="mt-1 text-xl font-semibold tracking-tight text-slate-950">{formatSelectedDate(selectedDate)}</p>
           </div>
         </div>
 
@@ -59,7 +55,7 @@ export default function LogDateSlider({ selectedDate }: { selectedDate: string }
               type="button"
               data-sound="click"
               onClick={() => updateDate(addDays(selectedDate, -1))}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
               aria-label="Previous day"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -68,37 +64,32 @@ export default function LogDateSlider({ selectedDate }: { selectedDate: string }
               type="date"
               value={selectedDate}
               onChange={(event) => updateDate(event.target.value)}
-              className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               aria-label="Select log date"
             />
             <button
               type="button"
               data-sound="click"
               onClick={() => updateDate(addDays(selectedDate, 1))}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
               aria-label="Next day"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {presets.map((preset) => (
-              <button
-                key={preset.label}
-                type="button"
-                data-sound="click"
-                onClick={() => updateDate(preset.value)}
-                className={`h-9 rounded-lg border px-3 text-sm font-semibold shadow-sm transition-colors ${
-                  selectedDate === preset.value
-                    ? 'border-blue-300 bg-blue-50 text-blue-800'
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            data-sound="click"
+            onClick={() => updateDate(todayDate)}
+            className={`h-10 rounded-xl border px-4 text-sm font-semibold shadow-sm transition-colors ${
+              selectedDate === todayDate
+                ? 'border-blue-300 bg-blue-50 text-blue-800'
+                : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            Today
+          </button>
         </div>
       </div>
     </div>

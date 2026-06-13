@@ -1,34 +1,47 @@
-import Image from 'next/image';
-
 type ChemDeckLogoProps = {
   variant?: "full" | "mark";
-  scheme?: "light" | "dark";
+  scheme?: "auto" | "light" | "dark";
   className?: string;
   alt?: string;
 };
 
 export default function ChemDeckLogo({
   variant = "full",
-  scheme = "light",
+  scheme = "auto",
   className = "",
   alt = "ChemDeck logo",
 }: ChemDeckLogoProps) {
-  const src = variant === "full"
-    ? scheme === "dark" ? "/chemdeck-logo-full-dark.svg" : "/chemdeck-logo-full.svg"
-    : scheme === "dark" ? "/chemdeck-mark-dark.svg" : "/chemdeck-mark.svg";
-  const width = variant === "full" ? 176 : 40;
-  const height = variant === "full" ? 40 : 40;
-  const defaultClassName = variant === "full" ? "h-auto w-44 max-w-full" : "h-10 w-10";
+  const lightSrc = variant === "full" ? "/chemdeck-logo-full.svg" : "/chemdeck-mark.svg";
+  const darkSrc = variant === "full" ? "/chemdeck-logo-full-dark.svg" : "/chemdeck-mark-dark.svg";
+  const baseSize = variant === "full" ? "h-auto w-44 max-w-full" : "h-10 w-10";
+  const imageClass = `${baseSize} shrink-0 object-contain ${className}`;
+
+  if (scheme !== "auto") {
+    return (
+      <img
+        src={scheme === "dark" ? darkSrc : lightSrc}
+        alt={alt}
+        className={imageClass}
+        draggable={false}
+      />
+    );
+  }
 
   return (
-    <Image
-      src={src}
-      alt={alt}
-      width={width}
-      height={height}
-      className={`shrink-0 object-contain ${className || defaultClassName}`}
-      draggable={false}
-      priority={variant === "full"}
-    />
+    <span className={`chemdeck-logo-auto inline-flex shrink-0 ${className}`}>
+      <img
+        src={lightSrc}
+        alt={alt}
+        className={`${baseSize} chemdeck-logo-light shrink-0 object-contain`}
+        draggable={false}
+      />
+      <img
+        src={darkSrc}
+        alt=""
+        aria-hidden="true"
+        className={`${baseSize} chemdeck-logo-dark shrink-0 object-contain`}
+        draggable={false}
+      />
+    </span>
   );
 }
